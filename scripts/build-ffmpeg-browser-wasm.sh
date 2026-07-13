@@ -4,16 +4,47 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ffmpeg_dir="$repo_root/ffmpeg"
-artifacts_dir="${FFMPEG_ARTIFACTS_DIR:-$repo_root/artifacts/ffmpeg-browser-wasm}"
+variant="${1:-single-threaded}"
+
+if [[ $# -gt 1 ]]; then
+  echo "Usage: $0 [single-threaded|multi-threaded]" >&2
+  exit 2
+fi
+
+case "$variant" in
+  single-threaded)
+    artifact_name="ffmpeg-browser-wasm"
+    thread_options=(--disable-pthreads --disable-w32threads --disable-os2threads)
+    expected_pthreads=0
+    ;;
+  multi-threaded)
+    artifact_name="ffmpeg-MT-browser-wasm"
+    thread_options=()
+    expected_pthreads=1
+    ;;
+  *)
+    echo "Unknown build variant '$variant'. Expected 'single-threaded' or 'multi-threaded'." >&2
+    exit 2
+    ;;
+esac
+
+build_dir="${FFMPEG_BUILD_DIR:-$repo_root/artifacts/build/$artifact_name}"
+artifacts_dir="${FFMPEG_ARTIFACTS_DIR:-$repo_root/artifacts/$artifact_name}"
 
 if [[ ! -x "$ffmpeg_dir/configure" ]]; then
   echo "FFmpeg is not initialized at '$ffmpeg_dir'. Run 'git submodule update --init'." >&2
   exit 1
 fi
 
-cd "$ffmpeg_dir"
+if [[ -f "$ffmpeg_dir/ffbuild/config.mak" ]]; then
+  make -C "$ffmpeg_dir" distclean
+fi
 
-emconfigure ./configure \
+rm -rf -- "$build_dir"
+mkdir -p "$build_dir"
+cd "$build_dir"
+
+emconfigure "$ffmpeg_dir/configure" \
   --cc=emcc \
   --cxx=em++ \
   --ar=emar \
@@ -25,7 +56,7 @@ emconfigure ./configure \
   --disable-x86asm \
   --disable-inline-asm \
   --enable-static \
-  --disable-pthreads --disable-w32threads --disable-os2threads \
+  "${thread_options[@]}" \
   --disable-shared \
   --disable-programs \
   --disable-debug \
@@ -124,13 +155,18 @@ emconfigure ./configure \
   --enable-decoder=pcm_u8 \
   --enable-stripping
 
+if ! grep -q "^#define HAVE_PTHREADS $expected_pthreads$" config.h; then
+  echo "FFmpeg configured an unexpected pthread state for '$variant'." >&2
+  exit 1
+fi
+
 emmake make -j32
 
 archives=(
-  "$ffmpeg_dir/libavcodec/libavcodec.a"
-  "$ffmpeg_dir/libavformat/libavformat.a"
-  "$ffmpeg_dir/libavutil/libavutil.a"
-  "$ffmpeg_dir/libswresample/libswresample.a"
+  "$build_dir/libavcodec/libavcodec.a"
+  "$build_dir/libavformat/libavformat.a"
+  "$build_dir/libavutil/libavutil.a"
+  "$build_dir/libswresample/libswresample.a"
 )
 
 for archive in "${archives[@]}"; do
@@ -147,4 +183,4 @@ for archive in "${archives[@]}"; do
   cp "$archive" "$artifacts_dir/"
 done
 
-printf 'Staged %d FFmpeg archives in %s\n' "${#archives[@]}" "$artifacts_dir"
+printf "Staged %d FFmpeg archives for '%s' in %s\n" "${#archives[@]}" "$variant" "$artifacts_dir"

@@ -1,33 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
     <PackageId>LightStudio.Ffmpeg.browser-wasm</PackageId>
-    <Version>8.1.2</Version>
-    <Authors>LightStudio</Authors>
-    <Description>Static FFmpeg libraries built with Emscripten for the browser-wasm runtime.</Description>
-    <PackageTags>ffmpeg;webassembly;wasm;browser-wasm;emscripten</PackageTags>
-    <PackageLicenseExpression>LGPL-2.1-or-later</PackageLicenseExpression>
+    <Description>Single-threaded static FFmpeg libraries built with Emscripten for the browser-wasm runtime.</Description>
+    <PackageTags>ffmpeg;webassembly;wasm;browser-wasm;emscripten;single-threaded</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
-    <RepositoryType>git</RepositoryType>
-    <RepositoryUrl>https://github.com/hjc4869/LightPlayer-Packages</RepositoryUrl>
-    <IncludeBuildOutput>false</IncludeBuildOutput>
-    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
-    <IsPackable>true</IsPackable>
-    <FFmpegArtifactsPath Condition="'$(FFmpegArtifactsPath)' == ''">$(MSBuildThisFileDirectory)../artifacts/ffmpeg-browser-wasm</FFmpegArtifactsPath>
+    <FFmpegArtifactsPath>$(MSBuildThisFileDirectory)../artifacts/ffmpeg-browser-wasm</FFmpegArtifactsPath>
   </PropertyGroup>
 
-  <ItemGroup>
-    <None Include="$(FFmpegArtifactsPath)/*.a" Pack="true" PackagePath="runtimes/browser-wasm/native/" />
-    <None Include="README.md" Pack="true" PackagePath="/" />
-    <None Include="../ffmpeg/LICENSE.md" Pack="true" PackagePath="licenses/FFmpeg-LICENSE.md" />
-    <None Include="../ffmpeg/COPYING.LGPLv2.1" Pack="true" PackagePath="licenses/" />
-  </ItemGroup>
-
-  <Target Name="ValidateFFmpegArchives" BeforeTargets="GenerateNuspec">
-    <ItemGroup>
-      <_FFmpegArchive Include="$(FFmpegArtifactsPath)/*.a" />
-    </ItemGroup>
-    <Error Condition="'@(_FFmpegArchive)' == ''" Text="No FFmpeg archives were found in '$(FFmpegArtifactsPath)'. Build FFmpeg before packing." />
-  </Target>
+  <Import Project="FFmpeg.browser-wasm.Package.targets" />
 </Project>

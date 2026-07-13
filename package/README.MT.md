@@ -1,6 +1,6 @@
-# LightStudio.Ffmpeg.browser-wasm
+# LightStudio.Ffmpeg.MT.browser-wasm
 
-This package contains single-threaded FFmpeg 8.1.2 static libraries compiled with Emscripten for the .NET `browser-wasm` runtime. FFmpeg pthread, Win32 thread, and OS/2 thread support are disabled in this variant.
+This package contains pthread-enabled FFmpeg 8.1.2 static libraries compiled with Emscripten for the .NET `browser-wasm` runtime. The consuming WebAssembly application must enable shared memory and provide the required cross-origin isolation headers.
 
 The archives are installed under `runtimes/browser-wasm/native`:
 
