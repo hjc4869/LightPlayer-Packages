@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <PackageId>LightStudio.Ffmpeg.osx-arm64</PackageId>
+    <Description>Static and dynamic FFmpeg libraries built for Apple silicon and the .NET osx-arm64 runtime.</Description>
+    <PackageTags>ffmpeg;macos;osx;arm64;apple-silicon;native;static;shared</PackageTags>
+    <PackageReadmeFile>README.osx-arm64.md</PackageReadmeFile>
+    <FFmpegArtifactsPath>$(MSBuildThisFileDirectory)../artifacts/ffmpeg-osx-arm64</FFmpegArtifactsPath>
+  </PropertyGroup>
+
+  <Import Project="FFmpeg.osx-arm64.Package.targets" />
+</Project>

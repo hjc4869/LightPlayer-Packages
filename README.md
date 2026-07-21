@@ -1,17 +1,20 @@
 # LightPlayer Packages
 
-This repository builds and publishes two NuGet packages containing FFmpeg 8.1.2 static libraries for the .NET `browser-wasm` runtime:
+This repository builds and publishes three NuGet packages containing FFmpeg 8.1.2 libraries for .NET:
 
-| Package | Threading model |
-| --- | --- |
-| `LightStudio.Ffmpeg.browser-wasm` | Single-threaded; pthread, Win32 thread, and OS/2 thread support are disabled. |
-| `LightStudio.Ffmpeg.MT.browser-wasm` | Emscripten pthread support is enabled through FFmpeg's automatic detection. |
+| Package | Runtime | Threading model |
+| --- | --- | --- |
+| `LightStudio.Ffmpeg.browser-wasm` | `browser-wasm` | Single-threaded; pthread, Win32 thread, and OS/2 thread support are disabled. |
+| `LightStudio.Ffmpeg.MT.browser-wasm` | `browser-wasm` | Emscripten pthread support is enabled through FFmpeg's automatic detection. |
+| `LightStudio.Ffmpeg.osx-arm64` | `osx-arm64` | Native pthread support is enabled. |
 
 The MT package requires the consuming WebAssembly application to enable shared memory and serve the cross-origin isolation headers required by browser pthreads.
 
+The osx-arm64 package contains both static archives and dynamic libraries. The browser-wasm packages contain static archives only.
+
 ## Publish
 
-Push a tag named `ffmpeg-v<package-version>` to build both FFmpeg variants with Emscripten and publish both packages to this repository's GitHub Packages feed. For version 8.1.2:
+Push a tag named `ffmpeg-v<package-version>` to build both browser-wasm variants and the osx-arm64 variant, then publish all three packages to this repository's GitHub Packages feed. For version 8.1.2:
 
 ```bash
 git tag ffmpeg-v8.1.2
@@ -33,14 +36,15 @@ Add the repository owner's GitHub Packages feed to the consuming project's NuGet
 </configuration>
 ```
 
-Authenticate to the feed with a GitHub token that has `read:packages`, then add one of the packages:
+Authenticate to the feed with a GitHub token that has `read:packages`, then add the package for the target runtime:
 
 ```bash
 dotnet add package LightStudio.Ffmpeg.browser-wasm --version 8.1.2
 dotnet add package LightStudio.Ffmpeg.MT.browser-wasm --version 8.1.2
+dotnet add package LightStudio.Ffmpeg.osx-arm64 --version 8.1.2
 ```
 
-The archives are packaged under `runtimes/browser-wasm/native`, which is NuGet's native asset convention for the `browser-wasm` runtime identifier.
+The browser archives are packaged under `runtimes/browser-wasm/native`. The Apple silicon static and dynamic libraries are packaged under `runtimes/osx-arm64/native` and target macOS 11.0 or later.
 
 ## Local builds
 
@@ -52,4 +56,8 @@ dotnet pack package/LightStudio.Ffmpeg.browser-wasm.csproj --output artifacts/pa
 
 ./scripts/build-ffmpeg-browser-wasm.sh multi-threaded
 dotnet pack package/LightStudio.Ffmpeg.MT.browser-wasm.csproj --output artifacts/packages
+
+# Run on macOS with Xcode command-line tools installed.
+./scripts/build-ffmpeg-osx-arm64.sh
+dotnet pack package/LightStudio.Ffmpeg.osx-arm64.csproj --output artifacts/packages
 ```
