@@ -21,7 +21,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  ANDROID_API_LEVEL: "21"
+  ANDROID_API_LEVEL: "35"
   PACKAGE_OUTPUT: artifacts/packages
   NUGET_SOURCE: https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
 
@@ -75,7 +75,6 @@ jobs:
 
       - name: Build FFmpeg libraries
         env:
-          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
           ANDROID_API_LEVEL: ${{ env.ANDROID_API_LEVEL }}
         run: |
           android_sdk_root="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
