@@ -21,7 +21,6 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  ANDROID_NDK_VERSION: r27c
   ANDROID_API_LEVEL: "21"
   PACKAGE_OUTPUT: artifacts/packages
   NUGET_SOURCE: https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
@@ -45,15 +44,10 @@ jobs:
           brew install nasm || brew upgrade nasm
           nasm --version
 
-      - name: Set up Android NDK
-        id: setup-ndk
-        uses: nttld/setup-ndk@v1
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
         with:
-          ndk-version: ${{ env.ANDROID_NDK_VERSION }}
-          # Always download a fresh NDK. The cached copy loses the LLVM tool
-          # symlinks (llvm-ranlib -> llvm-ar, llvm-strip -> llvm-objcopy, ...),
-          # which breaks ranlib/strip during the FFmpeg build.
-          local-cache: false
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0 ndk;28.2.13676358'
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
@@ -83,7 +77,10 @@ jobs:
         env:
           ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
           ANDROID_API_LEVEL: ${{ env.ANDROID_API_LEVEL }}
-        run: ./scripts/build-ffmpeg-android.sh
+        run: |
+          android_sdk_root="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          export ANDROID_NDK_HOME="$android_sdk_root/ndk/28.2.13676358"
+          ./scripts/build-ffmpeg-android.sh
 
       - name: Pack NuGet package
         run: >-
