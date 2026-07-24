@@ -45,7 +45,10 @@ jobs:
         uses: nttld/setup-ndk@v1
         with:
           ndk-version: ${{ env.ANDROID_NDK_VERSION }}
-          local-cache: true
+          # Always download a fresh NDK. The cached copy loses the LLVM tool
+          # symlinks (llvm-ranlib -> llvm-ar, llvm-strip -> llvm-objcopy, ...),
+          # which breaks ranlib/strip during the FFmpeg build.
+          local-cache: false
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
