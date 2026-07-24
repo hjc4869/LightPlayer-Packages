@@ -1,0 +1,102 @@
+name: Build and publish FFmpeg Android
+
+on:
+  push:
+    tags:
+      - "ffmpeg-v*"
+  workflow_dispatch:
+    inputs:
+      package_version:
+        description: NuGet package version
+        required: true
+        default: "8.1.2"
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: ffmpeg-android-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  ANDROID_NDK_VERSION: r27c
+  ANDROID_API_LEVEL: "21"
+  PACKAGE_OUTPUT: artifacts/packages
+  NUGET_SOURCE: https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
+
+jobs:
+  build-and-publish:
+    name: Build and publish LightStudio.Ffmpeg.Android
+    runs-on: macos-15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Ensure Rosetta 2
+        run: softwareupdate --install-rosetta --agree-to-license
+
+      - name: Set up Android NDK
+        id: setup-ndk
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: ${{ env.ANDROID_NDK_VERSION }}
+          local-cache: true
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Resolve package version
+        id: package-version
+        shell: bash
+        env:
+          DISPATCH_VERSION: ${{ inputs.package_version }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            package_version="$DISPATCH_VERSION"
+          else
+            package_version="${GITHUB_REF_NAME#ffmpeg-v}"
+          fi
+
+          if [[ ! "$package_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid NuGet package version: $package_version" >&2
+            exit 1
+          fi
+
+          echo "value=$package_version" >> "$GITHUB_OUTPUT"
+
+      - name: Build FFmpeg libraries
+        env:
+          ANDROID_NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
+          ANDROID_API_LEVEL: ${{ env.ANDROID_API_LEVEL }}
+        run: ./scripts/build-ffmpeg-android.sh
+
+      - name: Pack NuGet package
+        run: >-
+          dotnet pack package/LightStudio.Ffmpeg.Android.csproj
+          --configuration Release
+          --output "$PACKAGE_OUTPUT"
+          -p:PackageVersion=${{ steps.package-version.outputs.value }}
+          -p:ContinuousIntegrationBuild=true
+
+      - name: Upload NuGet artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LightStudio.Ffmpeg.Android-${{ steps.package-version.outputs.value }}
+          path: ${{ env.PACKAGE_OUTPUT }}/*.nupkg
+          if-no-files-found: error
+
+      - name: Publish to GitHub Packages
+        env:
+          NUGET_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >-
+          dotnet nuget push "$PACKAGE_OUTPUT/*.nupkg"
+          --api-key "$NUGET_AUTH_TOKEN"
+          --source "$NUGET_SOURCE"
+          --skip-duplicate
