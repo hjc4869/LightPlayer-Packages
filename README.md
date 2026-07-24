@@ -63,7 +63,8 @@ dotnet pack package/LightStudio.Ffmpeg.MT.browser-wasm.csproj --output artifacts
 ./scripts/build-ffmpeg-osx-arm64.sh
 dotnet pack package/LightStudio.Ffmpeg.osx-arm64.csproj --output artifacts/packages
 
-# Requires the Android NDK. Set ANDROID_NDK_HOME if it is not already exported.
+# Requires the Android NDK and nasm (nasm assembles the android-x64 target).
+# Set ANDROID_NDK_HOME if it is not already exported.
 ./scripts/build-ffmpeg-android.sh
 dotnet pack package/LightStudio.Ffmpeg.Android.csproj --output artifacts/packages
 ```

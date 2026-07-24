@@ -40,6 +40,11 @@ jobs:
       - name: Ensure Rosetta 2
         run: softwareupdate --install-rosetta --agree-to-license
 
+      - name: Set up nasm
+        run: |
+          brew install nasm || brew upgrade nasm
+          nasm --version
+
       - name: Set up Android NDK
         id: setup-ndk
         uses: nttld/setup-ndk@v1
