@@ -217,7 +217,7 @@ build_abi() {
 
   mkdir -p "$artifacts_dir"
 
-  local library_name library_dir slib_link dest
+  local library_name library_dir slib_link dest header dynamic
   for library_name in "${library_names[@]}"; do
     library_dir="$build_dir/$library_name"
     slib_link="$library_dir/$library_name.so"
@@ -230,13 +230,21 @@ build_abi() {
     dest="$artifacts_dir/$library_name.so"
     cp -L "$slib_link" "$dest"
 
-    if ! "$readelf" -h "$dest" | grep -q "Machine:.*$elf_machine"; then
+    # Read the tool output into variables rather than piping into 'grep -q'.
+    # Under 'set -o pipefail', 'grep -q' can exit as soon as it matches and
+    # close the pipe, leaving llvm-readelf killed by SIGPIPE; that would fail
+    # the pipeline even though the pattern was found.
+    header="$("$readelf" -h "$dest")"
+    if ! grep -iq "$elf_machine" <<<"$header"; then
       echo "Expected an $elf_machine FFmpeg shared library: $dest" >&2
+      echo "$header" >&2
       exit 1
     fi
 
-    if ! "$readelf" -d "$dest" | grep -Fq "Library soname: [$library_name.so]"; then
+    dynamic="$("$readelf" -d "$dest")"
+    if ! grep -Fq "Library soname: [$library_name.so]" <<<"$dynamic"; then
       echo "Expected '$library_name.so' as the soname for $dest" >&2
+      echo "$dynamic" >&2
       exit 1
     fi
   done
