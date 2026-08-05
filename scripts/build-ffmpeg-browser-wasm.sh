@@ -61,9 +61,11 @@ emconfigure "$ffmpeg_dir/configure" \
   --disable-programs \
   --disable-debug \
   --disable-doc \
-  --disable-swscale \
-  --disable-avfilter \
-  --disable-avdevice \
+  --enable-swscale \
+  --enable-avfilter \
+  --enable-avdevice \
+  --disable-filters \
+  --disable-devices \
   --disable-network \
   --disable-vaapi \
   --disable-vdpau \
@@ -164,9 +166,12 @@ emmake make -j32
 
 archives=(
   "$build_dir/libavcodec/libavcodec.a"
+  "$build_dir/libavdevice/libavdevice.a"
   "$build_dir/libavformat/libavformat.a"
+  "$build_dir/libavfilter/libavfilter.a"
   "$build_dir/libavutil/libavutil.a"
   "$build_dir/libswresample/libswresample.a"
+  "$build_dir/libswscale/libswscale.a"
 )
 
 for archive in "${archives[@]}"; do
