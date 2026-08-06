@@ -117,6 +117,8 @@ build_abi() {
     --disable-devices \
     --disable-network \
     --disable-autodetect \
+    --enable-jni \
+    --enable-mediacodec \
     --disable-vaapi \
     --disable-vdpau \
     --disable-d3d11va \
@@ -135,10 +137,33 @@ build_abi() {
     --enable-parser=mpegaudio \
     --enable-parser=tak \
     --enable-parser=vorbis \
+    --enable-parser=h264 \
+    --enable-parser=hevc \
+    --enable-parser=mpeg4video \
+    --enable-parser=mpegvideo \
+    --enable-parser=vp8 \
+    --enable-parser=vp9 \
+    --enable-parser=av1 \
+    --enable-parser=vc1 \
+    --enable-parser=mjpeg \
+    --enable-parser=h263 \
+    --enable-parser=ac3 \
+    --enable-parser=dca \
+    --enable-parser=opus \
+    --enable-parser=mlp \
     --enable-demuxer=aac \
     --enable-demuxer=ape \
     --enable-demuxer=asf \
     --enable-demuxer=mov \
+    --enable-demuxer=matroska \
+    --enable-demuxer=mpegts \
+    --enable-demuxer=mpegps \
+    --enable-demuxer=flv \
+    --enable-demuxer=avi \
+    --enable-demuxer=h264 \
+    --enable-demuxer=hevc \
+    --enable-demuxer=m4v \
+    --enable-demuxer=mpegvideo \
     --enable-demuxer=ogg \
     --enable-demuxer=flac \
     --enable-demuxer=tak \
@@ -178,6 +203,33 @@ build_abi() {
     --enable-decoder=wmapro \
     --enable-decoder=wmav1 \
     --enable-decoder=wmav2 \
+    --enable-decoder=h264 \
+    --enable-decoder=hevc \
+    --enable-decoder=mpeg1video \
+    --enable-decoder=mpeg2video \
+    --enable-decoder=mpeg4 \
+    --enable-decoder=msmpeg4v1 \
+    --enable-decoder=msmpeg4v2 \
+    --enable-decoder=msmpeg4v3 \
+    --enable-decoder=vc1 \
+    --enable-decoder=wmv1 \
+    --enable-decoder=wmv2 \
+    --enable-decoder=wmv3 \
+    --enable-decoder=vp8 \
+    --enable-decoder=vp9 \
+    --enable-decoder=av1 \
+    --enable-decoder=theora \
+    --enable-decoder=flv \
+    --enable-decoder=h263 \
+    --enable-decoder=mjpeg \
+    --enable-decoder=prores \
+    --enable-decoder=ac3 \
+    --enable-decoder=eac3 \
+    --enable-decoder=dca \
+    --enable-decoder=opus \
+    --enable-decoder=mp1float \
+    --enable-decoder=mp2float \
+    --enable-decoder=truehd \
     --enable-decoder=pcm_alaw \
     --enable-decoder=pcm_f32be \
     --enable-decoder=pcm_f32le \
@@ -205,6 +257,15 @@ build_abi() {
     --enable-decoder=pcm_u32be \
     --enable-decoder=pcm_u32le \
     --enable-decoder=pcm_u8 \
+    --enable-decoder=h264_mediacodec \
+    --enable-decoder=hevc_mediacodec \
+    --enable-decoder=mpeg4_mediacodec \
+    --enable-decoder=mpeg2_mediacodec \
+    --enable-decoder=vp8_mediacodec \
+    --enable-decoder=vp9_mediacodec \
+    --enable-decoder=av1_mediacodec \
+    --enable-encoder=h264_mediacodec \
+    --enable-encoder=hevc_mediacodec \
     --enable-stripping
 
   if ! grep -q '^#define HAVE_PTHREADS 1$' config.h; then
