@@ -1,6 +1,6 @@
 # LightPlayer Packages
 
-This repository builds and publishes a single NuGet package, `LightStudio.Ffmpeg`, containing FFmpeg 8.1.2 native libraries for .NET.
+This repository builds and publishes a single NuGet package, [`LightStudio.Ffmpeg`](https://www.nuget.org/packages/LightStudio.Ffmpeg/), containing FFmpeg 9.0.1 native libraries for .NET.
 
 | Runtime | Linking | Location in the package |
 | --- | --- | --- |
@@ -16,32 +16,21 @@ Every runtime bundles dav1d 1.5.4 as the AV1 decoder. The browser-wasm and osx-a
 
 ## Publish
 
-Push a tag named `ffmpeg-v<package-version>`. The workflow builds each platform in its own job, then a final job merges the artifacts, packs `LightStudio.Ffmpeg`, and publishes it to this repository's GitHub Packages feed. For version 8.1.2:
+Push a tag named `ffmpeg-v<package-version>`. The workflow builds each platform in its own job, then a final job merges the artifacts, packs `LightStudio.Ffmpeg`, and publishes it to [nuget.org](https://www.nuget.org/packages/LightStudio.Ffmpeg/). For version 9.0.1:
 
 ```bash
-git tag ffmpeg-v8.1.2
-git push origin ffmpeg-v8.1.2
+git tag ffmpeg-v9.0.1
+git push origin ffmpeg-v9.0.1
 ```
 
 The workflow can also be run manually with a NuGet package version from the Actions tab.
 
 ## Consume
 
-Add the repository owner's GitHub Packages feed to the consuming project's NuGet configuration:
-
-```xml
-<?xml version="1.0" encoding="utf-8"?>
-<configuration>
-  <packageSources>
-    <add key="github-lightstudio" value="https://nuget.pkg.github.com/hjc4869/index.json" />
-  </packageSources>
-</configuration>
-```
-
-Authenticate to the feed with a GitHub token that has `read:packages`, then add the package:
+The package is published to nuget.org, so no extra feed configuration is required:
 
 ```bash
-dotnet add package LightStudio.Ffmpeg --version 8.1.2
+dotnet add package LightStudio.Ffmpeg --version 9.0.1
 ```
 
 ### Android and macOS

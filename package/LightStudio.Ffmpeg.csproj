@@ -4,9 +4,9 @@
     <EnableDefaultItems>false</EnableDefaultItems>
 
     <PackageId>LightStudio.Ffmpeg</PackageId>
-    <Version>8.1.2</Version>
+    <Version>9.0.1</Version>
     <Authors>LightStudio</Authors>
-    <Description>FFmpeg 8.1.2 native libraries for .NET. Shared libraries for android-arm64, android-x64 and osx-arm64, plus static archives for browser-wasm (single- and multi-threaded) and for osx-arm64 native AOT static linking.</Description>
+    <Description>FFmpeg 9.0.1 native libraries for .NET. Shared libraries for android-arm64, android-x64 and osx-arm64, plus static archives for browser-wasm (single- and multi-threaded) and for osx-arm64 native AOT static linking.</Description>
     <PackageTags>ffmpeg;native;android;osx-arm64;browser-wasm;webassembly;wasm;dav1d</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>LGPL-2.1-or-later AND BSD-2-Clause</PackageLicenseExpression>

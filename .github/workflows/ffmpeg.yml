@@ -9,7 +9,7 @@ on:
       package_version:
         description: NuGet package version
         required: true
-        default: "8.1.2"
+        default: "9.0.1"
         type: string
 
 permissions:
@@ -22,7 +22,7 @@ concurrency:
 
 env:
   PACKAGE_OUTPUT: artifacts/packages
-  NUGET_SOURCE: https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
+  NUGET_SOURCE: https://api.nuget.org/v3/index.json
 
 jobs:
   build-browser-wasm:
@@ -196,9 +196,9 @@ jobs:
           path: ${{ env.PACKAGE_OUTPUT }}/*.nupkg
           if-no-files-found: error
 
-      # - name: Publish to GitHub Packages
+      # - name: Publish to NuGet.org
       #   env:
-      #     NUGET_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #     NUGET_AUTH_TOKEN: ${{ secrets.NUGET_API_KEY }}
       #   run: >-
       #     dotnet nuget push "$PACKAGE_OUTPUT/*.nupkg"
       #     --api-key "$NUGET_AUTH_TOKEN"

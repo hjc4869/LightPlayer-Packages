@@ -1,6 +1,6 @@
 # LightStudio.Ffmpeg
 
-FFmpeg 8.1.2 native libraries for .NET, with AV1 decoding provided by dav1d 1.5.4.
+FFmpeg 9.0.1 native libraries for .NET, with AV1 decoding provided by dav1d 1.5.4.
 
 | Runtime | Linking | Location in the package |
 | --- | --- | --- |
