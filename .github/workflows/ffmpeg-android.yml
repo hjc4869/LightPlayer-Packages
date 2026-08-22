@@ -39,10 +39,12 @@ jobs:
       - name: Ensure Rosetta 2
         run: softwareupdate --install-rosetta --agree-to-license
 
-      - name: Set up nasm
+      - name: Set up nasm, meson and ninja
         run: |
-          brew install nasm || brew upgrade nasm
+          brew install nasm meson ninja || brew upgrade nasm meson ninja
           nasm --version
+          meson --version
+          ninja --version
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4

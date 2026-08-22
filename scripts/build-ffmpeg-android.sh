@@ -85,9 +85,18 @@ build_abi() {
 
   local build_dir="$build_root/$dotnet_rid"
   local artifacts_dir="$artifacts_root/$dotnet_rid"
+  local dav1d_prefix="$build_dir/dav1d"
 
   rm -rf -- "$build_dir"
   mkdir -p "$build_dir"
+
+  ANDROID_API_LEVEL="$android_api" "$repo_root/scripts/build-dav1d.sh" \
+    "$dotnet_rid" "$dav1d_prefix" "$build_dir/dav1d-build"
+
+  # Keep pkg-config away from the host libraries while cross-compiling.
+  export PKG_CONFIG_LIBDIR="$dav1d_prefix/lib/pkgconfig"
+  export PKG_CONFIG_PATH="$dav1d_prefix/lib/pkgconfig"
+
   pushd "$build_dir" >/dev/null
 
   "$ffmpeg_dir/configure" \
@@ -131,6 +140,9 @@ build_abi() {
     --disable-parsers \
     --disable-decoders \
     --disable-encoders \
+    --pkg-config-flags=--static \
+    --enable-libdav1d \
+    --enable-decoder=libdav1d \
     --enable-parser=aac \
     --enable-parser=aac_latm \
     --enable-parser=flac \
@@ -273,6 +285,11 @@ build_abi() {
     exit 1
   fi
 
+  if ! grep -q '^#define CONFIG_LIBDAV1D_DECODER 1$' config_components.h; then
+    echo "FFmpeg did not enable the libdav1d decoder for Android $dotnet_rid." >&2
+    exit 1
+  fi
+
   local build_jobs="${FFMPEG_BUILD_JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)}"
   make -j"$build_jobs"
 
@@ -305,6 +322,13 @@ build_abi() {
     dynamic="$("$readelf" -d "$dest")"
     if ! grep -Fq "Library soname: [$library_name.so]" <<<"$dynamic"; then
       echo "Expected '$library_name.so' as the soname for $dest" >&2
+      echo "$dynamic" >&2
+      exit 1
+    fi
+
+    # The package ships no libdav1d.so, so dav1d has to be linked statically.
+    if grep -Fq "Shared library: [libdav1d" <<<"$dynamic"; then
+      echo "Expected dav1d to be linked statically into $dest" >&2
       echo "$dynamic" >&2
       exit 1
     fi

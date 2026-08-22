@@ -36,6 +36,15 @@ fi
 
 rm -rf -- "$build_dir"
 mkdir -p "$build_dir"
+
+dav1d_prefix="$build_dir/dav1d"
+MACOSX_DEPLOYMENT_TARGET="$deployment_target" "$repo_root/scripts/build-dav1d.sh" \
+  osx-arm64 "$dav1d_prefix" "$build_dir/dav1d-build"
+
+# Keep pkg-config away from the host libraries while cross-compiling.
+export PKG_CONFIG_LIBDIR="$dav1d_prefix/lib/pkgconfig"
+export PKG_CONFIG_PATH="$dav1d_prefix/lib/pkgconfig"
+
 cd "$build_dir"
 
 "$ffmpeg_dir/configure" \
@@ -82,6 +91,9 @@ cd "$build_dir"
   --disable-parsers \
   --disable-decoders \
   --disable-encoders \
+  --pkg-config-flags=--static \
+  --enable-libdav1d \
+  --enable-decoder=libdav1d \
   --enable-parser=aac \
   --enable-parser=aac_latm \
   --enable-parser=flac \
@@ -218,6 +230,11 @@ if ! grep -q '^#define HAVE_PTHREADS 1$' config.h; then
   exit 1
 fi
 
+if ! grep -q '^#define CONFIG_LIBDAV1D_DECODER 1$' config_components.h; then
+  echo "FFmpeg did not enable the libdav1d decoder for macOS." >&2
+  exit 1
+fi
+
 build_jobs="${FFMPEG_BUILD_JOBS:-$(sysctl -n hw.logicalcpu)}"
 make -j"$build_jobs"
 
@@ -229,6 +246,7 @@ archives=(
   "$build_dir/libavutil/libavutil.a"
   "$build_dir/libswresample/libswresample.a"
   "$build_dir/libswscale/libswscale.a"
+  "$dav1d_prefix/lib/libdav1d.a"
 )
 
 library_names=(libavdevice libavfilter libavcodec libavformat libavutil libswresample libswscale)

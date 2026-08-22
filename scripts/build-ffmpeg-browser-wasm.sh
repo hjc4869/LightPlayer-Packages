@@ -14,11 +14,13 @@ fi
 case "$variant" in
   single-threaded)
     artifact_name="ffmpeg-browser-wasm"
+    dav1d_target="browser-wasm-st"
     thread_options=(--disable-pthreads --disable-w32threads --disable-os2threads)
     expected_pthreads=0
     ;;
   multi-threaded)
     artifact_name="ffmpeg-MT-browser-wasm"
+    dav1d_target="browser-wasm-mt"
     thread_options=()
     expected_pthreads=1
     ;;
@@ -42,6 +44,13 @@ fi
 
 rm -rf -- "$build_dir"
 mkdir -p "$build_dir"
+
+dav1d_prefix="$build_dir/dav1d"
+"$repo_root/scripts/build-dav1d.sh" "$dav1d_target" "$dav1d_prefix" "$build_dir/dav1d-build"
+
+# emconfigure forwards EM_PKG_CONFIG_PATH to PKG_CONFIG_PATH.
+export EM_PKG_CONFIG_PATH="$dav1d_prefix/lib/pkgconfig"
+
 cd "$build_dir"
 
 emconfigure "$ffmpeg_dir/configure" \
@@ -77,6 +86,9 @@ emconfigure "$ffmpeg_dir/configure" \
   --disable-parsers \
   --disable-decoders \
   --disable-encoders \
+  --pkg-config-flags=--static \
+  --enable-libdav1d \
+  --enable-decoder=libdav1d \
   --enable-parser=aac \
   --enable-parser=aac_latm \
   --enable-parser=flac \
@@ -210,6 +222,11 @@ if ! grep -q "^#define HAVE_PTHREADS $expected_pthreads$" config.h; then
   exit 1
 fi
 
+if ! grep -q '^#define CONFIG_LIBDAV1D_DECODER 1$' config_components.h; then
+  echo "FFmpeg did not enable the libdav1d decoder for '$variant'." >&2
+  exit 1
+fi
+
 emmake make -j32
 
 archives=(
@@ -220,6 +237,7 @@ archives=(
   "$build_dir/libavutil/libavutil.a"
   "$build_dir/libswresample/libswresample.a"
   "$build_dir/libswscale/libswscale.a"
+  "$dav1d_prefix/lib/libdav1d.a"
 )
 
 for archive in "${archives[@]}"; do

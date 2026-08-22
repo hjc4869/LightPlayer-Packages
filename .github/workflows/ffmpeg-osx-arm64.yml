@@ -36,6 +36,12 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Set up meson and ninja
+        run: |
+          brew install meson ninja || brew upgrade meson ninja
+          meson --version
+          ninja --version
+
       - name: Set up .NET
         uses: actions/setup-dotnet@v4
         with:

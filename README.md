@@ -11,6 +11,8 @@ This repository builds and publishes four NuGet packages containing FFmpeg 8.1.2
 
 The MT package requires the consuming WebAssembly application to enable shared memory and serve the cross-origin isolation headers required by browser pthreads.
 
+Every package bundles dav1d 1.5.4 as the AV1 decoder. The browser-wasm and osx-arm64 packages ship `libdav1d.a` next to the FFmpeg archives; the Android package links dav1d statically into `libavcodec.so`.
+
 The osx-arm64 package contains both static archives and dynamic libraries. The Android package contains shared libraries only for both the `android-arm64` and `android-x64` runtimes. The browser-wasm packages contain static archives only.
 
 ## Publish
@@ -48,7 +50,11 @@ dotnet add package LightStudio.Ffmpeg.Android --version 8.1.2
 
 The browser archives are packaged under `runtimes/browser-wasm/native`. The Apple silicon static and dynamic libraries are packaged under `runtimes/osx-arm64/native` and target macOS 11.0 or later. The Android shared libraries are packaged under `runtimes/android-arm64/native` and `runtimes/android-x64/native` and target Android API level 21 or later.
 
+The browser-wasm and osx-arm64 packages require `libdav1d.a` to be linked alongside `libavcodec.a`.
+
 ## Local builds
+
+All variants build dav1d from the `dav1d` submodule first, so meson and ninja are required.
 
 Build and pack each variant independently:
 
