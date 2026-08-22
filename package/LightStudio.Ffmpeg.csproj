@@ -1,0 +1,65 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <EnableDefaultItems>false</EnableDefaultItems>
+
+    <PackageId>LightStudio.Ffmpeg</PackageId>
+    <Version>8.1.2</Version>
+    <Authors>LightStudio</Authors>
+    <Description>FFmpeg 8.1.2 native libraries for .NET. Shared libraries for android-arm64, android-x64 and osx-arm64, plus static archives for browser-wasm (single- and multi-threaded) and for osx-arm64 native AOT static linking.</Description>
+    <PackageTags>ffmpeg;native;android;osx-arm64;browser-wasm;webassembly;wasm;dav1d</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseExpression>LGPL-2.1-or-later AND BSD-2-Clause</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/hjc4869/LightPlayer-Packages</RepositoryUrl>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <IsPackable>true</IsPackable>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+
+    <FFmpegArtifactsPath>$(MSBuildThisFileDirectory)../artifacts</FFmpegArtifactsPath>
+  </PropertyGroup>
+
+  <ItemGroup Label="Dynamically linked runtime assets">
+    <None Include="$(FFmpegArtifactsPath)/ffmpeg-android/android-arm64/*.so" Pack="true" PackagePath="runtimes/android-arm64/native/" />
+    <None Include="$(FFmpegArtifactsPath)/ffmpeg-android/android-x64/*.so" Pack="true" PackagePath="runtimes/android-x64/native/" />
+    <None Include="$(FFmpegArtifactsPath)/ffmpeg-osx-arm64/*.dylib" Pack="true" PackagePath="runtimes/osx-arm64/native/" />
+  </ItemGroup>
+
+  <!-- Static archives live outside runtimes/ so NuGet never treats them as deployable runtime assets. -->
+  <ItemGroup Label="Statically linked assets">
+    <None Include="$(FFmpegArtifactsPath)/ffmpeg-osx-arm64/*.a" Pack="true" PackagePath="static/osx-arm64/" />
+    <None Include="$(FFmpegArtifactsPath)/ffmpeg-browser-wasm/*.a" Pack="true" PackagePath="static/wasm/" />
+    <None Include="$(FFmpegArtifactsPath)/ffmpeg-MT-browser-wasm/*.a" Pack="true" PackagePath="static/wasm-mt/" />
+  </ItemGroup>
+
+  <ItemGroup Label="Consumer MSBuild logic">
+    <None Include="build/LightStudio.Ffmpeg.props" Pack="true" PackagePath="build/;buildTransitive/" />
+    <None Include="build/LightStudio.Ffmpeg.targets" Pack="true" PackagePath="build/;buildTransitive/" />
+  </ItemGroup>
+
+  <ItemGroup Label="Documentation and licenses">
+    <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="../ffmpeg/LICENSE.md" Pack="true" PackagePath="licenses/FFmpeg-LICENSE.md" />
+    <None Include="../ffmpeg/COPYING.LGPLv2.1" Pack="true" PackagePath="licenses/" />
+    <None Include="../dav1d/COPYING" Pack="true" PackagePath="licenses/dav1d/" />
+  </ItemGroup>
+
+  <Target Name="ValidateFFmpegArtifacts" BeforeTargets="GenerateNuspec">
+    <ItemGroup>
+      <_FFmpegAndroidArm64 Include="$(FFmpegArtifactsPath)/ffmpeg-android/android-arm64/*.so" />
+      <_FFmpegAndroidX64 Include="$(FFmpegArtifactsPath)/ffmpeg-android/android-x64/*.so" />
+      <_FFmpegOsxArm64Dynamic Include="$(FFmpegArtifactsPath)/ffmpeg-osx-arm64/*.dylib" />
+      <_FFmpegOsxArm64Static Include="$(FFmpegArtifactsPath)/ffmpeg-osx-arm64/libdav1d.a" />
+      <_FFmpegWasmStatic Include="$(FFmpegArtifactsPath)/ffmpeg-browser-wasm/libdav1d.a" />
+      <_FFmpegWasmMtStatic Include="$(FFmpegArtifactsPath)/ffmpeg-MT-browser-wasm/libdav1d.a" />
+    </ItemGroup>
+    <Error Condition="'@(_FFmpegAndroidArm64)' == ''" Text="Missing android-arm64 shared libraries in '$(FFmpegArtifactsPath)/ffmpeg-android/android-arm64'. Run scripts/build-ffmpeg-android.sh or download the CI artifact before packing." />
+    <Error Condition="'@(_FFmpegAndroidX64)' == ''" Text="Missing android-x64 shared libraries in '$(FFmpegArtifactsPath)/ffmpeg-android/android-x64'. Run scripts/build-ffmpeg-android.sh or download the CI artifact before packing." />
+    <Error Condition="'@(_FFmpegOsxArm64Dynamic)' == ''" Text="Missing osx-arm64 dynamic libraries in '$(FFmpegArtifactsPath)/ffmpeg-osx-arm64'. Run scripts/build-ffmpeg-osx-arm64.sh or download the CI artifact before packing." />
+    <Error Condition="'@(_FFmpegOsxArm64Static)' == ''" Text="Missing osx-arm64 archives (including libdav1d.a) in '$(FFmpegArtifactsPath)/ffmpeg-osx-arm64'. Run scripts/build-ffmpeg-osx-arm64.sh or download the CI artifact before packing." />
+    <Error Condition="'@(_FFmpegWasmStatic)' == ''" Text="Missing single-threaded browser-wasm archives (including libdav1d.a) in '$(FFmpegArtifactsPath)/ffmpeg-browser-wasm'. Run scripts/build-ffmpeg-browser-wasm.sh single-threaded or download the CI artifact before packing." />
+    <Error Condition="'@(_FFmpegWasmMtStatic)' == ''" Text="Missing multi-threaded browser-wasm archives (including libdav1d.a) in '$(FFmpegArtifactsPath)/ffmpeg-MT-browser-wasm'. Run scripts/build-ffmpeg-browser-wasm.sh multi-threaded or download the CI artifact before packing." />
+  </Target>
+</Project>

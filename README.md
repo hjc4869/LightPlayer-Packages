@@ -1,23 +1,22 @@
 # LightPlayer Packages
 
-This repository builds and publishes four NuGet packages containing FFmpeg 8.1.2 libraries for .NET:
+This repository builds and publishes a single NuGet package, `LightStudio.Ffmpeg`, containing FFmpeg 8.1.2 native libraries for .NET.
 
-| Package | Runtime | Threading model |
+| Runtime | Linking | Location in the package |
 | --- | --- | --- |
-| `LightStudio.Ffmpeg.browser-wasm` | `browser-wasm` | Single-threaded; pthread, Win32 thread, and OS/2 thread support are disabled. |
-| `LightStudio.Ffmpeg.MT.browser-wasm` | `browser-wasm` | Emscripten pthread support is enabled through FFmpeg's automatic detection. |
-| `LightStudio.Ffmpeg.osx-arm64` | `osx-arm64` | Native pthread support is enabled. |
-| `LightStudio.Ffmpeg.Android` | `android-arm64`, `android-x64` | Native pthread support is enabled. |
+| `android-arm64`, `android-x64` | Shared (`.so`) | `runtimes/android-<arch>/native` |
+| `osx-arm64` | Shared (`.dylib`) | `runtimes/osx-arm64/native` |
+| `osx-arm64` | Static (`.a`, native AOT only) | `static/osx-arm64` |
+| `browser-wasm`, single-threaded | Static (`.a`) | `static/wasm` |
+| `browser-wasm`, multi-threaded | Static (`.a`) | `static/wasm-mt` |
 
-The MT package requires the consuming WebAssembly application to enable shared memory and serve the cross-origin isolation headers required by browser pthreads.
+Static archives are deliberately kept outside `runtimes/` so NuGet never treats them as deployable runtime assets. The package's `build/LightStudio.Ffmpeg.targets` wires them up instead.
 
-Every package bundles dav1d 1.5.4 as the AV1 decoder. The browser-wasm and osx-arm64 packages ship `libdav1d.a` next to the FFmpeg archives; the Android package links dav1d statically into `libavcodec.so`.
-
-The osx-arm64 package contains both static archives and dynamic libraries. The Android package contains shared libraries only for both the `android-arm64` and `android-x64` runtimes. The browser-wasm packages contain static archives only.
+Every runtime bundles dav1d 1.5.4 as the AV1 decoder. The browser-wasm and osx-arm64 static sets ship `libdav1d.a` next to the FFmpeg archives; the Android and macOS shared libraries link dav1d statically into `libavcodec`.
 
 ## Publish
 
-Push a tag named `ffmpeg-v<package-version>` to build both browser-wasm variants, the osx-arm64 variant, and the Android variant, then publish all four packages to this repository's GitHub Packages feed. For version 8.1.2:
+Push a tag named `ffmpeg-v<package-version>`. The workflow builds each platform in its own job, then a final job merges the artifacts, packs `LightStudio.Ffmpeg`, and publishes it to this repository's GitHub Packages feed. For version 8.1.2:
 
 ```bash
 git tag ffmpeg-v8.1.2
@@ -39,38 +38,45 @@ Add the repository owner's GitHub Packages feed to the consuming project's NuGet
 </configuration>
 ```
 
-Authenticate to the feed with a GitHub token that has `read:packages`, then add the package for the target runtime:
+Authenticate to the feed with a GitHub token that has `read:packages`, then add the package:
 
 ```bash
-dotnet add package LightStudio.Ffmpeg.browser-wasm --version 8.1.2
-dotnet add package LightStudio.Ffmpeg.MT.browser-wasm --version 8.1.2
-dotnet add package LightStudio.Ffmpeg.osx-arm64 --version 8.1.2
-dotnet add package LightStudio.Ffmpeg.Android --version 8.1.2
+dotnet add package LightStudio.Ffmpeg --version 8.1.2
 ```
 
-The browser archives are packaged under `runtimes/browser-wasm/native`. The Apple silicon static and dynamic libraries are packaged under `runtimes/osx-arm64/native` and target macOS 11.0 or later. The Android shared libraries are packaged under `runtimes/android-arm64/native` and `runtimes/android-x64/native` and target Android API level 21 or later.
+### Android and macOS
 
-The browser-wasm and osx-arm64 packages require `libdav1d.a` to be linked alongside `libavcodec.a`.
+Nothing else is required. The shared libraries are deployed by the .NET SDK from `runtimes/<rid>/native`. The macOS binaries target macOS 11.0 or later; the Android binaries target API level 21 or later.
+
+### WebAssembly
+
+The package adds the correct archives as `NativeFileReference` items automatically. `WasmEnableThreads` selects the variant: `true` links the pthread-enabled archives from `static/wasm-mt`, otherwise the single-threaded archives from `static/wasm` are used. No manual `NativeFileReference` in the consuming project is needed.
+
+### Static linking with native AOT
+
+```xml
+<PropertyGroup>
+  <PublishAot>true</PublishAot>
+  <EnableStaticFfmpeg>true</EnableStaticFfmpeg>
+</PropertyGroup>
+```
+
+`EnableStaticFfmpeg` adds the `NativeLibrary` items and the `CoreMedia`, `CoreVideo`, and `VideoToolbox` linker arguments, and drops the package's shared libraries from the publish output. It is ignored when `PublishAot` is not enabled and on runtimes that ship shared libraries only, such as Android and browser-wasm.
 
 ## Local builds
 
-All variants build dav1d from the `dav1d` submodule first, so meson and ninja are required.
-
-Build and pack each variant independently:
+All variants build dav1d from the `dav1d` submodule first, so meson and ninja are required. Each script stages its output under `artifacts/<artifact-name>`; packing requires all of them, which normally means collecting the artifacts from CI.
 
 ```bash
-./scripts/build-ffmpeg-browser-wasm.sh single-threaded
-dotnet pack package/LightStudio.Ffmpeg.browser-wasm.csproj --output artifacts/packages
-
-./scripts/build-ffmpeg-browser-wasm.sh multi-threaded
-dotnet pack package/LightStudio.Ffmpeg.MT.browser-wasm.csproj --output artifacts/packages
+./scripts/build-ffmpeg-browser-wasm.sh single-threaded   # artifacts/ffmpeg-browser-wasm
+./scripts/build-ffmpeg-browser-wasm.sh multi-threaded    # artifacts/ffmpeg-MT-browser-wasm
 
 # Run on macOS with Xcode command-line tools installed.
-./scripts/build-ffmpeg-osx-arm64.sh
-dotnet pack package/LightStudio.Ffmpeg.osx-arm64.csproj --output artifacts/packages
+./scripts/build-ffmpeg-osx-arm64.sh                      # artifacts/ffmpeg-osx-arm64
 
 # Requires the Android NDK and nasm (nasm assembles the android-x64 target).
 # Set ANDROID_NDK_HOME if it is not already exported.
-./scripts/build-ffmpeg-android.sh
-dotnet pack package/LightStudio.Ffmpeg.Android.csproj --output artifacts/packages
+./scripts/build-ffmpeg-android.sh                        # artifacts/ffmpeg-android
+
+dotnet pack package/LightStudio.Ffmpeg.csproj --output artifacts/packages
 ```

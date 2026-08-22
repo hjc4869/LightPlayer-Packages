@@ -1,0 +1,40 @@
+<Project>
+  <PropertyGroup>
+    <!-- Blazor/wasm projects set browser-wasm as the RID; class libraries only carry the platform identifier. -->
+    <_LightStudioFfmpegTargetsWasm>false</_LightStudioFfmpegTargetsWasm>
+    <_LightStudioFfmpegTargetsWasm Condition="'$(RuntimeIdentifier)' == 'browser-wasm' or '$(TargetPlatformIdentifier)' == 'browser'">true</_LightStudioFfmpegTargetsWasm>
+
+    <_LightStudioFfmpegWasmFlavor>wasm</_LightStudioFfmpegWasmFlavor>
+    <_LightStudioFfmpegWasmFlavor Condition="'$(WasmEnableThreads)' == 'true'">wasm-mt</_LightStudioFfmpegWasmFlavor>
+
+    <!-- Only runtimes that ship static archives and support native AOT can be linked statically. -->
+    <_LightStudioFfmpegStaticRid Condition="'$(RuntimeIdentifier)' == 'osx-arm64'">osx-arm64</_LightStudioFfmpegStaticRid>
+
+    <_LightStudioFfmpegUseStatic>false</_LightStudioFfmpegUseStatic>
+    <_LightStudioFfmpegUseStatic Condition="'$(EnableStaticFfmpeg)' == 'true' and '$(PublishAot)' == 'true' and '$(_LightStudioFfmpegStaticRid)' != ''">true</_LightStudioFfmpegUseStatic>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(_LightStudioFfmpegTargetsWasm)' == 'true'">
+    <NativeFileReference Include="$(LightStudioFfmpegPackageRoot)static/$(_LightStudioFfmpegWasmFlavor)/*.a" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(_LightStudioFfmpegUseStatic)' == 'true'">
+    <NativeLibrary Include="$(LightStudioFfmpegPackageRoot)static/$(_LightStudioFfmpegStaticRid)/*.a" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(_LightStudioFfmpegUseStatic)' == 'true' and '$(_LightStudioFfmpegStaticRid)' == 'osx-arm64'">
+    <LinkerArg Include="-framework CoreMedia" />
+    <LinkerArg Include="-framework CoreVideo" />
+    <LinkerArg Include="-framework VideoToolbox" />
+  </ItemGroup>
+
+  <!-- Statically linked publishes must not also carry the shared libraries from runtimes/. -->
+  <Target Name="RemoveLightStudioFfmpegRuntimeAssets"
+          AfterTargets="ComputeResolvedFilesToPublishList"
+          Condition="'$(_LightStudioFfmpegUseStatic)' == 'true'">
+    <ItemGroup>
+      <_LightStudioFfmpegPublishAssetToRemove Include="@(ResolvedFileToPublish)" Condition="'%(ResolvedFileToPublish.NuGetPackageId)' == 'LightStudio.Ffmpeg'" />
+      <ResolvedFileToPublish Remove="@(_LightStudioFfmpegPublishAssetToRemove)" />
+    </ItemGroup>
+  </Target>
+</Project>
