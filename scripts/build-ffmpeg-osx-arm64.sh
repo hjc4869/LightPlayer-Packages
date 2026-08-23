@@ -41,9 +41,13 @@ dav1d_prefix="$build_dir/dav1d"
 MACOSX_DEPLOYMENT_TARGET="$deployment_target" "$repo_root/scripts/build-dav1d.sh" \
   osx-arm64 "$dav1d_prefix" "$build_dir/dav1d-build"
 
+libjxl_prefix="$build_dir/libjxl"
+MACOSX_DEPLOYMENT_TARGET="$deployment_target" "$repo_root/scripts/build-libjxl.sh" \
+  osx-arm64 "$libjxl_prefix" "$build_dir/libjxl-build"
+
 # Keep pkg-config away from the host libraries while cross-compiling.
-export PKG_CONFIG_LIBDIR="$dav1d_prefix/lib/pkgconfig"
-export PKG_CONFIG_PATH="$dav1d_prefix/lib/pkgconfig"
+export PKG_CONFIG_LIBDIR="$dav1d_prefix/lib/pkgconfig:$libjxl_prefix/lib/pkgconfig"
+export PKG_CONFIG_PATH="$PKG_CONFIG_LIBDIR"
 
 cd "$build_dir"
 
@@ -92,8 +96,12 @@ cd "$build_dir"
   --disable-decoders \
   --disable-encoders \
   --pkg-config-flags=--static \
+  --enable-zlib \
   --enable-libdav1d \
   --enable-decoder=libdav1d \
+  --enable-libjxl \
+  --enable-decoder=libjxl \
+  --enable-decoder=libjxl_anim \
   --enable-parser=aac \
   --enable-parser=aac_latm \
   --enable-parser=flac \
@@ -114,6 +122,9 @@ cd "$build_dir"
   --enable-parser=dca \
   --enable-parser=opus \
   --enable-parser=mlp \
+  --enable-parser=png \
+  --enable-parser=webp \
+  --enable-parser=jpegxl \
   --enable-demuxer=aac \
   --enable-demuxer=ape \
   --enable-demuxer=asf \
@@ -154,6 +165,16 @@ cd "$build_dir"
   --enable-demuxer=pcm_u32be \
   --enable-demuxer=pcm_u32le \
   --enable-demuxer=pcm_u8 \
+  --enable-demuxer=image2 \
+  --enable-demuxer=image2pipe \
+  --enable-demuxer=image_jpeg_pipe \
+  --enable-demuxer=image_png_pipe \
+  --enable-demuxer=image_webp_pipe \
+  --enable-demuxer=image_tiff_pipe \
+  --enable-demuxer=image_jpegxl_pipe \
+  --enable-demuxer=jpegxl_anim \
+  --enable-demuxer=webp_anim \
+  --enable-demuxer=apng \
   --enable-decoder=aac \
   --enable-decoder=alac \
   --enable-decoder=ape \
@@ -220,6 +241,10 @@ cd "$build_dir"
   --enable-decoder=pcm_u32be \
   --enable-decoder=pcm_u32le \
   --enable-decoder=pcm_u8 \
+  --enable-decoder=png \
+  --enable-decoder=apng \
+  --enable-decoder=webp \
+  --enable-decoder=tiff \
   --enable-encoder=h264_videotoolbox \
   --enable-encoder=hevc_videotoolbox \
   --enable-encoder=prores_videotoolbox \
@@ -235,6 +260,25 @@ if ! grep -q '^#define CONFIG_LIBDAV1D_DECODER 1$' config_components.h; then
   exit 1
 fi
 
+if ! grep -q '^#define CONFIG_LIBJXL_DECODER 1$' config_components.h; then
+  echo "FFmpeg did not enable the libjxl decoder for macOS." >&2
+  exit 1
+fi
+
+if ! grep -q '^#define CONFIG_ZLIB 1$' config.h; then
+  echo "FFmpeg did not enable zlib for macOS; the PNG decoder needs it." >&2
+  exit 1
+fi
+
+for component in PNG_DECODER WEBP_DECODER TIFF_DECODER MJPEG_DECODER \
+  IMAGE_PNG_PIPE_DEMUXER IMAGE_JPEG_PIPE_DEMUXER IMAGE_WEBP_PIPE_DEMUXER \
+  IMAGE_TIFF_PIPE_DEMUXER IMAGE_JPEGXL_PIPE_DEMUXER; do
+  if ! grep -q "^#define CONFIG_$component 1$" config_components.h; then
+    echo "FFmpeg did not enable $component for macOS." >&2
+    exit 1
+  fi
+done
+
 build_jobs="${FFMPEG_BUILD_JOBS:-$(sysctl -n hw.logicalcpu)}"
 make -j"$build_jobs"
 
@@ -247,6 +291,13 @@ archives=(
   "$build_dir/libswresample/libswresample.a"
   "$build_dir/libswscale/libswscale.a"
   "$dav1d_prefix/lib/libdav1d.a"
+  "$libjxl_prefix/lib/libjxl.a"
+  "$libjxl_prefix/lib/libjxl_cms.a"
+  "$libjxl_prefix/lib/libjxl_threads.a"
+  "$libjxl_prefix/lib/libhwy.a"
+  "$libjxl_prefix/lib/libbrotlicommon.a"
+  "$libjxl_prefix/lib/libbrotlidec.a"
+  "$libjxl_prefix/lib/libbrotlienc.a"
 )
 
 library_names=(libavdevice libavfilter libavcodec libavformat libavutil libswresample libswscale)
@@ -297,6 +348,15 @@ for dynamic_library in "${dynamic_libraries[@]}"; do
   expected_install_name="@rpath/$(basename "$dynamic_library_name")"
   if ! "$otool" -D "$dynamic_library" | grep -Fxq "$expected_install_name"; then
     echo "Expected '$expected_install_name' as the install name for $dynamic_library" >&2
+    exit 1
+  fi
+
+  # The package ships no dav1d, libjxl, highway or brotli dylib, so they all
+  # have to be linked statically.
+  load_commands="$("$otool" -L "$dynamic_library")"
+  if grep -Eq '(libdav1d|libjxl|libhwy|libbrotli)' <<<"$load_commands"; then
+    echo "Expected dav1d and libjxl to be linked statically into $dynamic_library" >&2
+    echo "$load_commands" >&2
     exit 1
   fi
 done

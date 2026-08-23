@@ -23,6 +23,9 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(_LightStudioFfmpegUseStatic)' == 'true' and '$(_LightStudioFfmpegStaticRid)' == 'osx-arm64'">
+    <!-- libjxl and its dependencies are C++, and the PNG/TIFF decoders need zlib. -->
+    <LinkerArg Include="-lc++" />
+    <LinkerArg Include="-lz" />
     <LinkerArg Include="-framework CoreMedia" />
     <LinkerArg Include="-framework CoreVideo" />
     <LinkerArg Include="-framework VideoToolbox" />

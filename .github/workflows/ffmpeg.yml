@@ -43,12 +43,16 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
-          submodules: recursive
+          submodules: true
 
-      - name: Set up meson and ninja
+      - name: Fetch libjxl dependencies
+        run: ./scripts/fetch-libjxl-dependencies.sh
+
+      - name: Set up cmake, meson and ninja
         run: |
           sudo apt-get update
-          sudo apt-get install --no-install-recommends -y meson ninja-build
+          sudo apt-get install --no-install-recommends -y cmake meson ninja-build
+          cmake --version
           meson --version
           ninja --version
 
@@ -78,11 +82,15 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
-          submodules: recursive
+          submodules: true
 
-      - name: Set up meson and ninja
+      - name: Fetch libjxl dependencies
+        run: ./scripts/fetch-libjxl-dependencies.sh
+
+      - name: Set up cmake, meson and ninja
         run: |
-          brew install meson ninja || brew upgrade meson ninja
+          brew install cmake meson ninja || brew upgrade cmake meson ninja
+          cmake --version
           meson --version
           ninja --version
 
@@ -107,15 +115,19 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
-          submodules: recursive
+          submodules: true
+
+      - name: Fetch libjxl dependencies
+        run: ./scripts/fetch-libjxl-dependencies.sh
 
       - name: Ensure Rosetta 2
         run: softwareupdate --install-rosetta --agree-to-license
 
-      - name: Set up nasm, meson and ninja
+      - name: Set up nasm, cmake, meson and ninja
         run: |
-          brew install nasm meson ninja || brew upgrade nasm meson ninja
+          brew install nasm cmake meson ninja || brew upgrade nasm cmake meson ninja
           nasm --version
+          cmake --version
           meson --version
           ninja --version
 
@@ -149,7 +161,10 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
-          submodules: recursive
+          submodules: true
+
+      - name: Fetch libjxl dependencies
+        run: ./scripts/fetch-libjxl-dependencies.sh
 
       - name: Set up .NET
         uses: actions/setup-dotnet@v4

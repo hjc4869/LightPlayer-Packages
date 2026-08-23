@@ -17,12 +17,16 @@ case "$variant" in
     dav1d_target="browser-wasm-st"
     thread_options=(--disable-pthreads --disable-w32threads --disable-os2threads)
     expected_pthreads=0
+    # libjxl's parallel runner is std::thread based and FFmpeg always asks it
+    # for av_cpu_count() workers, which aborts in a module without pthreads.
+    enable_libjxl=0
     ;;
   multi-threaded)
     artifact_name="ffmpeg-MT-browser-wasm"
     dav1d_target="browser-wasm-mt"
     thread_options=()
     expected_pthreads=1
+    enable_libjxl=1
     ;;
   *)
     echo "Unknown build variant '$variant'. Expected 'single-threaded' or 'multi-threaded'." >&2
@@ -48,12 +52,29 @@ mkdir -p "$build_dir"
 dav1d_prefix="$build_dir/dav1d"
 "$repo_root/scripts/build-dav1d.sh" "$dav1d_target" "$dav1d_prefix" "$build_dir/dav1d-build"
 
+pkg_config_path="$dav1d_prefix/lib/pkgconfig"
+libjxl_options=()
+libjxl_prefix="$build_dir/libjxl"
+
+if [[ "$enable_libjxl" -eq 1 ]]; then
+  "$repo_root/scripts/build-libjxl.sh" browser-wasm-mt "$libjxl_prefix" "$build_dir/libjxl-build"
+  pkg_config_path="$pkg_config_path:$libjxl_prefix/lib/pkgconfig"
+  libjxl_options=(--enable-libjxl --enable-decoder=libjxl --enable-decoder=libjxl_anim)
+fi
+
 # emconfigure forwards EM_PKG_CONFIG_PATH to PKG_CONFIG_PATH.
-export EM_PKG_CONFIG_PATH="$dav1d_prefix/lib/pkgconfig"
+export EM_PKG_CONFIG_PATH="$pkg_config_path"
 
 cd "$build_dir"
 
+# zlib comes from the Emscripten port; its archive is staged next to the FFmpeg
+# ones so consumers do not have to enable the port themselves.
+zlib_flag="-sUSE_ZLIB=1"
+
 emconfigure "$ffmpeg_dir/configure" \
+  --extra-cflags="$zlib_flag" \
+  --extra-cxxflags="$zlib_flag" \
+  --extra-ldflags="$zlib_flag" \
   --cc=emcc \
   --cxx=em++ \
   --ar=emar \
@@ -87,8 +108,10 @@ emconfigure "$ffmpeg_dir/configure" \
   --disable-decoders \
   --disable-encoders \
   --pkg-config-flags=--static \
+  --enable-zlib \
   --enable-libdav1d \
   --enable-decoder=libdav1d \
+  "${libjxl_options[@]}" \
   --enable-parser=aac \
   --enable-parser=aac_latm \
   --enable-parser=flac \
@@ -109,6 +132,9 @@ emconfigure "$ffmpeg_dir/configure" \
   --enable-parser=dca \
   --enable-parser=opus \
   --enable-parser=mlp \
+  --enable-parser=png \
+  --enable-parser=webp \
+  --enable-parser=jpegxl \
   --enable-demuxer=aac \
   --enable-demuxer=ape \
   --enable-demuxer=asf \
@@ -149,6 +175,16 @@ emconfigure "$ffmpeg_dir/configure" \
   --enable-demuxer=pcm_u32be \
   --enable-demuxer=pcm_u32le \
   --enable-demuxer=pcm_u8 \
+  --enable-demuxer=image2 \
+  --enable-demuxer=image2pipe \
+  --enable-demuxer=image_jpeg_pipe \
+  --enable-demuxer=image_png_pipe \
+  --enable-demuxer=image_webp_pipe \
+  --enable-demuxer=image_tiff_pipe \
+  --enable-demuxer=image_jpegxl_pipe \
+  --enable-demuxer=jpegxl_anim \
+  --enable-demuxer=webp_anim \
+  --enable-demuxer=apng \
   --enable-decoder=aac \
   --enable-decoder=alac \
   --enable-decoder=ape \
@@ -215,6 +251,10 @@ emconfigure "$ffmpeg_dir/configure" \
   --enable-decoder=pcm_u32be \
   --enable-decoder=pcm_u32le \
   --enable-decoder=pcm_u8 \
+  --enable-decoder=png \
+  --enable-decoder=apng \
+  --enable-decoder=webp \
+  --enable-decoder=tiff \
   --enable-stripping
 
 if ! grep -q "^#define HAVE_PTHREADS $expected_pthreads$" config.h; then
@@ -227,7 +267,32 @@ if ! grep -q '^#define CONFIG_LIBDAV1D_DECODER 1$' config_components.h; then
   exit 1
 fi
 
+if ! grep -q '^#define CONFIG_ZLIB 1$' config.h; then
+  echo "FFmpeg did not enable zlib for '$variant'; the PNG decoder needs it." >&2
+  exit 1
+fi
+
+for component in PNG_DECODER WEBP_DECODER TIFF_DECODER MJPEG_DECODER \
+  IMAGE_PNG_PIPE_DEMUXER IMAGE_JPEG_PIPE_DEMUXER IMAGE_WEBP_PIPE_DEMUXER \
+  IMAGE_TIFF_PIPE_DEMUXER; do
+  if ! grep -q "^#define CONFIG_$component 1$" config_components.h; then
+    echo "FFmpeg did not enable $component for '$variant'." >&2
+    exit 1
+  fi
+done
+
+if [[ "$enable_libjxl" -eq 1 ]] && ! grep -q '^#define CONFIG_LIBJXL_DECODER 1$' config_components.h; then
+  echo "FFmpeg did not enable the libjxl decoder for '$variant'." >&2
+  exit 1
+fi
+
 emmake make -j32
+
+zlib_archive="$(em-config CACHE)/sysroot/lib/wasm32-emscripten/libz.a"
+if [[ ! -f "$zlib_archive" ]]; then
+  echo "The Emscripten zlib port did not produce '$zlib_archive'." >&2
+  exit 1
+fi
 
 archives=(
   "$build_dir/libavcodec/libavcodec.a"
@@ -238,7 +303,20 @@ archives=(
   "$build_dir/libswresample/libswresample.a"
   "$build_dir/libswscale/libswscale.a"
   "$dav1d_prefix/lib/libdav1d.a"
+  "$zlib_archive"
 )
+
+if [[ "$enable_libjxl" -eq 1 ]]; then
+  archives+=(
+    "$libjxl_prefix/lib/libjxl.a"
+    "$libjxl_prefix/lib/libjxl_cms.a"
+    "$libjxl_prefix/lib/libjxl_threads.a"
+    "$libjxl_prefix/lib/libhwy.a"
+    "$libjxl_prefix/lib/libbrotlicommon.a"
+    "$libjxl_prefix/lib/libbrotlidec.a"
+    "$libjxl_prefix/lib/libbrotlienc.a"
+  )
+fi
 
 for archive in "${archives[@]}"; do
   if [[ ! -f "$archive" ]]; then

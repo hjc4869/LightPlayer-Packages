@@ -86,6 +86,7 @@ build_abi() {
   local build_dir="$build_root/$dotnet_rid"
   local artifacts_dir="$artifacts_root/$dotnet_rid"
   local dav1d_prefix="$build_dir/dav1d"
+  local libjxl_prefix="$build_dir/libjxl"
 
   rm -rf -- "$build_dir"
   mkdir -p "$build_dir"
@@ -93,9 +94,12 @@ build_abi() {
   ANDROID_API_LEVEL="$android_api" "$repo_root/scripts/build-dav1d.sh" \
     "$dotnet_rid" "$dav1d_prefix" "$build_dir/dav1d-build"
 
+  ANDROID_API_LEVEL="$android_api" "$repo_root/scripts/build-libjxl.sh" \
+    "$dotnet_rid" "$libjxl_prefix" "$build_dir/libjxl-build"
+
   # Keep pkg-config away from the host libraries while cross-compiling.
-  export PKG_CONFIG_LIBDIR="$dav1d_prefix/lib/pkgconfig"
-  export PKG_CONFIG_PATH="$dav1d_prefix/lib/pkgconfig"
+  export PKG_CONFIG_LIBDIR="$dav1d_prefix/lib/pkgconfig:$libjxl_prefix/lib/pkgconfig"
+  export PKG_CONFIG_PATH="$PKG_CONFIG_LIBDIR"
 
   pushd "$build_dir" >/dev/null
 
@@ -141,8 +145,12 @@ build_abi() {
     --disable-decoders \
     --disable-encoders \
     --pkg-config-flags=--static \
+    --enable-zlib \
     --enable-libdav1d \
     --enable-decoder=libdav1d \
+    --enable-libjxl \
+    --enable-decoder=libjxl \
+    --enable-decoder=libjxl_anim \
     --enable-parser=aac \
     --enable-parser=aac_latm \
     --enable-parser=flac \
@@ -163,6 +171,9 @@ build_abi() {
     --enable-parser=dca \
     --enable-parser=opus \
     --enable-parser=mlp \
+    --enable-parser=png \
+    --enable-parser=webp \
+    --enable-parser=jpegxl \
     --enable-demuxer=aac \
     --enable-demuxer=ape \
     --enable-demuxer=asf \
@@ -203,6 +214,16 @@ build_abi() {
     --enable-demuxer=pcm_u32be \
     --enable-demuxer=pcm_u32le \
     --enable-demuxer=pcm_u8 \
+    --enable-demuxer=image2 \
+    --enable-demuxer=image2pipe \
+    --enable-demuxer=image_jpeg_pipe \
+    --enable-demuxer=image_png_pipe \
+    --enable-demuxer=image_webp_pipe \
+    --enable-demuxer=image_tiff_pipe \
+    --enable-demuxer=image_jpegxl_pipe \
+    --enable-demuxer=jpegxl_anim \
+    --enable-demuxer=webp_anim \
+    --enable-demuxer=apng \
     --enable-decoder=aac \
     --enable-decoder=alac \
     --enable-decoder=ape \
@@ -269,6 +290,10 @@ build_abi() {
     --enable-decoder=pcm_u32be \
     --enable-decoder=pcm_u32le \
     --enable-decoder=pcm_u8 \
+    --enable-decoder=png \
+    --enable-decoder=apng \
+    --enable-decoder=webp \
+    --enable-decoder=tiff \
     --enable-decoder=h264_mediacodec \
     --enable-decoder=hevc_mediacodec \
     --enable-decoder=mpeg4_mediacodec \
@@ -289,6 +314,26 @@ build_abi() {
     echo "FFmpeg did not enable the libdav1d decoder for Android $dotnet_rid." >&2
     exit 1
   fi
+
+  if ! grep -q '^#define CONFIG_LIBJXL_DECODER 1$' config_components.h; then
+    echo "FFmpeg did not enable the libjxl decoder for Android $dotnet_rid." >&2
+    exit 1
+  fi
+
+  if ! grep -q '^#define CONFIG_ZLIB 1$' config.h; then
+    echo "FFmpeg did not enable zlib for Android $dotnet_rid; the PNG decoder needs it." >&2
+    exit 1
+  fi
+
+  local component
+  for component in PNG_DECODER WEBP_DECODER TIFF_DECODER MJPEG_DECODER \
+    IMAGE_PNG_PIPE_DEMUXER IMAGE_JPEG_PIPE_DEMUXER IMAGE_WEBP_PIPE_DEMUXER \
+    IMAGE_TIFF_PIPE_DEMUXER IMAGE_JPEGXL_PIPE_DEMUXER; do
+    if ! grep -q "^#define CONFIG_$component 1$" config_components.h; then
+      echo "FFmpeg did not enable $component for Android $dotnet_rid." >&2
+      exit 1
+    fi
+  done
 
   local build_jobs="${FFMPEG_BUILD_JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)}"
   make -j"$build_jobs"
@@ -329,6 +374,14 @@ build_abi() {
     # The package ships no libdav1d.so, so dav1d has to be linked statically.
     if grep -Fq "Shared library: [libdav1d" <<<"$dynamic"; then
       echo "Expected dav1d to be linked statically into $dest" >&2
+      echo "$dynamic" >&2
+      exit 1
+    fi
+
+    # Same for libjxl and its dependencies, including the C++ runtime: the
+    # package ships no libjxl.so, libbrotli*.so, libhwy.so or libc++_shared.so.
+    if grep -Eq "Shared library: \\[(libjxl|libbrotli|libhwy|libc\\+\\+_shared)" <<<"$dynamic"; then
+      echo "Expected libjxl and the C++ runtime to be linked statically into $dest" >&2
       echo "$dynamic" >&2
       exit 1
     fi

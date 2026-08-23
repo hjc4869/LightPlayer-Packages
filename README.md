@@ -14,6 +14,32 @@ Static archives are deliberately kept outside `runtimes/` so NuGet never treats 
 
 Every runtime bundles dav1d 1.5.4 as the AV1 decoder. The browser-wasm and osx-arm64 static sets ship `libdav1d.a` next to the FFmpeg archives; the Android and macOS shared libraries link dav1d statically into `libavcodec`.
 
+## Photo formats
+
+The common still-image formats are enabled on every runtime:
+
+| Format | Demuxer | Decoder |
+| --- | --- | --- |
+| JPEG | `image2`, `jpeg_pipe` | `mjpeg` |
+| PNG / APNG | `image2`, `png_pipe`, `apng` | `png`, `apng` |
+| WebP (still and animated) | `image2`, `webp_pipe`, `webp_anim` | `webp` |
+| TIFF | `image2`, `tiff_pipe` | `tiff` |
+| AVIF | `mov` (HEIF item support) | `libdav1d` |
+| HEIC | `mov` (HEIF item support) | `hevc` |
+| JPEG XL (still and animated) | `jpegxl_pipe`, `jpegxl_anim` | `libjxl`, `libjxl_anim` |
+
+JPEG XL comes from libjxl 0.11.2, which is built from the `libjxl` submodule the
+same way dav1d is. It is enabled on `android-arm64`, `android-x64`, `osx-arm64`
+and the multi-threaded browser-wasm variant. It is **not** available in the
+single-threaded browser-wasm variant: libjxl's parallel runner is `std::thread`
+based and FFmpeg always creates it with `av_cpu_count()` workers, which aborts in
+an Emscripten module built without pthreads.
+
+zlib is required by the PNG decoder. Android and macOS use the platform copy;
+browser-wasm uses the Emscripten `zlib` port and ships the resulting `libz.a`
+next to the FFmpeg archives, so consuming projects do not have to enable the
+port themselves.
+
 ## Publish
 
 Push a tag named `ffmpeg-v<package-version>`. The workflow builds each platform in its own job, then a final job merges the artifacts, packs `LightStudio.Ffmpeg`, and publishes it to [nuget.org](https://www.nuget.org/packages/LightStudio.Ffmpeg/). For version 9.0.1:
@@ -50,13 +76,18 @@ The package adds the correct archives as `NativeFileReference` items automatical
 </PropertyGroup>
 ```
 
-`EnableStaticFfmpeg` adds the `NativeLibrary` items and the `CoreMedia`, `CoreVideo`, and `VideoToolbox` linker arguments, and drops the package's shared libraries from the publish output. It is ignored when `PublishAot` is not enabled and on runtimes that ship shared libraries only, such as Android and browser-wasm.
+`EnableStaticFfmpeg` adds the `NativeLibrary` items and the `c++`, `z`, `CoreMedia`, `CoreVideo`, and `VideoToolbox` linker arguments, and drops the package's shared libraries from the publish output. It is ignored when `PublishAot` is not enabled and on runtimes that ship shared libraries only, such as Android and browser-wasm.
 
 ## Local builds
 
-All variants build dav1d from the `dav1d` submodule first, so meson and ninja are required. Each script stages its output under `artifacts/<artifact-name>`; packing requires all of them, which normally means collecting the artifacts from CI.
+All variants build dav1d from the `dav1d` submodule and libjxl from the `libjxl` submodule first, so cmake, meson and ninja are required. libjxl has ten nested submodules, including a multi-gigabyte test corpus, so `--recursive` is deliberately avoided; `scripts/fetch-libjxl-dependencies.sh` initializes only brotli, highway and skcms.
+
+Each script stages its output under `artifacts/<artifact-name>`; packing requires all of them, which normally means collecting the artifacts from CI.
 
 ```bash
+git submodule update --init
+./scripts/fetch-libjxl-dependencies.sh
+
 ./scripts/build-ffmpeg-browser-wasm.sh single-threaded   # artifacts/ffmpeg-browser-wasm
 ./scripts/build-ffmpeg-browser-wasm.sh multi-threaded    # artifacts/ffmpeg-MT-browser-wasm
 
