@@ -215,6 +215,10 @@ cd "$build_dir"
   --enable-decoder=mp2float \
   --enable-decoder=truehd \
   --enable-decoder=pcm_alaw \
+  --enable-decoder=pcm_bluray \
+  --enable-decoder=pcm_dvd \
+  --enable-decoder=pcm_f16le \
+  --enable-decoder=pcm_f24le \
   --enable-decoder=pcm_f32be \
   --enable-decoder=pcm_f32le \
   --enable-decoder=pcm_f64be \
@@ -232,8 +236,11 @@ cd "$build_dir"
   --enable-decoder=pcm_s32be \
   --enable-decoder=pcm_s32le \
   --enable-decoder=pcm_s32le_planar \
+  --enable-decoder=pcm_s64be \
+  --enable-decoder=pcm_s64le \
   --enable-decoder=pcm_s8 \
   --enable-decoder=pcm_s8_planar \
+  --enable-decoder=pcm_sga \
   --enable-decoder=pcm_u16be \
   --enable-decoder=pcm_u16le \
   --enable-decoder=pcm_u24be \
@@ -241,6 +248,7 @@ cd "$build_dir"
   --enable-decoder=pcm_u32be \
   --enable-decoder=pcm_u32le \
   --enable-decoder=pcm_u8 \
+  --enable-decoder=pcm_vidc \
   --enable-decoder=png \
   --enable-decoder=apng \
   --enable-decoder=webp \
