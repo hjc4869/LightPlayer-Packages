@@ -87,6 +87,7 @@ build_abi() {
   local artifacts_dir="$artifacts_root/$dotnet_rid"
   local dav1d_prefix="$build_dir/dav1d"
   local libjxl_prefix="$build_dir/libjxl"
+  local libxml2_prefix="$build_dir/libxml2"
 
   rm -rf -- "$build_dir"
   mkdir -p "$build_dir"
@@ -97,8 +98,11 @@ build_abi() {
   ANDROID_API_LEVEL="$android_api" "$repo_root/scripts/build-libjxl.sh" \
     "$dotnet_rid" "$libjxl_prefix" "$build_dir/libjxl-build"
 
+  ANDROID_API_LEVEL="$android_api" "$repo_root/scripts/build-libxml2.sh" \
+    "$dotnet_rid" "$libxml2_prefix" "$build_dir/libxml2-build"
+
   # Keep pkg-config away from the host libraries while cross-compiling.
-  export PKG_CONFIG_LIBDIR="$dav1d_prefix/lib/pkgconfig:$libjxl_prefix/lib/pkgconfig"
+  export PKG_CONFIG_LIBDIR="$dav1d_prefix/lib/pkgconfig:$libjxl_prefix/lib/pkgconfig:$libxml2_prefix/lib/pkgconfig"
   export PKG_CONFIG_PATH="$PKG_CONFIG_LIBDIR"
 
   pushd "$build_dir" >/dev/null
@@ -138,6 +142,7 @@ build_abi() {
     --disable-dxva2 \
     --disable-runtime-cpudetect \
     --disable-protocols \
+    --enable-protocol=file \
     --disable-bsfs \
     --disable-muxers \
     --disable-demuxers \
@@ -146,6 +151,7 @@ build_abi() {
     --disable-encoders \
     --pkg-config-flags=--static \
     --enable-zlib \
+    --enable-libxml2 \
     --enable-libdav1d \
     --enable-decoder=libdav1d \
     --enable-libjxl \
@@ -177,6 +183,8 @@ build_abi() {
     --enable-demuxer=aac \
     --enable-demuxer=ape \
     --enable-demuxer=asf \
+    --enable-demuxer=dash \
+    --enable-demuxer=hls \
     --enable-demuxer=mov \
     --enable-demuxer=matroska \
     --enable-demuxer=mpegts \
@@ -333,8 +341,27 @@ build_abi() {
     exit 1
   fi
 
+  if ! grep -q '^#define CONFIG_LIBXML2 1$' config.h; then
+    echo "FFmpeg did not enable libxml2 for DASH on Android $dotnet_rid." >&2
+    exit 1
+  fi
+
+  if ! grep -q '^#define CONFIG_NETWORK 0$' config.h; then
+    echo "FFmpeg unexpectedly enabled networking for Android $dotnet_rid." >&2
+    exit 1
+  fi
+
+  local protocol
+  for protocol in HTTP HTTPS TCP TLS; do
+    if ! grep -q "^#define CONFIG_${protocol}_PROTOCOL 0$" config_components.h; then
+      echo "FFmpeg unexpectedly enabled the $protocol protocol for Android $dotnet_rid." >&2
+      exit 1
+    fi
+  done
+
   local component
-  for component in PNG_DECODER WEBP_DECODER TIFF_DECODER MJPEG_DECODER \
+  for component in DASH_DEMUXER HLS_DEMUXER FILE_PROTOCOL \
+    PNG_DECODER WEBP_DECODER TIFF_DECODER MJPEG_DECODER \
     IMAGE_PNG_PIPE_DEMUXER IMAGE_JPEG_PIPE_DEMUXER IMAGE_WEBP_PIPE_DEMUXER \
     IMAGE_TIFF_PIPE_DEMUXER IMAGE_JPEGXL_PIPE_DEMUXER; do
     if ! grep -q "^#define CONFIG_$component 1$" config_components.h; then
@@ -382,6 +409,12 @@ build_abi() {
     # The package ships no libdav1d.so, so dav1d has to be linked statically.
     if grep -Fq "Shared library: [libdav1d" <<<"$dynamic"; then
       echo "Expected dav1d to be linked statically into $dest" >&2
+      echo "$dynamic" >&2
+      exit 1
+    fi
+
+    if grep -Fq "Shared library: [libxml2" <<<"$dynamic"; then
+      echo "Expected libxml2 to be linked statically into $dest" >&2
       echo "$dynamic" >&2
       exit 1
     fi

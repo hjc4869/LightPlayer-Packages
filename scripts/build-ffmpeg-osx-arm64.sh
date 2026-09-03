@@ -45,8 +45,12 @@ libjxl_prefix="$build_dir/libjxl"
 MACOSX_DEPLOYMENT_TARGET="$deployment_target" "$repo_root/scripts/build-libjxl.sh" \
   osx-arm64 "$libjxl_prefix" "$build_dir/libjxl-build"
 
+libxml2_prefix="$build_dir/libxml2"
+MACOSX_DEPLOYMENT_TARGET="$deployment_target" "$repo_root/scripts/build-libxml2.sh" \
+  osx-arm64 "$libxml2_prefix" "$build_dir/libxml2-build"
+
 # Keep pkg-config away from the host libraries while cross-compiling.
-export PKG_CONFIG_LIBDIR="$dav1d_prefix/lib/pkgconfig:$libjxl_prefix/lib/pkgconfig"
+export PKG_CONFIG_LIBDIR="$dav1d_prefix/lib/pkgconfig:$libjxl_prefix/lib/pkgconfig:$libxml2_prefix/lib/pkgconfig"
 export PKG_CONFIG_PATH="$PKG_CONFIG_LIBDIR"
 
 cd "$build_dir"
@@ -89,6 +93,7 @@ cd "$build_dir"
   --disable-dxva2 \
   --disable-runtime-cpudetect \
   --disable-protocols \
+  --enable-protocol=file \
   --disable-bsfs \
   --disable-muxers \
   --disable-demuxers \
@@ -97,6 +102,7 @@ cd "$build_dir"
   --disable-encoders \
   --pkg-config-flags=--static \
   --enable-zlib \
+  --enable-libxml2 \
   --enable-libdav1d \
   --enable-decoder=libdav1d \
   --enable-libjxl \
@@ -128,6 +134,8 @@ cd "$build_dir"
   --enable-demuxer=aac \
   --enable-demuxer=ape \
   --enable-demuxer=asf \
+  --enable-demuxer=dash \
+  --enable-demuxer=hls \
   --enable-demuxer=mov \
   --enable-demuxer=matroska \
   --enable-demuxer=mpegts \
@@ -278,7 +286,25 @@ if ! grep -q '^#define CONFIG_ZLIB 1$' config.h; then
   exit 1
 fi
 
-for component in PNG_DECODER WEBP_DECODER TIFF_DECODER MJPEG_DECODER \
+if ! grep -q '^#define CONFIG_LIBXML2 1$' config.h; then
+  echo "FFmpeg did not enable libxml2 for DASH on macOS." >&2
+  exit 1
+fi
+
+if ! grep -q '^#define CONFIG_NETWORK 0$' config.h; then
+  echo "FFmpeg unexpectedly enabled networking for macOS." >&2
+  exit 1
+fi
+
+for protocol in HTTP HTTPS TCP TLS; do
+  if ! grep -q "^#define CONFIG_${protocol}_PROTOCOL 0$" config_components.h; then
+    echo "FFmpeg unexpectedly enabled the $protocol protocol for macOS." >&2
+    exit 1
+  fi
+done
+
+for component in DASH_DEMUXER HLS_DEMUXER FILE_PROTOCOL \
+  PNG_DECODER WEBP_DECODER TIFF_DECODER MJPEG_DECODER \
   IMAGE_PNG_PIPE_DEMUXER IMAGE_JPEG_PIPE_DEMUXER IMAGE_WEBP_PIPE_DEMUXER \
   IMAGE_TIFF_PIPE_DEMUXER IMAGE_JPEGXL_PIPE_DEMUXER; do
   if ! grep -q "^#define CONFIG_$component 1$" config_components.h; then
@@ -306,6 +332,7 @@ archives=(
   "$libjxl_prefix/lib/libbrotlicommon.a"
   "$libjxl_prefix/lib/libbrotlidec.a"
   "$libjxl_prefix/lib/libbrotlienc.a"
+  "$libxml2_prefix/lib/libxml2.a"
 )
 
 library_names=(libavdevice libavfilter libavcodec libavformat libavutil libswresample libswscale)
@@ -359,11 +386,11 @@ for dynamic_library in "${dynamic_libraries[@]}"; do
     exit 1
   fi
 
-  # The package ships no dav1d, libjxl, highway or brotli dylib, so they all
-  # have to be linked statically.
+  # External libraries are packaged only as static archives, so the FFmpeg
+  # dylibs must absorb them rather than gain new runtime dependencies.
   load_commands="$("$otool" -L "$dynamic_library")"
-  if grep -Eq '(libdav1d|libjxl|libhwy|libbrotli)' <<<"$load_commands"; then
-    echo "Expected dav1d and libjxl to be linked statically into $dynamic_library" >&2
+  if grep -Eq '(libdav1d|libjxl|libhwy|libbrotli|libxml2)' <<<"$load_commands"; then
+    echo "Expected dav1d, libjxl and libxml2 to be linked statically into $dynamic_library" >&2
     echo "$load_commands" >&2
     exit 1
   fi

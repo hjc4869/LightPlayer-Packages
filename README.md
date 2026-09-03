@@ -14,6 +14,8 @@ Static archives are deliberately kept outside `runtimes/` so NuGet never treats 
 
 Every runtime bundles dav1d 1.5.4 as the AV1 decoder. The browser-wasm and osx-arm64 static sets ship `libdav1d.a` next to the FFmpeg archives; the Android and macOS shared libraries link dav1d statically into `libavcodec`.
 
+The HLS and DASH demuxers and file protocol are enabled on every runtime for applications that provide manifests, playlists, and segment resources through `AVFormatContext.io_open`. FFmpeg networking remains disabled; HTTP transport belongs to the consuming application. DASH manifest parsing is provided by libxml2 2.15.3, which is linked statically into shared builds and shipped as `libxml2.a` with static builds.
+
 ## Photo formats
 
 The common still-image formats are enabled on every runtime:
@@ -80,7 +82,7 @@ The package adds the correct archives as `NativeFileReference` items automatical
 
 ## Local builds
 
-All variants build dav1d from the `dav1d` submodule and libjxl from the `libjxl` submodule first, so cmake, meson and ninja are required. libjxl has ten nested submodules, including a multi-gigabyte test corpus, so `--recursive` is deliberately avoided; `scripts/fetch-libjxl-dependencies.sh` initializes only brotli, highway and skcms.
+All variants build dav1d, libjxl, and libxml2 from their submodules first, so cmake, meson and ninja are required. libjxl has ten nested submodules, including a multi-gigabyte test corpus, so `--recursive` is deliberately avoided; `scripts/fetch-libjxl-dependencies.sh` initializes only brotli, highway and skcms.
 
 Each script stages its output under `artifacts/<artifact-name>`; packing requires all of them, which normally means collecting the artifacts from CI.
 

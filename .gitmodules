@@ -7,3 +7,6 @@
 [submodule "libjxl"]
 	path = libjxl
 	url = https://github.com/libjxl/libjxl.git
+[submodule "libxml2"]
+	path = libxml2
+	url = https://github.com/GNOME/libxml2.git

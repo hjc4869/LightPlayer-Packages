@@ -4,10 +4,10 @@
     <EnableDefaultItems>false</EnableDefaultItems>
 
     <PackageId>LightStudio.Ffmpeg</PackageId>
-    <Version>9.0.1.2</Version>
+    <Version>9.0.1.3</Version>
     <Authors>LightStudio</Authors>
-    <Description>FFmpeg 9.0.1 native libraries for .NET, with dav1d (AV1) and libjxl (JPEG XL) built in and the common photo formats enabled: JPEG, PNG, WebP, TIFF, AVIF, HEIC and JPEG XL. Shared libraries for android-arm64, android-x64 and osx-arm64, plus static archives for browser-wasm (single- and multi-threaded) and for osx-arm64 native AOT static linking.</Description>
-    <PackageTags>ffmpeg;native;android;osx-arm64;browser-wasm;webassembly;wasm;dav1d;libjxl;jpegxl;avif;heic</PackageTags>
+    <Description>FFmpeg 9.0.1 native libraries for .NET, with HLS and DASH custom I/O support, dav1d (AV1), libjxl (JPEG XL), and common photo formats. Shared libraries for android-arm64, android-x64 and osx-arm64, plus static archives for browser-wasm and osx-arm64 native AOT static linking.</Description>
+    <PackageTags>ffmpeg;native;hls;dash;android;osx-arm64;browser-wasm;webassembly;wasm;dav1d;libjxl;jpegxl;avif;heic</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>LGPL-2.1-or-later AND BSD-2-Clause AND BSD-3-Clause AND Apache-2.0 AND MIT AND Zlib</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
@@ -45,6 +45,7 @@
     <None Include="../ffmpeg/COPYING.LGPLv2.1" Pack="true" PackagePath="licenses/" />
     <None Include="../dav1d/COPYING" Pack="true" PackagePath="licenses/dav1d/" />
     <None Include="../libjxl/LICENSE" Pack="true" PackagePath="licenses/libjxl/" />
+    <None Include="../libxml2/Copyright" Pack="true" PackagePath="licenses/libxml2/" />
     <None Include="../libjxl/third_party/brotli/LICENSE" Pack="true" PackagePath="licenses/brotli/" />
     <None Include="../libjxl/third_party/highway/LICENSE" Pack="true" PackagePath="licenses/highway/" />
     <None Include="../libjxl/third_party/skcms/LICENSE" Pack="true" PackagePath="licenses/skcms/" />
@@ -57,10 +58,13 @@
       <_FFmpegOsxArm64Dynamic Include="$(FFmpegArtifactsPath)/ffmpeg-osx-arm64/*.dylib" />
       <_FFmpegOsxArm64Static Include="$(FFmpegArtifactsPath)/ffmpeg-osx-arm64/libdav1d.a" />
       <_FFmpegOsxArm64Jxl Include="$(FFmpegArtifactsPath)/ffmpeg-osx-arm64/libjxl.a" />
+      <_FFmpegOsxArm64Xml Include="$(FFmpegArtifactsPath)/ffmpeg-osx-arm64/libxml2.a" />
       <_FFmpegWasmStatic Include="$(FFmpegArtifactsPath)/ffmpeg-browser-wasm/libdav1d.a" />
+      <_FFmpegWasmXml Include="$(FFmpegArtifactsPath)/ffmpeg-browser-wasm/libxml2.a" />
       <_FFmpegWasmZlib Include="$(FFmpegArtifactsPath)/ffmpeg-browser-wasm/libz.a" />
       <_FFmpegWasmMtStatic Include="$(FFmpegArtifactsPath)/ffmpeg-MT-browser-wasm/libdav1d.a" />
       <_FFmpegWasmMtJxl Include="$(FFmpegArtifactsPath)/ffmpeg-MT-browser-wasm/libjxl.a" />
+      <_FFmpegWasmMtXml Include="$(FFmpegArtifactsPath)/ffmpeg-MT-browser-wasm/libxml2.a" />
       <_FFmpegWasmMtZlib Include="$(FFmpegArtifactsPath)/ffmpeg-MT-browser-wasm/libz.a" />
     </ItemGroup>
     <Error Condition="'@(_FFmpegAndroidArm64)' == ''" Text="Missing android-arm64 shared libraries in '$(FFmpegArtifactsPath)/ffmpeg-android/android-arm64'. Run scripts/build-ffmpeg-android.sh or download the CI artifact before packing." />
@@ -68,10 +72,13 @@
     <Error Condition="'@(_FFmpegOsxArm64Dynamic)' == ''" Text="Missing osx-arm64 dynamic libraries in '$(FFmpegArtifactsPath)/ffmpeg-osx-arm64'. Run scripts/build-ffmpeg-osx-arm64.sh or download the CI artifact before packing." />
     <Error Condition="'@(_FFmpegOsxArm64Static)' == ''" Text="Missing osx-arm64 archives (including libdav1d.a) in '$(FFmpegArtifactsPath)/ffmpeg-osx-arm64'. Run scripts/build-ffmpeg-osx-arm64.sh or download the CI artifact before packing." />
     <Error Condition="'@(_FFmpegOsxArm64Jxl)' == ''" Text="Missing libjxl.a in '$(FFmpegArtifactsPath)/ffmpeg-osx-arm64'. Run scripts/build-ffmpeg-osx-arm64.sh or download the CI artifact before packing." />
+    <Error Condition="'@(_FFmpegOsxArm64Xml)' == ''" Text="Missing libxml2.a in '$(FFmpegArtifactsPath)/ffmpeg-osx-arm64'. Run scripts/build-ffmpeg-osx-arm64.sh or download the CI artifact before packing." />
     <Error Condition="'@(_FFmpegWasmStatic)' == ''" Text="Missing single-threaded browser-wasm archives (including libdav1d.a) in '$(FFmpegArtifactsPath)/ffmpeg-browser-wasm'. Run scripts/build-ffmpeg-browser-wasm.sh single-threaded or download the CI artifact before packing." />
+    <Error Condition="'@(_FFmpegWasmXml)' == ''" Text="Missing libxml2.a in '$(FFmpegArtifactsPath)/ffmpeg-browser-wasm'. Run scripts/build-ffmpeg-browser-wasm.sh single-threaded or download the CI artifact before packing." />
     <Error Condition="'@(_FFmpegWasmZlib)' == ''" Text="Missing libz.a in '$(FFmpegArtifactsPath)/ffmpeg-browser-wasm'. Run scripts/build-ffmpeg-browser-wasm.sh single-threaded or download the CI artifact before packing." />
     <Error Condition="'@(_FFmpegWasmMtStatic)' == ''" Text="Missing multi-threaded browser-wasm archives (including libdav1d.a) in '$(FFmpegArtifactsPath)/ffmpeg-MT-browser-wasm'. Run scripts/build-ffmpeg-browser-wasm.sh multi-threaded or download the CI artifact before packing." />
     <Error Condition="'@(_FFmpegWasmMtJxl)' == ''" Text="Missing libjxl.a in '$(FFmpegArtifactsPath)/ffmpeg-MT-browser-wasm'. Run scripts/build-ffmpeg-browser-wasm.sh multi-threaded or download the CI artifact before packing." />
+    <Error Condition="'@(_FFmpegWasmMtXml)' == ''" Text="Missing libxml2.a in '$(FFmpegArtifactsPath)/ffmpeg-MT-browser-wasm'. Run scripts/build-ffmpeg-browser-wasm.sh multi-threaded or download the CI artifact before packing." />
     <Error Condition="'@(_FFmpegWasmMtZlib)' == ''" Text="Missing libz.a in '$(FFmpegArtifactsPath)/ffmpeg-MT-browser-wasm'. Run scripts/build-ffmpeg-browser-wasm.sh multi-threaded or download the CI artifact before packing." />
   </Target>
 </Project>

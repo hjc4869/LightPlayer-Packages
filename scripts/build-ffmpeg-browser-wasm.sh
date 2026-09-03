@@ -52,7 +52,10 @@ mkdir -p "$build_dir"
 dav1d_prefix="$build_dir/dav1d"
 "$repo_root/scripts/build-dav1d.sh" "$dav1d_target" "$dav1d_prefix" "$build_dir/dav1d-build"
 
-pkg_config_path="$dav1d_prefix/lib/pkgconfig"
+libxml2_prefix="$build_dir/libxml2"
+"$repo_root/scripts/build-libxml2.sh" "$dav1d_target" "$libxml2_prefix" "$build_dir/libxml2-build"
+
+pkg_config_path="$dav1d_prefix/lib/pkgconfig:$libxml2_prefix/lib/pkgconfig"
 libjxl_options=()
 libjxl_prefix="$build_dir/libjxl"
 
@@ -101,6 +104,7 @@ emconfigure "$ffmpeg_dir/configure" \
   --disable-dxva2 \
   --disable-runtime-cpudetect \
   --disable-protocols \
+  --enable-protocol=file \
   --disable-bsfs \
   --disable-muxers \
   --disable-demuxers \
@@ -109,6 +113,7 @@ emconfigure "$ffmpeg_dir/configure" \
   --disable-encoders \
   --pkg-config-flags=--static \
   --enable-zlib \
+  --enable-libxml2 \
   --enable-libdav1d \
   --enable-decoder=libdav1d \
   "${libjxl_options[@]}" \
@@ -138,6 +143,8 @@ emconfigure "$ffmpeg_dir/configure" \
   --enable-demuxer=aac \
   --enable-demuxer=ape \
   --enable-demuxer=asf \
+  --enable-demuxer=dash \
+  --enable-demuxer=hls \
   --enable-demuxer=mov \
   --enable-demuxer=matroska \
   --enable-demuxer=mpegts \
@@ -280,7 +287,25 @@ if ! grep -q '^#define CONFIG_ZLIB 1$' config.h; then
   exit 1
 fi
 
-for component in PNG_DECODER WEBP_DECODER TIFF_DECODER MJPEG_DECODER \
+if ! grep -q '^#define CONFIG_LIBXML2 1$' config.h; then
+  echo "FFmpeg did not enable libxml2 for DASH in '$variant'." >&2
+  exit 1
+fi
+
+if ! grep -q '^#define CONFIG_NETWORK 0$' config.h; then
+  echo "FFmpeg unexpectedly enabled networking for '$variant'." >&2
+  exit 1
+fi
+
+for protocol in HTTP HTTPS TCP TLS; do
+  if ! grep -q "^#define CONFIG_${protocol}_PROTOCOL 0$" config_components.h; then
+    echo "FFmpeg unexpectedly enabled the $protocol protocol for '$variant'." >&2
+    exit 1
+  fi
+done
+
+for component in DASH_DEMUXER HLS_DEMUXER FILE_PROTOCOL \
+  PNG_DECODER WEBP_DECODER TIFF_DECODER MJPEG_DECODER \
   IMAGE_PNG_PIPE_DEMUXER IMAGE_JPEG_PIPE_DEMUXER IMAGE_WEBP_PIPE_DEMUXER \
   IMAGE_TIFF_PIPE_DEMUXER; do
   if ! grep -q "^#define CONFIG_$component 1$" config_components.h; then
@@ -311,6 +336,7 @@ archives=(
   "$build_dir/libswresample/libswresample.a"
   "$build_dir/libswscale/libswscale.a"
   "$dav1d_prefix/lib/libdav1d.a"
+  "$libxml2_prefix/lib/libxml2.a"
   "$zlib_archive"
 )
 
