@@ -1,0 +1,19 @@
+<Project DefaultTargets="Verify">
+  <Import Project="../../package/photos/build/LightStudio.Photos.props" />
+  <Import Project="../../package/photos/build/LightStudio.Photos.targets" />
+  <ItemGroup>
+    <ResolvedFileToPublish Include="libraw.dylib" NuGetPackageId="LightStudio.Photos" />
+    <ResolvedFileToPublish Include="unrelated.dylib" NuGetPackageId="Other.Package" />
+  </ItemGroup>
+  <Target Name="Verify" DependsOnTargets="ValidateLightStudioPhotosWasm;RemoveLightStudioPhotosRuntimeAssets">
+    <Error Condition="'@(NativeFileReference->Count())' != '$(ExpectedWasmCount)'" Text="Wrong wasm archive count." />
+    <Error Condition="'@(NativeLibrary->Count())' != '$(ExpectedStaticCount)'" Text="Wrong native AOT archive count." />
+    <Error Condition="'$(ExpectedWasmCount)' == '4' and '$(_LightStudioPhotosWasmFlavor)' != '$(ExpectedFlavor)'" Text="Wrong wasm thread variant." />
+    <Error Condition="'$(ExpectedWasmCount)' == '4' and '@(NativeFileReference->'%(Filename)')' != 'libraw;liblcms2;libjpeg;libz'" Text="Wrong wasm dependency archives." />
+    <Error Condition="'$(ExpectedStaticCount)' == '4' and '@(NativeLibrary->'%(Filename)')' != 'libraw;liblcms2;libjpeg;libz'" Text="Wrong macOS dependency archives." />
+    <Error Condition="'$(ExpectedStaticCount)' == '4' and '@(LinkerArg)' != '-lc++'" Text="Missing macOS C++ runtime linker argument." />
+    <Error Condition="'$(ExpectedStaticCount)' == '4' and '@(ResolvedFileToPublish)' != 'unrelated.dylib'" Text="Static publish did not remove only Photos runtime assets." />
+    <Error Condition="'$(ExpectedStaticCount)' == '0' and '@(ResolvedFileToPublish->Count())' != '2'" Text="Shared publish incorrectly removed runtime assets." />
+    <Message Text="Photos targets passed: RID=$(RuntimeIdentifier), threads=$(WasmEnableThreads), AOT=$(PublishAot), static=$(EnableStaticPhotos)" Importance="high" />
+  </Target>
+</Project>

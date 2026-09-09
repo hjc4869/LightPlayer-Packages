@@ -1,0 +1,40 @@
+<Project>
+  <PropertyGroup>
+    <_LightStudioPhotosTargetsWasm>false</_LightStudioPhotosTargetsWasm>
+    <_LightStudioPhotosTargetsWasm Condition="'$(RuntimeIdentifier)' == 'browser-wasm' or '$(TargetPlatformIdentifier)' == 'browser'">true</_LightStudioPhotosTargetsWasm>
+    <_LightStudioPhotosWasmFlavor>wasm</_LightStudioPhotosWasmFlavor>
+    <_LightStudioPhotosWasmFlavor Condition="'$(WasmEnableThreads)' == 'true'">wasm-mt</_LightStudioPhotosWasmFlavor>
+    <_LightStudioPhotosStaticRid />
+    <_LightStudioPhotosStaticRid Condition="'$(RuntimeIdentifier)' == 'osx-arm64' or '$(RuntimeIdentifier)' == 'osx-x64'">$(RuntimeIdentifier)</_LightStudioPhotosStaticRid>
+    <_LightStudioPhotosUseStatic>false</_LightStudioPhotosUseStatic>
+    <_LightStudioPhotosUseStatic Condition="'$(EnableStaticPhotos)' == 'true' and '$(PublishAot)' == 'true' and '$(_LightStudioPhotosStaticRid)' != ''">true</_LightStudioPhotosUseStatic>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(_LightStudioPhotosTargetsWasm)' == 'true'">
+    <NativeFileReference Include="$(LightStudioPhotosPackageRoot)static/$(_LightStudioPhotosWasmFlavor)/libraw.a" />
+    <NativeFileReference Include="$(LightStudioPhotosPackageRoot)static/$(_LightStudioPhotosWasmFlavor)/liblcms2.a" />
+    <NativeFileReference Include="$(LightStudioPhotosPackageRoot)static/$(_LightStudioPhotosWasmFlavor)/libjpeg.a" />
+    <NativeFileReference Include="$(LightStudioPhotosPackageRoot)static/$(_LightStudioPhotosWasmFlavor)/libz.a" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(_LightStudioPhotosUseStatic)' == 'true'">
+    <NativeLibrary Include="$(LightStudioPhotosPackageRoot)static/$(_LightStudioPhotosStaticRid)/libraw.a" />
+    <NativeLibrary Include="$(LightStudioPhotosPackageRoot)static/$(_LightStudioPhotosStaticRid)/liblcms2.a" />
+    <NativeLibrary Include="$(LightStudioPhotosPackageRoot)static/$(_LightStudioPhotosStaticRid)/libjpeg.a" />
+    <NativeLibrary Include="$(LightStudioPhotosPackageRoot)static/$(_LightStudioPhotosStaticRid)/libz.a" />
+    <LinkerArg Include="-lc++" />
+  </ItemGroup>
+
+  <Target Name="ValidateLightStudioPhotosWasm" BeforeTargets="PrepareForBuild"
+          Condition="'$(_LightStudioPhotosTargetsWasm)' == 'true' and '$(WasmEnableExceptionHandling)' == 'false'">
+    <Error Text="LightStudio.Photos requires WasmEnableExceptionHandling=true for LibRaw's C++ exceptions." />
+  </Target>
+
+  <Target Name="RemoveLightStudioPhotosRuntimeAssets" AfterTargets="ComputeResolvedFilesToPublishList"
+          Condition="'$(_LightStudioPhotosUseStatic)' == 'true'">
+    <ItemGroup>
+      <_LightStudioPhotosPublishAssetToRemove Include="@(ResolvedFileToPublish)" Condition="'%(ResolvedFileToPublish.NuGetPackageId)' == 'LightStudio.Photos'" />
+      <ResolvedFileToPublish Remove="@(_LightStudioPhotosPublishAssetToRemove)" />
+    </ItemGroup>
+  </Target>
+</Project>

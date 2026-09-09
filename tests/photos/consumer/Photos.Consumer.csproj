@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RollForward>Major</RollForward>
+    <PhotosPackageVersion Condition="'$(PhotosPackageVersion)' == ''">0.22.2</PhotosPackageVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="LightStudio.Photos" Version="$(PhotosPackageVersion)" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <PackageId>LightStudio.Photos</PackageId>
+    <Version>0.22.2</Version>
+    <Authors>LightStudio</Authors>
+    <Description>LibRaw 0.22.2 and Little CMS 2.19.1 native libraries for .NET, with libjpeg-turbo 3.1.3 and zlib 1.3.2 for compressed DNG support. Shared libraries for Android arm64/x64, Linux arm64/x64, macOS arm64/x64 and Windows x64 (MinGW), with static archives for single/multi-threaded browser-wasm and macOS native AOT.</Description>
+    <PackageTags>photos;raw;libraw;lcms2;color;native;android;linux;macos;windows;webassembly;wasm</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseExpression>(LGPL-2.1-or-later OR CDDL-1.0) AND MIT AND IJG AND Zlib AND (GPL-3.0-or-later WITH GCC-exception-3.1) AND (Apache-2.0 WITH LLVM-exception)</PackageLicenseExpression>
+    <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/hjc4869/LightPlayer-Packages</RepositoryUrl>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <IsPackable>true</IsPackable>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+    <PhotosArtifactsPath Condition="'$(PhotosArtifactsPath)' == ''">$(MSBuildThisFileDirectory)../../artifacts</PhotosArtifactsPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="$(PhotosArtifactsPath)/photos-linux-x64/libraw.so;$(PhotosArtifactsPath)/photos-linux-x64/liblcms2.so" Pack="true" PhotosNative="true" PackagePath="runtimes/linux-x64/native/" />
+    <None Include="$(PhotosArtifactsPath)/photos-linux-arm64/libraw.so;$(PhotosArtifactsPath)/photos-linux-arm64/liblcms2.so" Pack="true" PhotosNative="true" PackagePath="runtimes/linux-arm64/native/" />
+    <None Include="$(PhotosArtifactsPath)/photos-win-x64/libraw.dll;$(PhotosArtifactsPath)/photos-win-x64/liblcms2.dll" Pack="true" PhotosNative="true" PackagePath="runtimes/win-x64/native/" />
+    <None Include="$(PhotosArtifactsPath)/photos-android/android-arm64/libraw.so;$(PhotosArtifactsPath)/photos-android/android-arm64/liblcms2.so" Pack="true" PhotosNative="true" PackagePath="runtimes/android-arm64/native/" />
+    <None Include="$(PhotosArtifactsPath)/photos-android/android-x64/libraw.so;$(PhotosArtifactsPath)/photos-android/android-x64/liblcms2.so" Pack="true" PhotosNative="true" PackagePath="runtimes/android-x64/native/" />
+    <None Include="$(PhotosArtifactsPath)/photos-osx-arm64/libraw.dylib;$(PhotosArtifactsPath)/photos-osx-arm64/liblcms2.dylib" Pack="true" PhotosNative="true" PackagePath="runtimes/osx-arm64/native/" />
+    <None Include="$(PhotosArtifactsPath)/photos-osx-x64/libraw.dylib;$(PhotosArtifactsPath)/photos-osx-x64/liblcms2.dylib" Pack="true" PhotosNative="true" PackagePath="runtimes/osx-x64/native/" />
+    <None Include="$(PhotosArtifactsPath)/photos-osx-arm64/libraw.a;$(PhotosArtifactsPath)/photos-osx-arm64/liblcms2.a;$(PhotosArtifactsPath)/photos-osx-arm64/libjpeg.a;$(PhotosArtifactsPath)/photos-osx-arm64/libz.a" Pack="true" PhotosNative="true" PackagePath="static/osx-arm64/" />
+    <None Include="$(PhotosArtifactsPath)/photos-osx-x64/libraw.a;$(PhotosArtifactsPath)/photos-osx-x64/liblcms2.a;$(PhotosArtifactsPath)/photos-osx-x64/libjpeg.a;$(PhotosArtifactsPath)/photos-osx-x64/libz.a" Pack="true" PhotosNative="true" PackagePath="static/osx-x64/" />
+    <None Include="$(PhotosArtifactsPath)/photos-browser-wasm/libraw.a;$(PhotosArtifactsPath)/photos-browser-wasm/liblcms2.a;$(PhotosArtifactsPath)/photos-browser-wasm/libjpeg.a;$(PhotosArtifactsPath)/photos-browser-wasm/libz.a" Pack="true" PhotosNative="true" PackagePath="static/wasm/" />
+    <None Include="$(PhotosArtifactsPath)/photos-browser-wasm-mt/libraw.a;$(PhotosArtifactsPath)/photos-browser-wasm-mt/liblcms2.a;$(PhotosArtifactsPath)/photos-browser-wasm-mt/libjpeg.a;$(PhotosArtifactsPath)/photos-browser-wasm-mt/libz.a" Pack="true" PhotosNative="true" PackagePath="static/wasm-mt/" />
+    <None Include="build/LightStudio.Photos.props" Pack="true" PackagePath="build/;buildTransitive/" />
+    <None Include="build/LightStudio.Photos.targets" Pack="true" PackagePath="build/;buildTransitive/" />
+    <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="../../libraw/COPYRIGHT;../../libraw/LICENSE.LGPL;../../libraw/LICENSE.CDDL" Pack="true" PackagePath="licenses/LibRaw/" />
+    <None Include="../../lcms2/LICENSE" Pack="true" PackagePath="licenses/Little-CMS/" />
+    <None Include="../../libjpeg-turbo/LICENSE.md;../../libjpeg-turbo/README.ijg" Pack="true" PackagePath="licenses/libjpeg-turbo/" />
+    <None Include="../../zlib/LICENSE" Pack="true" PackagePath="licenses/zlib/" />
+    <None Include="$(PhotosArtifactsPath)/photos-android/android-arm64/licenses/NOTICE.toolchain" Pack="true" PhotosNative="true" PackagePath="licenses/Android/" />
+    <None Include="$(PhotosArtifactsPath)/photos-win-x64/licenses/GCC-copyright.txt;$(PhotosArtifactsPath)/photos-win-x64/licenses/MinGW-copyright.txt;$(PhotosArtifactsPath)/photos-win-x64/licenses/GPL-3.txt" Pack="true" PhotosNative="true" PackagePath="licenses/MinGW/" />
+  </ItemGroup>
+
+  <Target Name="ValidatePhotosArtifacts" BeforeTargets="GenerateNuspec">
+    <ItemGroup>
+      <_PhotosRequiredArtifact Include="@(None)" Condition="'%(None.PhotosNative)' == 'true'" />
+    </ItemGroup>
+    <Error Condition="!Exists('%(_PhotosRequiredArtifact.Identity)')" Text="Missing Photos artifact '%(_PhotosRequiredArtifact.Identity)'. Build every platform or download all photos-* CI artifacts before packing." />
+  </Target>
+</Project>

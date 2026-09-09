@@ -1,0 +1,227 @@
+name: Build and publish LightStudio.Photos
+
+on:
+  push:
+    tags:
+      - "photos-v*"
+  workflow_dispatch:
+    inputs:
+      package_version:
+        description: NuGet package version
+        required: true
+        default: "0.22.2"
+        type: string
+      publish:
+        description: Publish to NuGet.org (requires NUGET_API_KEY)
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: photos-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PACKAGE_OUTPUT: artifacts/packages
+  NUGET_SOURCE: https://api.nuget.org/v3/index.json
+
+jobs:
+  build-linux:
+    name: Build photos-${{ matrix.target }} (glibc 2.17)
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-x64
+            runner: ubuntu-22.04
+            image: quay.io/pypa/manylinux2014_x86_64@sha256:493d2032114d757aaa761a9385ad8497f391503bf71acef9abeeb66682ca5d90
+          - target: linux-arm64
+            runner: ubuntu-22.04-arm
+            image: quay.io/pypa/manylinux2014_aarch64@sha256:f4cd164263e4ec2b7da7ee40b319bb5e30f0d7a2abd7ad4730e716a512dfb529
+    env:
+      MANYLINUX_IMAGE: ${{ matrix.image }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch photo dependencies
+        run: git submodule update --init libraw lcms2 libjpeg-turbo zlib
+      - name: Build and smoke-test on the compatibility baseline
+        run: >-
+          docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp
+          -v "$PWD:/work" -w /work "$MANYLINUX_IMAGE"
+          ./scripts/build-photos.sh "${{ matrix.target }}"
+      - name: Enforce glibc and C++ ABI baseline
+        run: ./scripts/check-photos-linux-abi.sh "artifacts/photos-${{ matrix.target }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: photos-${{ matrix.target }}
+          path: artifacts/photos-${{ matrix.target }}
+          if-no-files-found: error
+
+  build-windows:
+    name: Cross-build photos-win-x64 (MinGW)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch photo dependencies
+        run: git submodule update --init libraw lcms2 libjpeg-turbo zlib
+      - name: Set up Autotools, MinGW and Wine
+        run: |
+          sudo -n apt-get update
+          sudo -n apt-get install --no-install-recommends -y autoconf automake libtool pkg-config cmake gcc-mingw-w64-x86-64-win32 g++-mingw-w64-x86-64-win32 wine64
+      - name: Build Windows DLLs and inspect dependencies
+        run: ./scripts/build-photos.sh win-x64
+      - name: Run Windows C API smoke test
+        env:
+          WINEDEBUG: "-all"
+          WINEARCH: win64
+          WINEPREFIX: ${{ runner.temp }}/photos-wine
+        run: /usr/lib/wine/wine64 artifacts/photos-win-x64/photos-smoke.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: photos-win-x64
+          path: artifacts/photos-win-x64
+          if-no-files-found: error
+
+  build-android:
+    name: Build photos-android
+    runs-on: ubuntu-22.04
+    env:
+      ANDROID_API_LEVEL: "21"
+      ANDROID_NDK_VERSION: 28.2.13676358
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch photo dependencies
+        run: git submodule update --init libraw lcms2 libjpeg-turbo zlib
+      - name: Set up Autotools
+        run: |
+          sudo -n apt-get update
+          sudo -n apt-get install --no-install-recommends -y autoconf automake libtool pkg-config cmake
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'ndk;28.2.13676358'
+      - name: Build Android libraries
+        run: |
+          android_sdk_root="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
+          export ANDROID_NDK_HOME="$android_sdk_root/ndk/$ANDROID_NDK_VERSION"
+          ./scripts/build-photos-android.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: photos-android
+          path: artifacts/photos-android
+          if-no-files-found: error
+
+  build-browser-wasm:
+    name: Build photos-${{ matrix.target }}
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [browser-wasm, browser-wasm-mt]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch photo dependencies
+        run: git submodule update --init libraw lcms2 libjpeg-turbo zlib
+      - name: Set up Autotools
+        run: |
+          sudo -n apt-get update
+          sudo -n apt-get install --no-install-recommends -y autoconf automake libtool pkg-config cmake
+      - name: Set up Emscripten
+        uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: 3.1.69
+          actions-cache-folder: artifacts/emsdk-cache
+      - name: Build and smoke-test wasm libraries
+        run: ./scripts/build-photos.sh "${{ matrix.target }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: photos-${{ matrix.target }}
+          path: artifacts/photos-${{ matrix.target }}
+          if-no-files-found: error
+
+  build-macos:
+    name: Build photos-${{ matrix.target }}
+    runs-on: macos-14
+    env:
+      MACOSX_DEPLOYMENT_TARGET: "11.0"
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [osx-arm64, osx-x64]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch photo dependencies
+        run: git submodule update --init libraw lcms2 libjpeg-turbo zlib
+      - name: Set up Autotools
+        run: brew install autoconf automake libtool pkg-config cmake
+      - name: Enable Intel smoke tests on Apple silicon
+        if: matrix.target == 'osx-x64'
+        run: softwareupdate --install-rosetta --agree-to-license
+      - name: Build and smoke-test shared and static libraries
+        run: ./scripts/build-photos.sh "${{ matrix.target }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: photos-${{ matrix.target }}
+          path: artifacts/photos-${{ matrix.target }}
+          if-no-files-found: error
+
+  pack-and-publish:
+    name: Pack and publish LightStudio.Photos
+    runs-on: ubuntu-22.04
+    needs: [build-linux, build-windows, build-android, build-browser-wasm, build-macos]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch licenses
+        run: git submodule update --init libraw lcms2 libjpeg-turbo zlib
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Resolve package version
+        id: version
+        env:
+          DISPATCH_VERSION: ${{ inputs.package_version }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+            package_version="$DISPATCH_VERSION"
+          else
+            package_version="${GITHUB_REF_NAME#photos-v}"
+          fi
+          if [[ ! "$package_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            echo "Invalid NuGet package version: $package_version" >&2
+            exit 1
+          fi
+          echo "value=$package_version" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: photos-*
+      - name: Test consumer MSBuild targets
+        run: ./scripts/test-photos-targets.sh
+      - name: Pack NuGet package
+        run: >-
+          dotnet pack package/photos/LightStudio.Photos.csproj
+          --configuration Release --output "$PACKAGE_OUTPUT"
+          -p:PackageVersion=${{ steps.version.outputs.value }}
+          -p:ContinuousIntegrationBuild=true
+      - name: Test the packed Linux runtime assets
+        run: >-
+          dotnet run --project tests/photos/consumer/Photos.Consumer.csproj
+          --configuration Release
+          -p:PhotosPackageVersion=${{ steps.version.outputs.value }}
+          -p:RestoreAdditionalProjectSources="$PWD/$PACKAGE_OUTPUT"
+          -p:RestorePackagesPath="$PWD/artifacts/build/photos-consumer-packages"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LightStudio.Photos-${{ steps.version.outputs.value }}
+          path: ${{ env.PACKAGE_OUTPUT }}/LightStudio.Photos.*.nupkg
+          if-no-files-found: error
+      - name: Publish to NuGet.org
+        if: github.event_name == 'workflow_dispatch' && inputs.publish
+        env:
+          NUGET_AUTH_TOKEN: ${{ secrets.NUGET_API_KEY }}
+        run: >-
+          dotnet nuget push "$PACKAGE_OUTPUT/LightStudio.Photos.*.nupkg"
+          --api-key "$NUGET_AUTH_TOKEN" --source "$NUGET_SOURCE" --skip-duplicate

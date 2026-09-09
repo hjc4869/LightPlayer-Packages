@@ -10,3 +10,15 @@
 [submodule "libxml2"]
 	path = libxml2
 	url = https://github.com/GNOME/libxml2.git
+[submodule "libraw"]
+	path = libraw
+	url = https://github.com/LibRaw/LibRaw.git
+[submodule "lcms2"]
+	path = lcms2
+	url = https://github.com/mm2/Little-CMS.git
+[submodule "libjpeg-turbo"]
+	path = libjpeg-turbo
+	url = https://github.com/libjpeg-turbo/libjpeg-turbo.git
+[submodule "zlib"]
+	path = zlib
+	url = https://github.com/madler/zlib.git

@@ -1,3 +1,7 @@
 artifacts/
 package/bin/
 package/obj/
+package/photos/bin/
+package/photos/obj/
+tests/photos/consumer/bin/
+tests/photos/consumer/obj/

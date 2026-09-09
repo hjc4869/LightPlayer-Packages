@@ -1,0 +1,5 @@
+<Project>
+  <PropertyGroup>
+    <LightStudioPhotosPackageRoot>$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)..'))</LightStudioPhotosPackageRoot>
+  </PropertyGroup>
+</Project>
