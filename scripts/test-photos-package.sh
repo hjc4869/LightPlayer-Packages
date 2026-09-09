@@ -16,11 +16,11 @@ done
 rm -rf -- "$test_root"
 mkdir -p "$test_root/artifacts"
 
-for target in linux-x64 linux-arm64 win-x64 android-arm64 android-x64 osx-arm64 osx-x64 browser-wasm browser-wasm-mt; do
+for target in linux-x64 linux-arm64 win-x64 win-arm64 android-arm64 android-x64 osx-arm64 osx-x64 browser-wasm browser-wasm-mt; do
   relative="photos-$target"
   case "$target" in
     linux-*) extensions=(so) ;;
-    win-x64) extensions=(dll) ;;
+    win-*) extensions=(dll) ;;
     android-*) relative="photos-android/$target"; extensions=(so) ;;
     osx-*) extensions=(dylib a) ;;
     browser-*) extensions=(a) ;;
@@ -49,9 +49,13 @@ dotnet pack "$project" -o "$test_root/packages" -p:PackageVersion=0.0.0-test \
 package="$test_root/packages/LightStudio.Photos.0.0.0-test.nupkg"
 unzip -q "$package" -d "$test_root/extracted"
 
-for runtime in linux-x64 linux-arm64 win-x64 android-arm64 android-x64 osx-arm64 osx-x64; do
+for runtime in linux-x64 linux-arm64 win-x64 win-arm64 android-arm64 android-x64 osx-arm64 osx-x64; do
   test -d "$test_root/extracted/runtimes/$runtime/native"
 done
+test -f "$test_root/extracted/runtimes/win-arm64/native/libraw.dll"
+test -f "$test_root/extracted/runtimes/win-arm64/native/liblcms2.dll"
+test -f "$test_root/extracted/licenses/LLVM-MinGW/LLVM-MinGW-LICENSE.txt"
+test -f "$test_root/extracted/licenses/LLVM-MinGW/COPYING.MinGW-w64-runtime.txt"
 for runtime in osx-arm64 osx-x64 wasm wasm-mt; do
   test -f "$test_root/extracted/static/$runtime/libraw.a"
   test -f "$test_root/extracted/static/$runtime/liblcms2.a"
@@ -73,9 +77,17 @@ dotnet run --project "$repo_root/tests/photos/consumer/Photos.Consumer.csproj" \
   -p:PhotosPackageVersion=0.0.0-test -p:RestoreAdditionalProjectSources="$test_root/packages" \
   -p:RestorePackagesPath="$test_root/restore"
 
+dotnet publish "$repo_root/tests/photos/consumer/Photos.Consumer.csproj" \
+  --runtime win-arm64 --self-contained false -p:UseAppHost=false \
+  -p:PhotosPackageVersion=0.0.0-test -p:RestoreAdditionalProjectSources="$test_root/packages" \
+  -p:RestorePackagesPath="$test_root/restore" --output "$test_root/win-arm64-publish"
+for library in libraw liblcms2; do
+  cmp "$test_root/artifacts/photos-win-arm64/$library.dll" "$test_root/win-arm64-publish/$library.dll"
+done
+
 for artifact in "$test_root"/artifacts/photos-*/*.{so,dll,dylib,a} \
   "$test_root"/artifacts/photos-android/android-*/*.so \
-  "$test_root"/artifacts/photos-win-x64/licenses/*.txt \
+  "$test_root"/artifacts/photos-win-*/licenses/*.txt \
   "$test_root"/artifacts/photos-android/android-arm64/licenses/NOTICE.toolchain; do
   [[ -f "$artifact" ]] || continue
   mv "$artifact" "$artifact.missing"
@@ -88,4 +100,4 @@ for artifact in "$test_root"/artifacts/photos-*/*.{so,dll,dylib,a} \
   mv "$artifact.missing" "$artifact"
 done
 
-printf 'NuGet layout, Linux P/Invoke, and missing-artifact guards passed. Nonlocal binaries are fixtures; do not publish this test package.\n'
+printf 'NuGet layout, Linux P/Invoke, Windows ARM64 publish selection, and missing-artifact guards passed. Nonlocal binaries are fixtures; do not publish this test package.\n'

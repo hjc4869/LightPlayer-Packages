@@ -110,11 +110,13 @@ dotnet pack package/LightStudio.Ffmpeg.csproj --output artifacts/packages
 
 ## Photos Builds
 
-`LightStudio.Photos` is independent of FFmpeg. It includes shared libraries for `android-arm64`, `android-x64`, `linux-x64`, `linux-arm64`, `win-x64`, `osx-arm64` and `osx-x64`; static archives for both macOS architectures; and separate single/multi-threaded wasm32 archives. libjpeg-turbo 3.1.3 and zlib 1.3.2 enable lossy JPEG and floating-point deflate DNG decoding. They are embedded into LibRaw's shared libraries and shipped as `libjpeg.a`/`libz.a` beside `libraw.a`/`liblcms2.a` for static consumers. The [package README](package/photos/README.md) documents P/Invoke names, `WasmEnableThreads`, `EnableStaticPhotos`, supported formats and licenses.
+`LightStudio.Photos` is independent of FFmpeg. It includes shared libraries for `android-arm64`, `android-x64`, `linux-x64`, `linux-arm64`, `win-x64`, `win-arm64`, `osx-arm64` and `osx-x64`; static archives for both macOS architectures; and separate single/multi-threaded wasm32 archives. libjpeg-turbo 3.1.3 and zlib 1.3.2 enable lossy JPEG and floating-point deflate DNG decoding. They are embedded into LibRaw's shared libraries and shipped as `libjpeg.a`/`libz.a` beside `libraw.a`/`liblcms2.a` for static consumers. The [package README](package/photos/README.md) documents P/Invoke names, `WasmEnableThreads`, `EnableStaticPhotos`, supported formats and licenses.
 
 The [Photos workflow](.github/workflows/photos.yml) uses `ubuntu-22.04`, the oldest supported hosted Ubuntu image, for Linux x64, Windows cross-builds, Android, wasm and packing. Linux arm64 builds natively on `ubuntu-22.04-arm`. Both Linux architectures compile and run smoke tests inside pinned architecture-specific manylinux2014 (CentOS 7, glibc 2.17) containers; the host runner does not set the binary's glibc baseline. CI rejects newer glibc/C++ ABI requirements. The baseline containers are build environments, not a recommendation to deploy an end-of-life OS.
 
 macOS uses `macos-14`, as the existing FFmpeg macOS job does, and explicitly targets macOS 11.0. That runner is deprecated upstream and will need replacement when retired; the deployment target can remain 11.0. Intel binaries are cross-built on Apple silicon and both shared/static smoke tests run through Rosetta. Windows x64 uses the MinGW Win32-thread toolchain on Linux and a Wine smoke test, with no Windows build runner required.
+
+Windows ARM64 uses [LLVM-MinGW](https://github.com/mstorsjo/llvm-mingw), because GCC MinGW does not target Windows on ARM. Compilation stays on `ubuntu-22.04`, using the SHA-256-pinned 20260908 UCRT toolchain. A separate `windows-11-arm` job downloads the result and executes the native compressed-DNG/LCMS smoke test; packing depends on that test succeeding. All four libraries are built with the same LLVM-MinGW toolchain, avoiding incompatible GCC/LLVM static objects. The C++ runtime, JPEG and zlib are embedded in LibRaw, and the package includes the required toolchain notices.
 
 Android follows FFmpeg's SDK setup and combined artifact pattern, using NDK r28c (`28.2.13676358`), API 21, and both 64-bit ABIs. Local tests use `/usr/lib/android-ndk` by default. Artifacts have 16 KB page alignment and do not require `libc++_shared.so`.
 
@@ -140,6 +142,10 @@ docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
 # Debian/Ubuntu MinGW packages: gcc/g++-mingw-w64-x86-64-win32.
 ./scripts/build-photos.sh win-x64
 
+# Windows ARM64 cross-build on x64 Linux (Ubuntu 22.04 or compatible).
+./scripts/setup-photos-llvm-mingw.sh
+./scripts/build-photos.sh win-arm64
+
 ANDROID_NDK_HOME=/usr/lib/android-ndk ./scripts/build-photos-android.sh
 
 # Requires Emscripten; CI uses 3.1.69, matching FFmpeg.
@@ -160,7 +166,9 @@ ANDROID_NDK_HOME=/usr/lib/android-ndk ./scripts/build-photos-android.sh
 dotnet pack package/photos/LightStudio.Photos.csproj --output artifacts/packages
 ```
 
-`PHOTOS_BUILD_JOBS` controls parallelism. Each target rebuilds its own directory under `artifacts/build/photos-*` without modifying the pinned submodule sources. Shared C API smoke tests run for Linux/macOS; wasm tests execute in Node; Android smoke executables are cross-linked but require a device/emulator to execute. Tests check LibRaw capabilities and decode synthetic 32x32 JPEG/float-deflate DNGs, including on a wasm pthread. The workflow also checks JPEG/zlib capabilities from a .NET P/Invoke consumer loading the final NuGet's Linux assets.
+`PHOTOS_BUILD_JOBS` controls parallelism. Each target rebuilds its own directory under `artifacts/build/photos-*` without modifying the pinned submodule sources. Shared C API smoke tests run for Linux/macOS; wasm tests execute in Node; Android smoke executables are cross-linked but require a device/emulator to execute. Windows ARM64 builds validate PE architecture and DLL imports locally, but execution requires Windows ARM64 (x64 Wine cannot run this executable). Tests check LibRaw capabilities and decode synthetic 32x32 JPEG/float-deflate DNGs, including on a wasm pthread. The workflow also checks JPEG/zlib capabilities from a .NET P/Invoke consumer loading the final NuGet's Linux assets.
+
+The Windows ARM64 cross-build was verified locally and in an Ubuntu 22.04 container; native Windows ARM64 execution is a CI gate and has not been verified on the Linux development host. `LLVM_MINGW_HOME` can point to another LLVM-MinGW installation; the default is the pinned toolchain under `artifacts/toolchains`. To run the smoke test on Windows ARM64, keep the two generated DLLs beside `photos-smoke.exe` and execute it. The Linux package test also cross-publishes the .NET consumer for `win-arm64` and checks that the correct DLLs are selected.
 
 The installed `crossbuild-essential-arm64` toolchain was verified locally by compiling all four libraries and running the resulting arm64 smoke executable with `qemu-aarch64 -L /usr/aarch64-linux-gnu`. Local cross-builds inherit that toolchain's glibc/C++ sysroot baseline; use CI's native manylinux build for release compatibility. JPEG/zlib are built from the pinned sources rather than taken from the host or NDK.
 

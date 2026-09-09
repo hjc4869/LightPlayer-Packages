@@ -10,7 +10,7 @@ output="$repo_root/artifacts/photos-$target"
 build_jobs="${PHOTOS_BUILD_JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)}"
 
 if [[ $# -gt 1 ]]; then
-  echo 'Usage: build-photos.sh <linux-x64|linux-arm64|win-x64|android-arm64|android-x64|osx-arm64|osx-x64|browser-wasm|browser-wasm-mt>' >&2
+  echo 'Usage: build-photos.sh <linux-x64|linux-arm64|win-x64|win-arm64|android-arm64|android-x64|osx-arm64|osx-x64|browser-wasm|browser-wasm-mt>' >&2
   exit 2
 fi
 
@@ -57,6 +57,25 @@ case "$target" in
     compression_args+=(-DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_PROCESSOR=x86_64)
     CPPFLAGS='-DCMS_DLL_BUILD -DLIBRAW_BUILDLIB -DLIBRAW_WIN32_DLLDEFS'
     LDFLAGS='-static-libstdc++ -static-libgcc'
+    windows_link_flags=(-static-libstdc++ -static-libgcc)
+    windows_smoke_flags=(-static-libgcc)
+    thread_args=(--without-threads)
+    ;;
+  win-arm64)
+    llvm_mingw_home="${LLVM_MINGW_HOME:-$repo_root/artifacts/toolchains/llvm-mingw-20260908-ucrt-ubuntu-22.04-x86_64}"
+    mingw_prefix="$llvm_mingw_home/bin/aarch64-w64-mingw32-"
+    CC="${mingw_prefix}clang" CXX="${mingw_prefix}clang++"
+    AR="${mingw_prefix}ar" RANLIB="${mingw_prefix}ranlib"
+    NM="${mingw_prefix}nm" STRIP="${mingw_prefix}strip"
+    if [[ ! -x "$CC" ]]; then
+      echo 'Run scripts/setup-photos-llvm-mingw.sh or set LLVM_MINGW_HOME to an LLVM-MinGW installation.' >&2
+      exit 1
+    fi
+    configure_args+=(--host=aarch64-w64-mingw32)
+    compression_args+=(-DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_PROCESSOR=aarch64)
+    CPPFLAGS='-DCMS_DLL_BUILD -DLIBRAW_BUILDLIB -DLIBRAW_WIN32_DLLDEFS -D_WIN32_WINNT=0x0a00'
+    windows_link_flags=(-static)
+    windows_smoke_flags=(-static)
     thread_args=(--without-threads)
     ;;
   android-arm64 | android-x64)
@@ -166,7 +185,7 @@ for library in libjpeg-turbo zlib; do
   cmake --build "$build_dir" --parallel "$build_jobs"
   cmake --install "$build_dir"
 done
-if [[ "$target" == win-x64 ]]; then
+if [[ "$target" == win-* ]]; then
   cp "$prefix/lib/libzs.a" "$prefix/lib/libz.a"
 fi
 for library in libjpeg libz; do
@@ -192,7 +211,7 @@ for library in lcms2 libraw; do
     make -C include install
     make install-pkgconfigDATA
   else
-    if [[ "$target" == win-x64 || "$target" == android-* ]]; then
+    if [[ "$target" == win-* || "$target" == android-* ]]; then
       configure_args+=(--disable-shared --enable-static)
     fi
     "${configure[@]}" "$source_dir/configure" --prefix="$prefix" --libdir="$prefix/lib" \
@@ -244,26 +263,46 @@ case "$target" in
     done
     "$CC" "$repo_root/tests/photos/smoke.c" -L"$output" -lraw -llcms2 -o "$build_root/smoke"
     ;;
-  win-x64)
-    "$CXX" -shared -static-libstdc++ -static-libgcc \
+  win-x64 | win-arm64)
+    "$CXX" -shared "${windows_link_flags[@]}" \
       -Wl,--whole-archive "$prefix/lib/libraw.a" -Wl,--no-whole-archive \
       "$prefix/lib/libjpeg.a" "$prefix/lib/libz.a" \
-      -L"$prefix/lib" -llcms2 -lws2_32 \
+      "$prefix/lib/liblcms2.dll.a" -lws2_32 \
       -Wl,--out-implib,"$prefix/lib/libraw.dll.a" -o "$prefix/bin/libraw.dll"
     cp "$prefix/bin/libraw.dll" "$prefix/bin/liblcms2.dll" "$output/"
     mkdir -p "$output/licenses"
-    cp /usr/share/doc/gcc-mingw-w64-base/copyright "$output/licenses/GCC-copyright.txt"
-    cp /usr/share/doc/mingw-w64-common/copyright "$output/licenses/MinGW-copyright.txt"
-    cp /usr/share/common-licenses/GPL-3 "$output/licenses/GPL-3.txt"
+    if [[ "$target" == win-arm64 ]]; then
+      cp "$llvm_mingw_home/LICENSE.TXT" "$output/licenses/LLVM-MinGW-LICENSE.txt"
+      cp "$llvm_mingw_home/aarch64-w64-mingw32/share/mingw32/COPYING.MinGW-w64.txt" \
+        "$llvm_mingw_home/aarch64-w64-mingw32/share/mingw32/COPYING.MinGW-w64-runtime.txt" \
+        "$output/licenses/"
+    else
+      cp /usr/share/doc/gcc-mingw-w64-base/copyright "$output/licenses/GCC-copyright.txt"
+      cp /usr/share/doc/mingw-w64-common/copyright "$output/licenses/MinGW-copyright.txt"
+      cp /usr/share/common-licenses/GPL-3 "$output/licenses/GPL-3.txt"
+    fi
     for library in "$output"/*.dll; do
       dependencies="$("${mingw_prefix}objdump" -p "$library")"
-      if grep -Ei 'DLL Name:.*(libgcc|libstdc\+\+|libwinpthread|libgomp|jpeg|zlib|libz\.)' <<<"$dependencies"; then
+      if grep -Ei 'DLL Name:.*(libgcc|libstdc\+\+|libc\+\+|libunwind|libwinpthread|libssp|libgomp|jpeg|zlib|libz\.)' <<<"$dependencies"; then
         echo "Unexpected compiler runtime DLL dependency in $library" >&2
         exit 1
       fi
     done
-    "$CC" "$repo_root/tests/photos/smoke.c" -L"$prefix/lib" \
-      -static-libgcc -lraw -llcms2 -o "$output/photos-smoke.exe"
+    "$CC" "$repo_root/tests/photos/smoke.c" "${windows_smoke_flags[@]}" \
+      "$prefix/lib/libraw.dll.a" "$prefix/lib/liblcms2.dll.a" -o "$output/photos-smoke.exe"
+    if [[ "$target" == win-arm64 ]]; then
+      for binary in "$output"/*.dll "$output/photos-smoke.exe"; do
+        headers="$("$llvm_mingw_home/bin/llvm-readobj" --file-headers --coff-imports "$binary")"
+        grep -Fq 'Machine: IMAGE_FILE_MACHINE_ARM64' <<<"$headers" || {
+          echo "Not a native Windows ARM64 binary: $binary" >&2
+          exit 1
+        }
+        if grep -Ei 'Name:.*(libc\+\+|libunwind|libwinpthread|libssp|jpeg|zlib)' <<<"$headers"; then
+          echo "Unexpected Windows ARM64 dependency in $binary" >&2
+          exit 1
+        fi
+      done
+    fi
     ;;
   osx-arm64 | osx-x64)
     cp "$prefix/lib/libraw.dylib" "$prefix/lib/liblcms2.dylib" \

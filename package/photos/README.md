@@ -7,6 +7,7 @@ Native **LibRaw 0.22.2** and **Little CMS 2.19.1** libraries for .NET. LibRaw in
 | `android-arm64`, `android-x64` | Shared `.so` | `runtimes/<rid>/native` |
 | `linux-x64`, `linux-arm64` | Shared `.so` | `runtimes/<rid>/native` |
 | `win-x64` (MinGW) | Shared `.dll` | `runtimes/win-x64/native` |
+| `win-arm64` (LLVM-MinGW) | Shared `.dll` | `runtimes/win-arm64/native` |
 | `osx-arm64`, `osx-x64` | Shared `.dylib` | `runtimes/<rid>/native` |
 | `osx-arm64`, `osx-x64` | Static `.a`, native AOT opt-in | `static/<rid>` |
 | `browser-wasm`, single-threaded | Static `.a` | `static/wasm` |
@@ -40,7 +41,8 @@ Shared builds embed JPEG and zlib into LibRaw, so applications deploy only `libr
 - Linux: release builds use the CentOS 7-based manylinux2014 environment for glibc 2.17 or newer, using baseline x86-64 or ARMv8-A instructions. Requires system `libstdc++`, `libgcc_s` and glibc; not an Alpine/musl build. Your .NET runtime may require a newer OS. Local arm64 cross-builds use the installed toolchain's sysroot and may require newer glibc than CI releases.
 - Android: API 21 or newer, NDK r28c, 16 KB page-compatible libraries. The C++ runtime is linked statically.
 - macOS: deployment target 11.0, both Apple silicon and Intel. Shared libraries resolve the bundled LCMS library relative to themselves.
-- Windows: x64, cross-built on Linux with the MinGW Win32-thread toolchain. No separately installed MinGW runtime DLLs are required.
+- Windows x64: cross-built on Linux with the GCC MinGW Win32-thread toolchain. No separately installed MinGW runtime DLLs are required.
+- Windows ARM64: cross-built on Linux with LLVM-MinGW 20260908 (LLVM 23.1.1), targeting native ARM64 rather than ARM64EC. Uses the UCRT provided by Windows 10/11 on ARM. JPEG, zlib and the LLVM C++ runtime are linked statically; only the two package DLLs and Windows system DLLs are needed. CI runs the native compressed-DNG/LCMS smoke test on `windows-11-arm` before packing.
 - WebAssembly: wasm32 static archives, with separate single-threaded and pthread-enabled builds using native wasm exceptions. Applications must use a compatible Emscripten/.NET wasm toolchain and configure cross-origin isolation for browser threads.
 
 OpenMP, RawSpeed, the Adobe DNG SDK and the LCMS GPL plugins are not included. JPEG and zlib support are required at build time and validated by decoding synthetic compressed DNGs. libjpeg-turbo uses the JPEG v8 API, without its TurboJPEG API/tools or SIMD assembly. The upstream `lcms2.19.1` tag reports API version `2190` / Autotools version `2.19`; the source is pinned to the actual 2.19.1 release commit.

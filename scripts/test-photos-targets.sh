@@ -15,7 +15,7 @@ done
 dotnet msbuild "$project" -nologo -v:minimal -p:TargetPlatformIdentifier=browser \
   -p:ExpectedWasmCount=4 -p:ExpectedStaticCount=0 -p:ExpectedFlavor=wasm
 
-for runtime in osx-arm64 osx-x64 linux-x64 linux-arm64 win-x64 android-arm64 android-x64; do
+for runtime in osx-arm64 osx-x64 linux-x64 linux-arm64 win-x64 win-arm64 android-arm64 android-x64; do
   for aot in true false; do
     for static in true false; do
       expected=0
