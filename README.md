@@ -42,10 +42,50 @@ single-threaded browser-wasm variant: libjxl's parallel runner is `std::thread`
 based and FFmpeg always creates it with `av_cpu_count()` workers, which aborts in
 an Emscripten module built without pthreads.
 
+libjxl's embedded skcms uses `lightstudio_ffmpeg_`-prefixed symbols on every
+target, keeping it independent of SkiaSharp's skcms. Following the private JPEG
+build below, the build first discovers all external C definitions in skcms's
+objects, then rebuilds libjxl with a forced prefix header. This covers internal
+data and helpers such as `powf_`, not just `skcms_*`; the C++ `skcms_private`
+namespace is renamed too. No pinned submodule sources or public `Jxl*` APIs
+change. skcms is already inside `libjxl_cms.a`, so no archive merge is needed.
+
+Each wasm libjxl build runs [the skcms coexistence test](scripts/test-libjxl-wasm-skcms.sh).
+It whole-archive links an independent, unprefixed skcms alongside libjxl in both
+orders and compares Display-P3 to sRGB conversions through both APIs. The MT
+test runs on a pthread. This tests native symbol isolation, not a full managed
+SkiaSharp application; FFmpeg's single-threaded JPEG XL restriction still applies.
+
 zlib is required by the PNG decoder. Android and macOS use the platform copy;
 browser-wasm uses the Emscripten `zlib` port and ships the resulting `libz.a`
 next to the FFmpeg archives, so consuming projects do not have to enable the
 port themselves.
+
+### Remaining symbol risks
+
+Inspection of the available Android FFmpeg and Android/Linux Photos shared
+artifacts found no exported private skcms, Brotli, Highway, dav1d, libxml2,
+JPEG or zlib definitions. LCMS intentionally exports its public API. These
+checks do not imply that all LibRaw internals or C++ runtime symbols are hidden,
+and shared-library boundaries do not isolate the separately shipped static archives.
+macOS artifacts were not inspected on the Linux development host.
+
+The remaining candidates below are not changed by the skcms fix:
+
+| Dependency | Evidence and recommended follow-up |
+| --- | --- |
+| LibRaw shared libraries | Both Android ABIs export 55 symbols in the inspected C++ runtime families, including `__cxa_*`. Android and Linux also expose generic internals such as `J`, `JS` and `default_data_callback`. Restrict exports to the supported LibRaw API and localize the embedded runtime with an export map / `--exclude-libs`; do not macro-rename the C++ runtime ABI. |
+| zlib | Existing FFmpeg and Photos wasm archives share 113 global definitions, including internal helpers. Prefer one explicitly shared, compatible archive, or namespace Photos' private copy and embed it into LibRaw. Ordinary lazy archive linking may silently select one implementation; whole-archive linking can report duplicates. |
+| Brotli | libjxl's three archives expose `Brotli*` plus helpers such as `AttachPreparedDictionary`. A private prefix covering all definitions, followed by merging into libjxl, is worthwhile when co-linking another Brotli consumer. |
+| Highway | `libhwy.a` exposes the C++ `hwy::` namespace. Different statically linked versions can collide; isolate the namespace consistently in Highway and libjxl before optionally merging. |
+| macOS static JPEG | Photos still ships an unprefixed ABI 80 `libjpeg.a`. Apply the same private-prefix strategy as wasm before co-linking another JPEG ABI. |
+| libxml2 / dav1d | Separate static archives expose `xml*` / `html*` / `dav1d_*` and internal definitions. Candidates for private namespacing and merging if another consumer brings its own versions; no second copy was verified here. |
+| LCMS | The static archive also exposes internal helpers such as `IsIdentity`. Preserve the public `cms*` API used by Photos consumers; consider hiding or prefixing internals rather than blindly merging/renaming the public library. |
+
+Merging archives alone does not prevent static symbol collisions. Private
+dependencies need renamed definitions **and references**, or consumers must
+deliberately share one compatible implementation. A symbol-name overlap is a
+risk, not proof that a particular application's final link currently fails.
 
 ## Publish
 

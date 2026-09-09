@@ -92,7 +92,7 @@ require_ndk_tool() {
 
 case "$target" in
   browser-wasm-st | browser-wasm-mt)
-    for tool in emcmake emcc em++; do
+    for tool in emcmake emcc em++ emnm; do
       if ! command -v "$tool" >/dev/null 2>&1; then
         echo "'$tool' is required to build libjxl for browser-wasm." >&2
         exit 1
@@ -166,6 +166,33 @@ esac
 build_jobs="${LIBJXL_BUILD_JOBS:-${FFMPEG_BUILD_JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)}}"
 
 "${configure[@]}" "${cmake_args[@]}"
+cmake --build "$build_dir" --target jxl_cms --parallel "$build_jobs"
+nm_tool="$(sed -n 's/^CMAKE_NM:[^=]*=//p' "$build_dir/CMakeCache.txt")"
+if [[ "$target" == browser-wasm-* ]]; then
+  nm_tool="$(command -v emnm)"
+fi
+if [[ ! -x "$nm_tool" ]]; then
+  echo "CMake did not select an executable nm tool: '$nm_tool'." >&2
+  exit 1
+fi
+skcms_symbols="$build_dir/skcms-symbols.txt"
+skcms_namespace="$build_dir/skcms-namespace.h"
+skcms_objects="$build_dir/lib/CMakeFiles/jxl_cms.dir/__/third_party/skcms"
+"$nm_tool" -g "$skcms_objects"/*.o "$skcms_objects"/src/*.o |
+  awk -v target="$target" 'NF >= 2 && $(NF - 1) ~ /^[ABCDGRSTVW]$/ {
+    symbol = $NF;
+    if (target == "osx-arm64") sub(/^_/, "", symbol);
+    if (symbol ~ /^[A-Za-z_][A-Za-z0-9_]*$/ && symbol !~ /^_Z/) print symbol
+  }' | LC_ALL=C sort -u > "$skcms_symbols"
+awk '{ printf "#define %s lightstudio_ffmpeg_%s\n", $1, $1 }' \
+  "$skcms_symbols" > "$skcms_namespace"
+printf '#define skcms_private lightstudio_ffmpeg_skcms_private\n' >> "$skcms_namespace"
+grep -q '^#define skcms_Transform ' "$skcms_namespace"
+for language in C CXX; do
+  compiler_flags="$(sed -n "s/^CMAKE_${language}_FLAGS:STRING=//p" "$build_dir/CMakeCache.txt")"
+  cmake_args+=("-DCMAKE_${language}_FLAGS=$compiler_flags -include \"$skcms_namespace\"")
+done
+"${configure[@]}" "${cmake_args[@]}"
 # The default target is used on purpose: brotli's install rules cover its CLI,
 # so building only the libraries leaves 'cmake --install' without input files.
 cmake --build "$build_dir" --parallel "$build_jobs"
@@ -197,6 +224,24 @@ for artifact in "${static_libraries[@]}" "${pkg_config_files[@]}"; do
     exit 1
   fi
 done
+
+skcms_conflicts="$("$nm_tool" -g "${static_libraries[@]}" |
+  awk -v symbols="$skcms_symbols" -v target="$target" '
+    BEGIN {
+      while ((getline symbol < symbols) > 0) original[symbol] = 1;
+      close(symbols);
+    }
+    NF >= 2 {
+      symbol = $NF;
+      if (target == "osx-arm64") sub(/^_/, "", symbol);
+      if (symbol in original || symbol ~ /^skcms_/ || symbol ~ /^_Z.*13skcms_private/)
+        print symbol;
+    }' |
+  LC_ALL=C sort -u)"
+if [[ -n "$skcms_conflicts" ]]; then
+  printf 'libjxl exposes or imports unprefixed skcms symbols:\n%s\n' "$skcms_conflicts" >&2
+  exit 1
+fi
 
 if [[ "$target" == browser-wasm-st ]]; then
   # Nothing in the single-threaded package may carry the shared-memory flags.
@@ -231,6 +276,10 @@ for pkg_config_file in "$prefix/lib/pkgconfig/libjxl.pc" "$threads_pkg_config_fi
     exit 1
   fi
 done
+
+if [[ "$target" == browser-wasm-* ]]; then
+  bash "$repo_root/scripts/test-libjxl-wasm-skcms.sh" "$target" "$prefix" "$build_dir/skcms-coexistence"
+fi
 
 printf "Built libjxl %s for '%s' in %s\n" \
   "$(sed -n 's/^Version: *//p' "$prefix/lib/pkgconfig/libjxl.pc")" "$target" "$prefix"
