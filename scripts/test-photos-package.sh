@@ -31,7 +31,10 @@ for target in linux-x64 linux-arm64 win-x64 win-arm64 android-arm64 android-x64 
   fi
   for extension in "${extensions[@]}"; do
     libraries=(libraw liblcms2)
-    [[ "$extension" != a ]] || libraries+=(libjpeg libz)
+    if [[ "$extension" == a ]]; then
+      libraries+=(libz)
+      [[ "$target" != osx-* ]] || libraries+=(libjpeg)
+    fi
     for library in "${libraries[@]}"; do
       source="$repo_root/artifacts/$relative/$library.$extension"
       destination="$test_root/artifacts/$relative/$library.$extension"
@@ -59,7 +62,11 @@ test -f "$test_root/extracted/licenses/LLVM-MinGW/COPYING.MinGW-w64-runtime.txt"
 for runtime in osx-arm64 osx-x64 wasm wasm-mt; do
   test -f "$test_root/extracted/static/$runtime/libraw.a"
   test -f "$test_root/extracted/static/$runtime/liblcms2.a"
-  test -f "$test_root/extracted/static/$runtime/libjpeg.a"
+  if [[ "$runtime" == osx-* ]]; then
+    test -f "$test_root/extracted/static/$runtime/libjpeg.a"
+  else
+    test ! -e "$test_root/extracted/static/$runtime/libjpeg.a"
+  fi
   test -f "$test_root/extracted/static/$runtime/libz.a"
 done
 test -f "$test_root/extracted/licenses/libjpeg-turbo/README.ijg"

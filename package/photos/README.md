@@ -23,6 +23,8 @@ Use native library names `libraw` and `liblcms2` in P/Invoke declarations. The .
 
 For WebAssembly, `WasmEnableThreads=true` selects the pthread-enabled archives; otherwise the single-threaded archives are selected. `NativeFileReference` items are added automatically, including through transitive references. Wasm exception handling must remain enabled (`WasmEnableExceptionHandling=true`, the SDK default). Use independent LibRaw handles for concurrent work; the multi-threaded build is pthread-compatible, not an OpenMP worker pool.
 
+Each wasm variant supplies `libraw.a`, `liblcms2.a` and `libz.a`. JPEG is embedded into `libraw.a` with `lightstudio_photos_`-prefixed symbols, including internal helpers and data, and LibRaw uses those private names. Its JPEG ABI 80 does not compete for the ordinary JPEG symbols used by other dependencies. There is no standalone wasm `libjpeg.a` to reference manually. zlib and LCMS remain separate and are not namespaced.
+
 For macOS native AOT static linking:
 
 ```xml
@@ -32,7 +34,7 @@ For macOS native AOT static linking:
 </PropertyGroup>
 ```
 
-This adds `libraw.a`, `liblcms2.a`, `libjpeg.a` and `libz.a` as `NativeLibrary` items, links `c++`, and removes this package's shared libraries from the publish output, following `LightStudio.Ffmpeg`'s `EnableStaticFfmpeg` convention. The same four archives are provided for each wasm variant. `EnableStaticPhotos` has no effect without native AOT or on other RIDs. Static archives are outside `runtimes/` so they are not copied as deployable native assets.
+This adds `libraw.a`, `liblcms2.a`, `libjpeg.a` and `libz.a` as `NativeLibrary` items, links `c++`, and removes this package's shared libraries from the publish output, following `LightStudio.Ffmpeg`'s `EnableStaticFfmpeg` convention. macOS static JPEG symbols are not namespaced. `EnableStaticPhotos` has no effect without native AOT or on other RIDs. Static archives are outside `runtimes/` so they are not copied as deployable native assets.
 
 Shared builds embed JPEG and zlib into LibRaw, so applications deploy only `libraw` and `liblcms2`, with no additional JPEG/zlib shared libraries to install. LibRaw links the separately exposed LCMS library from this package.
 

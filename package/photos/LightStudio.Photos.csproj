@@ -30,8 +30,8 @@
     <None Include="$(PhotosArtifactsPath)/photos-osx-x64/libraw.dylib;$(PhotosArtifactsPath)/photos-osx-x64/liblcms2.dylib" Pack="true" PhotosNative="true" PackagePath="runtimes/osx-x64/native/" />
     <None Include="$(PhotosArtifactsPath)/photos-osx-arm64/libraw.a;$(PhotosArtifactsPath)/photos-osx-arm64/liblcms2.a;$(PhotosArtifactsPath)/photos-osx-arm64/libjpeg.a;$(PhotosArtifactsPath)/photos-osx-arm64/libz.a" Pack="true" PhotosNative="true" PackagePath="static/osx-arm64/" />
     <None Include="$(PhotosArtifactsPath)/photos-osx-x64/libraw.a;$(PhotosArtifactsPath)/photos-osx-x64/liblcms2.a;$(PhotosArtifactsPath)/photos-osx-x64/libjpeg.a;$(PhotosArtifactsPath)/photos-osx-x64/libz.a" Pack="true" PhotosNative="true" PackagePath="static/osx-x64/" />
-    <None Include="$(PhotosArtifactsPath)/photos-browser-wasm/libraw.a;$(PhotosArtifactsPath)/photos-browser-wasm/liblcms2.a;$(PhotosArtifactsPath)/photos-browser-wasm/libjpeg.a;$(PhotosArtifactsPath)/photos-browser-wasm/libz.a" Pack="true" PhotosNative="true" PackagePath="static/wasm/" />
-    <None Include="$(PhotosArtifactsPath)/photos-browser-wasm-mt/libraw.a;$(PhotosArtifactsPath)/photos-browser-wasm-mt/liblcms2.a;$(PhotosArtifactsPath)/photos-browser-wasm-mt/libjpeg.a;$(PhotosArtifactsPath)/photos-browser-wasm-mt/libz.a" Pack="true" PhotosNative="true" PackagePath="static/wasm-mt/" />
+    <None Include="$(PhotosArtifactsPath)/photos-browser-wasm/libraw.a;$(PhotosArtifactsPath)/photos-browser-wasm/liblcms2.a;$(PhotosArtifactsPath)/photos-browser-wasm/libz.a" Pack="true" PhotosNative="true" PackagePath="static/wasm/" />
+    <None Include="$(PhotosArtifactsPath)/photos-browser-wasm-mt/libraw.a;$(PhotosArtifactsPath)/photos-browser-wasm-mt/liblcms2.a;$(PhotosArtifactsPath)/photos-browser-wasm-mt/libz.a" Pack="true" PhotosNative="true" PackagePath="static/wasm-mt/" />
     <None Include="build/LightStudio.Photos.props" Pack="true" PackagePath="build/;buildTransitive/" />
     <None Include="build/LightStudio.Photos.targets" Pack="true" PackagePath="build/;buildTransitive/" />
     <None Include="README.md" Pack="true" PackagePath="/" />

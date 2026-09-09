@@ -13,7 +13,6 @@
   <ItemGroup Condition="'$(_LightStudioPhotosTargetsWasm)' == 'true'">
     <NativeFileReference Include="$(LightStudioPhotosPackageRoot)static/$(_LightStudioPhotosWasmFlavor)/libraw.a" />
     <NativeFileReference Include="$(LightStudioPhotosPackageRoot)static/$(_LightStudioPhotosWasmFlavor)/liblcms2.a" />
-    <NativeFileReference Include="$(LightStudioPhotosPackageRoot)static/$(_LightStudioPhotosWasmFlavor)/libjpeg.a" />
     <NativeFileReference Include="$(LightStudioPhotosPackageRoot)static/$(_LightStudioPhotosWasmFlavor)/libz.a" />
   </ItemGroup>
 

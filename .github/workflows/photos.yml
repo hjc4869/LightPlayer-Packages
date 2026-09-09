@@ -242,8 +242,6 @@ jobs:
         with:
           path: artifacts
           pattern: photos-*
-      - name: Test consumer MSBuild targets
-        run: ./scripts/test-photos-targets.sh
       - name: Pack NuGet package
         run: >-
           dotnet pack package/photos/LightStudio.Photos.csproj

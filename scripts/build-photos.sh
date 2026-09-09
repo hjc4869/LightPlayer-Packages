@@ -184,6 +184,19 @@ for library in libjpeg-turbo zlib; do
     "${compression_args[@]}" "${library_args[@]}"
   cmake --build "$build_dir" --parallel "$build_jobs"
   cmake --install "$build_dir"
+  if [[ "$library" == libjpeg-turbo && "$target" == browser-wasm* ]]; then
+    jpeg_symbols="$build_root/jpeg-symbols.txt"
+    jpeg_namespace="$build_root/jpeg-namespace.h"
+    "$NM" --extern-only --defined-only --just-symbol-name "$prefix/lib/libjpeg.a" |
+      awk '/^[A-Za-z_][A-Za-z0-9_]*$/' | LC_ALL=C sort -u > "$jpeg_symbols"
+    awk '/^[A-Za-z_][A-Za-z0-9_]*$/ { printf "#define %s lightstudio_photos_%s\n", $1, $1 }' \
+      "$jpeg_symbols" > "$jpeg_namespace"
+    grep -q '^#define jpeg_CreateDecompress ' "$jpeg_namespace"
+    "${compression_cmake[@]}" -S "$source_dir" -B "$build_dir" \
+      "-DCMAKE_C_FLAGS=$CFLAGS -include $jpeg_namespace"
+    cmake --build "$build_dir" --parallel "$build_jobs"
+    cmake --install "$build_dir"
+  fi
 done
 if [[ "$target" == win-* ]]; then
   cp "$prefix/lib/libzs.a" "$prefix/lib/libz.a"
@@ -213,6 +226,9 @@ for library in lcms2 libraw; do
   else
     if [[ "$target" == win-* || "$target" == android-* ]]; then
       configure_args+=(--disable-shared --enable-static)
+    fi
+    if [[ "$target" == browser-wasm* ]]; then
+      CPPFLAGS+=" -include $jpeg_namespace"
     fi
     "${configure[@]}" "$source_dir/configure" --prefix="$prefix" --libdir="$prefix/lib" \
       "${configure_args[@]}" --disable-examples --disable-openmp \
@@ -327,11 +343,18 @@ case "$target" in
     "$build_root/smoke-static"
     ;;
   browser-wasm | browser-wasm-mt)
-    cp "$prefix/lib/libraw.a" "$prefix/lib/liblcms2.a" \
-      "$prefix/lib/libjpeg.a" "$prefix/lib/libz.a" "$output/"
+    cp "$prefix/lib/libraw.a" "$prefix/lib/liblcms2.a" "$prefix/lib/libz.a" "$output/"
+    "$AR" qL "$output/libraw.a" "$prefix/lib/libjpeg.a"
+    "$RANLIB" "$output/libraw.a"
+    jpeg_conflicts="$(LC_ALL=C comm -12 "$jpeg_symbols" \
+      <("$NM" --extern-only --just-symbol-name "$output/libraw.a" | LC_ALL=C sort -u))"
+    if [[ -n "$jpeg_conflicts" ]]; then
+      printf 'LibRaw exposes or imports unprefixed JPEG symbols:\n%s\n' "$jpeg_conflicts" >&2
+      exit 1
+    fi
     "$CC" "${smoke_flags[@]}" -c "$repo_root/tests/photos/smoke.c" -o "$build_root/smoke.o"
     "$CXX" "${smoke_flags[@]}" "$build_root/smoke.o" \
-      "$output/libraw.a" "$output/liblcms2.a" "$output/libjpeg.a" "$output/libz.a" \
+      "$output/libraw.a" "$output/liblcms2.a" "$output/libz.a" \
       -o "$build_root/smoke.js"
     node "$build_root/smoke.js"
     ;;
