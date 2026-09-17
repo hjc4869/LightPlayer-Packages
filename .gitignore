@@ -5,3 +5,7 @@ package/photos/bin/
 package/photos/obj/
 tests/photos/consumer/bin/
 tests/photos/consumer/obj/
+package/onnx/bin/
+package/onnx/obj/
+tests/onnx/consumer/bin/
+tests/onnx/consumer/obj/

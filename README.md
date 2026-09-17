@@ -1,9 +1,10 @@
 # LightPlayer Packages
 
-This repository builds native NuGet packages for .NET:
+This repository builds native and managed NuGet packages for .NET:
 
 - [`LightStudio.Ffmpeg`](https://www.nuget.org/packages/LightStudio.Ffmpeg/): FFmpeg 9.0.1 and its decoding dependencies.
 - [LightStudio.Photos](package/photos/README.md): LibRaw 0.22.2 and Little CMS 2.19.1 for RAW photos and ICC color management. See [Photos builds](#photos-builds) for its platform matrix and workflow.
+- [LightStudio.Onnx](package/onnx/README.md): ONNX Runtime 1.30.0 with its complete .NET managed API and embedded Dawn/WebGPU for the same eight native RIDs. See [ONNX validation](tests/onnx/README.md) for package checks and platform limitations.
 
 ## FFmpeg Runtimes
 
@@ -147,6 +148,42 @@ git submodule update --init
 
 dotnet pack package/LightStudio.Ffmpeg.csproj --output artifacts/packages
 ```
+
+## ONNX Builds
+
+[The ONNX workflow](.github/workflows/onnx.yml) builds `linux-x64`, `linux-arm64`,
+`win-x64`, `win-arm64`, `osx-x64`, `osx-arm64`, `android-x64`, and `android-arm64`.
+It uses Dawn Vulkan on Linux/Android, Dawn D3D12 on Windows, and Dawn Metal on macOS. Native
+dependencies are embedded into one runtime library per RID. The NuGet contains
+the complete upstream managed assemblies; consumers need no Microsoft ONNX
+NuGet references. WebGPU selection uses the standard
+`SessionOptions.AppendExecutionProvider("WebGPU", options)` API.
+
+Sources are downloaded at a verified upstream commit into `artifacts/build`.
+Linux release builds use the pinned
+[Ubuntu 24.04 image](scripts/onnx-linux.Dockerfile) and enforce a glibc 2.39 ceiling.
+Android targets API 27 with static libc++ and 16 KB load alignment. macOS targets
+12.0; Windows uses static MSVC runtime and requires a D3D12-capable driver.
+
+```sh
+bash scripts/build-onnx.sh linux-x64
+bash scripts/check-onnx-native.sh linux-x64
+ONNX_TEST_GPU=1 bash scripts/test-onnx-package.sh linux-x64
+dotnet pack package/onnx/LightStudio.Onnx.csproj -c Release -o artifacts/packages
+```
+
+The final command requires all eight native outputs. Use the Linux Docker build
+documented in [the validation record](tests/onnx/README.md) for release-compatible
+binaries. Local subset packages require explicit opt-in and a prerelease version;
+they are not full releases. Tags named `onnx-v<version>` build/upload only. Manual
+dispatch with `publish=true` publishes using `NUGET_API_KEY` after all build/test
+jobs succeed.
+
+Browser WASM is intentionally omitted: upstream's asynchronous browser WebGPU
+bridge does not supply a supported threaded integration for the full synchronous
+.NET API. No browser performance evaluation was performed. Package checks and
+remaining hosted/device validation are
+recorded in [tests/onnx/README.md](tests/onnx/README.md).
 
 ## Photos Builds
 
