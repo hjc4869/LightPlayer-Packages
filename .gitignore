@@ -9,3 +9,7 @@ package/onnx/bin/
 package/onnx/obj/
 tests/onnx/consumer/bin/
 tests/onnx/consumer/obj/
+package/sqlite-vec/bin/
+package/sqlite-vec/obj/
+tests/sqlite-vec/consumer/bin/
+tests/sqlite-vec/consumer/obj/

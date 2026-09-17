@@ -5,6 +5,7 @@ This repository builds native and managed NuGet packages for .NET:
 - [`LightStudio.Ffmpeg`](https://www.nuget.org/packages/LightStudio.Ffmpeg/): FFmpeg 9.0.1 and its decoding dependencies.
 - [LightStudio.Photos](package/photos/README.md): LibRaw 0.22.2 and Little CMS 2.19.1 for RAW photos and ICC color management. See [Photos builds](#photos-builds) for its platform matrix and workflow.
 - [LightStudio.Onnx](package/onnx/README.md): ONNX Runtime 1.30.0 with its complete .NET managed API and embedded Dawn/WebGPU for the same eight native RIDs. See [ONNX validation](tests/onnx/README.md) for package checks and platform limitations.
+- [LightStudio.sqlite-vec](package/sqlite-vec/README.md): sqlite-vec 0.1.9 loadable native extensions for the eight ONNX RIDs, with no ONNX dependency and no bundled SQLite engine. Windows can use the system WinSQLite engine.
 
 ## FFmpeg Runtimes
 
@@ -148,6 +149,35 @@ git submodule update --init
 
 dotnet pack package/LightStudio.Ffmpeg.csproj --output artifacts/packages
 ```
+
+## sqlite-vec Builds
+
+[The sqlite-vec workflow](.github/workflows/sqlite-vec.yml) independently builds
+`linux-x64`, `linux-arm64`, `win-x64`, `win-arm64`, `osx-x64`, `osx-arm64`,
+`android-x64`, and `android-arm64`. Each RID contains only the vec0 shared
+library, with licenses and build metadata. It does not depend on LightStudio.Onnx,
+ship managed bindings, or embed/link a SQLite engine. Consumers supply their
+own SQLite provider and load `sqlite3_vec_init`.
+
+The standard SQLite extension API also works with Windows WinSQLite; no
+`winsqlite3.lib` link or separate Windows variant is necessary. Windows CI probes
+the system engine and tests normal application-supplied SQLite as well. See
+[the package README](package/sqlite-vec/README.md) for provider selection,
+native filenames, local validation, and platform requirements.
+
+```sh
+bash scripts/build-sqlite-vec.sh linux-x64
+bash scripts/check-sqlite-vec-native.sh linux-x64
+bash scripts/test-sqlite-vec-package.sh linux-x64 0.1.9-local.1
+dotnet pack package/sqlite-vec/LightStudio.sqlite-vec.csproj -c Release -o artifacts/packages
+```
+
+Release Linux builds use the pinned
+[Ubuntu 24.04 build image](scripts/sqlite-vec-linux.Dockerfile), not the host
+toolchain. The final pack requires all eight artifacts. Partial local packages
+require explicit opt-in and a prerelease version. Tags `sqlite-vec-v<version>`
+build/upload only; manual dispatch with `publish=true` publishes to NuGet.org
+using `NUGET_API_KEY` after all build and validation jobs pass.
 
 ## ONNX Builds
 

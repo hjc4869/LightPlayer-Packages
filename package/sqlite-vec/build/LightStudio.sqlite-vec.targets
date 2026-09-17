@@ -1,0 +1,9 @@
+<Project>
+  <PropertyGroup>
+    <_LightStudioSqliteVecSupportedRids>;linux-x64;linux-arm64;win-x64;win-arm64;osx-x64;osx-arm64;android-x64;android-arm64;</_LightStudioSqliteVecSupportedRids>
+  </PropertyGroup>
+  <Target Name="ValidateLightStudioSqliteVecPlatform" BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(RuntimeIdentifier)' != '' and !$([System.String]::Copy('$(_LightStudioSqliteVecSupportedRids)').Contains(';$(RuntimeIdentifier);'))" Text="LightStudio.sqlite-vec does not support RuntimeIdentifier '$(RuntimeIdentifier)'. Supported RIDs: $(_LightStudioSqliteVecSupportedRids)" />
+    <Error Condition="'$(TargetPlatformIdentifier)' == 'android' and '$(SupportedOSPlatformVersion)' != '' and $([MSBuild]::VersionLessThan('$(SupportedOSPlatformVersion)', '27.0'))" Text="LightStudio.sqlite-vec requires Android API 27 or later. Set SupportedOSPlatformVersion to at least 27.0." />
+  </Target>
+</Project>

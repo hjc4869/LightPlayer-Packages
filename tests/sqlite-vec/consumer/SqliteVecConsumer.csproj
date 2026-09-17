@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <SqliteVecPackageVersion Condition="'$(SqliteVecPackageVersion)' == ''">0.1.9-test.1</SqliteVecPackageVersion>
+    <RestoreAdditionalProjectSources>$(RestoreAdditionalProjectSources);$(MSBuildThisFileDirectory)../../../artifacts/packages</RestoreAdditionalProjectSources>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="LightStudio.sqlite-vec" Version="$(SqliteVecPackageVersion)" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.20" />
+  </ItemGroup>
+</Project>

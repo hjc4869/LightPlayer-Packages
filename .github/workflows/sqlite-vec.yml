@@ -1,0 +1,169 @@
+name: Build and publish LightStudio.sqlite-vec
+
+on:
+  push:
+    tags:
+      - "sqlite-vec-v*"
+  workflow_dispatch:
+    inputs:
+      package_version:
+        description: NuGet package version
+        required: true
+        default: "0.1.9"
+        type: string
+      publish:
+        description: Publish the complete package to NuGet.org
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sqlite-vec-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  JOBS: "3"
+  ANDROID_API_LEVEL: "27"
+  MACOSX_DEPLOYMENT_TARGET: "11.0"
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check workflow and shell scripts
+        run: |
+          docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12 .github/workflows/sqlite-vec.yml
+          docker run --rm -v "$PWD:/repo" -w /repo --entrypoint shellcheck rhysd/actionlint:1.7.12 scripts/build-sqlite-vec.sh scripts/check-sqlite-vec-native.sh scripts/test-sqlite-vec-package.sh
+
+  build:
+    name: Build sqlite-vec-${{ matrix.rid }}
+    runs-on: ${{ matrix.runner }}
+    needs: lint
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: linux-x64
+            runner: ubuntu-24.04
+            platform: linux
+          - rid: linux-arm64
+            runner: ubuntu-24.04-arm
+            platform: linux
+          - rid: win-x64
+            runner: windows-2022
+            platform: windows
+            toolchain_arch: amd64
+          - rid: win-arm64
+            runner: windows-11-arm
+            platform: windows
+            toolchain_arch: arm64
+          - rid: osx-arm64
+            runner: macos-15
+            platform: macos
+          - rid: osx-x64
+            runner: macos-15
+            platform: macos
+          - rid: android-arm64
+            runner: ubuntu-24.04
+            platform: android
+          - rid: android-x64
+            runner: ubuntu-24.04
+            platform: android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: matrix.platform == 'windows'
+        with:
+          arch: ${{ matrix.toolchain_arch }}
+      - uses: actions/setup-java@v4
+        if: matrix.platform == 'android'
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v4
+        if: matrix.platform == 'android'
+        with:
+          packages: 'ndk;28.2.13676358'
+      - name: Enable Intel consumer execution
+        if: matrix.rid == 'osx-x64'
+        run: softwareupdate --install-rosetta --agree-to-license
+      - name: Build Linux in the pinned release environment
+        if: matrix.platform == 'linux'
+        run: |
+          docker build -f scripts/sqlite-vec-linux.Dockerfile -t lightstudio-sqlite-vec-build scripts
+          docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -e JOBS \
+            -v "$PWD:/work" -w /work lightstudio-sqlite-vec-build bash scripts/build-sqlite-vec.sh "${{ matrix.rid }}"
+      - name: Build Windows or macOS extension
+        if: matrix.platform == 'windows' || matrix.platform == 'macos'
+        run: bash scripts/build-sqlite-vec.sh "${{ matrix.rid }}"
+      - name: Build Android extension
+        if: matrix.platform == 'android'
+        run: |
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/28.2.13676358"
+          bash scripts/build-sqlite-vec.sh "${{ matrix.rid }}"
+      - name: Verify architecture, ABI, and absence of SQLite linkage
+        run: bash scripts/check-sqlite-vec-native.sh "${{ matrix.rid }}"
+      - name: Test package and desktop SQL execution
+        run: bash scripts/test-sqlite-vec-package.sh "${{ matrix.rid }}" "0.1.9-ci.${{ github.run_id }}.${{ github.run_attempt }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sqlite-vec-${{ matrix.rid }}
+          path: artifacts/sqlite-vec-${{ matrix.rid }}
+          if-no-files-found: error
+
+  pack-and-publish:
+    name: Pack complete LightStudio.sqlite-vec
+    runs-on: ubuntu-24.04
+    needs: build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: sqlite-vec-*
+          path: artifacts
+      - name: Resolve package version
+        id: version
+        env:
+          DISPATCH_VERSION: ${{ inputs.package_version }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+            package_version="$DISPATCH_VERSION"
+          else
+            package_version="${GITHUB_REF_NAME#sqlite-vec-v}"
+          fi
+          if [[ ! "$package_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            printf 'Invalid NuGet package version: %s\n' "$package_version" >&2
+            exit 1
+          fi
+          echo "value=$package_version" >> "$GITHUB_OUTPUT"
+      - name: Pack all eight RIDs and verify the final package
+        env:
+          PACKAGE_VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          dotnet pack package/sqlite-vec/LightStudio.sqlite-vec.csproj -c Release -o artifacts/packages -p:PackageVersion="$PACKAGE_VERSION"
+          dotnet run --project tests/sqlite-vec/consumer/SqliteVecConsumer.csproj -c Release -p:SqliteVecPackageVersion="$PACKAGE_VERSION" -- \
+            --check-package "artifacts/packages/LightStudio.sqlite-vec.$PACKAGE_VERSION.nupkg" \
+            'linux-x64;linux-arm64;win-x64;win-arm64;osx-x64;osx-arm64;android-x64;android-arm64'
+          dotnet run --project tests/sqlite-vec/consumer/SqliteVecConsumer.csproj -c Release --no-restore -p:SqliteVecPackageVersion="$PACKAGE_VERSION" -- --smoke
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LightStudio.sqlite-vec-nuget
+          path: artifacts/packages/*.nupkg
+          if-no-files-found: error
+      - name: Publish to NuGet.org
+        if: github.event_name == 'workflow_dispatch' && inputs.publish
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: dotnet nuget push artifacts/packages/*.nupkg --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
