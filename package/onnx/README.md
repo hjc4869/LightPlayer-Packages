@@ -32,8 +32,10 @@ training requires a separate native build with the upstream inference package.
 | `osx-x64`, `osx-arm64` | Metal | macOS 15 or later with a supported Metal device |
 | `android-x64`, `android-arm64` | Vulkan | Android API 27 or later with Vulkan support |
 
-Native dependencies, including Dawn, are linked into the runtime library. The OS,
-graphics driver, Vulkan loader (Linux/Android), and macOS system C++ runtime remain system
+Dawn is linked into the runtime library. Windows also bundles the built DXC
+compiler and the target-architecture DXIL validator from the build's selected
+Windows SDK beside the runtime, with their license notices. The OS, graphics
+driver, Vulkan loader (Linux/Android), and macOS system C++ runtime remain system
 prerequisites. Android uses static libc++ and 16 KB ELF load alignment; Windows
 uses static MSVC runtime. Telemetry is disabled. This is not a CUDA, DirectML,
 NNAPI, CoreML, or ROCm package. Standard framework dependencies `System.Memory`

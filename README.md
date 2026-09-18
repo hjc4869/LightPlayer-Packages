@@ -184,8 +184,9 @@ using `NUGET_API_KEY` after all build and validation jobs pass.
 [The ONNX workflow](.github/workflows/onnx.yml) builds `linux-x64`, `linux-arm64`,
 `win-x64`, `win-arm64`, `osx-x64`, `osx-arm64`, `android-x64`, and `android-arm64`.
 It uses Dawn Vulkan on Linux/Android, Dawn D3D12 on Windows, and Dawn Metal on macOS. Native
-dependencies are embedded into one runtime library per RID. The NuGet contains
-the complete upstream managed assemblies; consumers need no Microsoft ONNX
+dependencies are embedded into the runtime library, except for the Windows DXC
+compiler and DXIL validator bundled beside it for each target architecture.
+The NuGet contains the complete upstream managed assemblies; consumers need no Microsoft ONNX
 NuGet references. WebGPU selection uses the standard
 `SessionOptions.AppendExecutionProvider("WebGPU", options)` API.
 

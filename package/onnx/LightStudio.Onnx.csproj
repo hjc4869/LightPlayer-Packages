@@ -51,12 +51,16 @@
     <None Include="$(OnnxArtifactsPath)/onnx-linux-arm64/licenses/**/*" Pack="true" PackagePath="licenses/linux-arm64/" />
   </ItemGroup>
   <ItemGroup Condition="$(_OnnxSelectedRids.Contains(';win-x64;'))">
-    <None Include="$(OnnxArtifactsPath)/onnx-win-x64/onnxruntime.dll" Pack="true" OnnxRequired="true" PackagePath="runtimes/win-x64/native/" />
+    <_OnnxRequiredLicense Include="$(OnnxArtifactsPath)/onnx-win-x64/licenses/dependencies/dawn-src/third_party/directx-shader-compiler/src/LICENSE.TXT;$(OnnxArtifactsPath)/onnx-win-x64/licenses/dependencies/dawn-src/third_party/directx-shader-compiler/src/ThirdPartyNotices.txt" />
+    <_OnnxRequiredLicense Include="$(OnnxArtifactsPath)/onnx-win-x64/licenses/toolchain/windows-sdk/sdk_license.rtf;$(OnnxArtifactsPath)/onnx-win-x64/licenses/toolchain/windows-sdk/sdk_third_party_notices.rtf" />
+    <None Include="$(OnnxArtifactsPath)/onnx-win-x64/onnxruntime.dll;$(OnnxArtifactsPath)/onnx-win-x64/dxcompiler.dll;$(OnnxArtifactsPath)/onnx-win-x64/dxil.dll" Pack="true" OnnxRequired="true" PackagePath="runtimes/win-x64/native/" />
     <None Include="$(OnnxArtifactsPath)/onnx-win-x64/build-info.txt" Pack="true" OnnxRequired="true" PackagePath="build-info/win-x64.txt" />
     <None Include="$(OnnxArtifactsPath)/onnx-win-x64/licenses/**/*" Pack="true" PackagePath="licenses/win-x64/" />
   </ItemGroup>
   <ItemGroup Condition="$(_OnnxSelectedRids.Contains(';win-arm64;'))">
-    <None Include="$(OnnxArtifactsPath)/onnx-win-arm64/onnxruntime.dll" Pack="true" OnnxRequired="true" PackagePath="runtimes/win-arm64/native/" />
+    <_OnnxRequiredLicense Include="$(OnnxArtifactsPath)/onnx-win-arm64/licenses/dependencies/dawn-src/third_party/directx-shader-compiler/src/LICENSE.TXT;$(OnnxArtifactsPath)/onnx-win-arm64/licenses/dependencies/dawn-src/third_party/directx-shader-compiler/src/ThirdPartyNotices.txt" />
+    <_OnnxRequiredLicense Include="$(OnnxArtifactsPath)/onnx-win-arm64/licenses/toolchain/windows-sdk/sdk_license.rtf;$(OnnxArtifactsPath)/onnx-win-arm64/licenses/toolchain/windows-sdk/sdk_third_party_notices.rtf" />
+    <None Include="$(OnnxArtifactsPath)/onnx-win-arm64/onnxruntime.dll;$(OnnxArtifactsPath)/onnx-win-arm64/dxcompiler.dll;$(OnnxArtifactsPath)/onnx-win-arm64/dxil.dll" Pack="true" OnnxRequired="true" PackagePath="runtimes/win-arm64/native/" />
     <None Include="$(OnnxArtifactsPath)/onnx-win-arm64/build-info.txt" Pack="true" OnnxRequired="true" PackagePath="build-info/win-arm64.txt" />
     <None Include="$(OnnxArtifactsPath)/onnx-win-arm64/licenses/**/*" Pack="true" PackagePath="licenses/win-arm64/" />
   </ItemGroup>

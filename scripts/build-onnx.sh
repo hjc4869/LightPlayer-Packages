@@ -81,6 +81,13 @@ fi
 
 mkdir -p "$PREFIX/licenses/onnxruntime"
 cp -L "$build_output/$native_name" "$PREFIX/$native_name"
+if [[ "$TARGET" == win-* ]]; then
+  windows_sdk="$(MSYS_NO_PATHCONV=1 powershell.exe -NoProfile -ExecutionPolicy Bypass \
+    -File "$(cygpath -w "$ROOT_DIR/scripts/stage-onnx-windows.ps1")" \
+    -BuildDirectory "$(cygpath -w "$BUILD_DIR/Release")" \
+    -OutputDirectory "$(cygpath -w "$PREFIX")" -Architecture "${TARGET#win-}")"
+  windows_sdk="${windows_sdk//$'\r'/}"
+fi
 cp "$SOURCE_DIR/onnxruntime/test/testdata/mul_1.onnx" "$PREFIX/smoke.onnx"
 cp "$SOURCE_DIR/LICENSE" "$SOURCE_DIR/ThirdPartyNotices.txt" "$PREFIX/licenses/onnxruntime/"
 while IFS= read -r -d '' license_file; do
@@ -89,7 +96,7 @@ while IFS= read -r -d '' license_file; do
   mkdir -p "$(dirname "$destination")"
   cp "$license_file" "$destination"
 done < <(find "$BUILD_DIR/Release/_deps" -type f \
-  \( -iname 'LICENSE' -o -iname 'LICENSE.*' -o -iname 'LICENSE-*' -o -iname 'COPYING*' -o -iname 'NOTICE*' -o -iname 'COPYRIGHT*' \) \
+  \( -iname 'LICENSE' -o -iname 'LICENSE.*' -o -iname 'LICENSE-*' -o -iname 'COPYING*' -o -iname 'NOTICE*' -o -iname 'COPYRIGHT*' -o -iname 'ThirdPartyNotices.txt' \) \
   ! -path '*/.git/*' ! -name '*.orig' -print0)
 
 case "$TARGET" in
@@ -116,4 +123,7 @@ case "$TARGET" in
 esac
 printf 'ONNX Runtime %s\nCommit: %s\nRID: %s\nWebGPU: embedded Dawn\nTelemetry: disabled\n' \
   "$ONNX_VERSION" "$ONNX_REVISION" "$TARGET" > "$PREFIX/build-info.txt"
+if [[ "$TARGET" == win-* ]]; then
+  printf 'Windows SDK: %s\n' "$windows_sdk" >> "$PREFIX/build-info.txt"
+fi
 printf 'Built %s with embedded Dawn/WebGPU: %s\n' "$TARGET" "$PREFIX"
