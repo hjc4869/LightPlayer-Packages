@@ -11,6 +11,7 @@ PREFIX="$ROOT_DIR/artifacts/onnx-$TARGET"
 
 platform_args=(--build_shared_lib)
 cmake_args=(CMAKE_POSITION_INDEPENDENT_CODE=ON onnxruntime_BUILD_UNIT_TESTS=OFF)
+providers='CPU, WebGPU'
 native_name=libonnxruntime.so
 case "$TARGET" in
   linux-x64|linux-arm64)
@@ -24,19 +25,21 @@ case "$TARGET" in
       'CMAKE_SHARED_LINKER_FLAGS=-static-libstdc++ -static-libgcc -Wl,--exclude-libs,libstdc++.a:libgcc.a:libgcc_eh.a')
     ;;
   android-arm64|android-x64)
+    providers+=', NNAPI'
     ndk="${ANDROID_NDK_HOME:?Set ANDROID_NDK_HOME to Android NDK r28c or newer}"
     abi=arm64-v8a
     [[ "$TARGET" != android-x64 ]] || abi=x86_64
-    platform_args+=(--android --android_abi "$abi" --android_api "${ANDROID_API_LEVEL:-27}"
+    platform_args+=(--use_nnapi --android --android_abi "$abi" --android_api "${ANDROID_API_LEVEL:-27}"
       --android_ndk_path "$ndk" --android_sdk_path "${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$ndk}}")
     cmake_args+=(ANDROID_STL=c++_static
       'CMAKE_SHARED_LINKER_FLAGS=-Wl,-z,max-page-size=16384 -Wl,--exclude-libs,libc++_static.a:libc++abi.a:libunwind.a')
     ;;
   osx-arm64|osx-x64)
+    providers+=', CoreML'
     native_name=libonnxruntime.dylib
     arch=arm64
     [[ "$TARGET" != osx-x64 ]] || arch=x86_64
-    platform_args+=(--osx_arch "$arch" --apple_deploy_target "${MACOSX_DEPLOYMENT_TARGET:-15.0}")
+    platform_args+=(--use_coreml --osx_arch "$arch" --apple_deploy_target "${MACOSX_DEPLOYMENT_TARGET:-15.0}")
     cmake_args+=('CMAKE_INSTALL_RPATH=@loader_path' CMAKE_BUILD_WITH_INSTALL_RPATH=ON)
     ;;
   *)
@@ -97,6 +100,6 @@ case "$TARGET" in
     codesign --force --sign - "$PREFIX/$native_name"
     ;;
 esac
-printf 'ONNX Runtime %s\nCommit: %s\nRID: %s\nWebGPU: embedded Dawn\nTelemetry: disabled\n' \
-  "$ONNX_VERSION" "$ONNX_REVISION" "$TARGET" > "$PREFIX/build-info.txt"
-printf 'Built %s with embedded Dawn/WebGPU: %s\n' "$TARGET" "$PREFIX"
+printf 'ONNX Runtime %s\nCommit: %s\nRID: %s\nExecution providers: %s\nWebGPU: embedded Dawn\nTelemetry: disabled\n' \
+  "$ONNX_VERSION" "$ONNX_REVISION" "$TARGET" "$providers" > "$PREFIX/build-info.txt"
+printf 'Built %s with %s (embedded Dawn/WebGPU): %s\n' "$TARGET" "$providers" "$PREFIX"

@@ -6,8 +6,8 @@
     <PackageId>LightStudio.Onnx</PackageId>
     <Version>1.30.0</Version>
     <Authors>LightStudio</Authors>
-    <Description>Complete ONNX Runtime .NET managed API with embedded Dawn/WebGPU native runtimes for Linux, macOS, and Android on x64 and ARM64. No Microsoft ONNX Runtime NuGet dependency.</Description>
-    <PackageTags>onnx;onnxruntime;webgpu;dawn;inference;android;linux;macos</PackageTags>
+    <Description>Complete ONNX Runtime .NET managed API with embedded Dawn/WebGPU native runtimes for Linux, macOS, and Android on x64 and ARM64, plus Android NNAPI and macOS CoreML. No Microsoft ONNX Runtime NuGet dependency.</Description>
+    <PackageTags>onnx;onnxruntime;webgpu;dawn;nnapi;coreml;inference;android;linux;macos</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseFile>licenses/onnxruntime/LICENSE.txt</PackageLicenseFile>
     <RepositoryType>git</RepositoryType>

@@ -35,7 +35,8 @@ jobs:
       - name: Check workflow and shell scripts
         run: |
           docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12 .github/workflows/onnx.yml
-          docker run --rm -v "$PWD:/repo" -w /repo --entrypoint shellcheck rhysd/actionlint:1.7.12 scripts/build-onnx.sh scripts/check-onnx-native.sh scripts/test-onnx-package.sh
+          docker run --rm -v "$PWD:/repo" -w /repo --entrypoint shellcheck rhysd/actionlint:1.7.12 scripts/build-onnx.sh scripts/check-onnx-native.sh scripts/test-onnx-package.sh tests/onnx/build-args.sh
+          bash tests/onnx/build-args.sh
 
   build-linux:
     name: Build onnx-${{ matrix.rid }} (glibc 2.39)
@@ -76,7 +77,7 @@ jobs:
           if-no-files-found: error
 
   build-macos:
-    name: Build onnx-${{ matrix.rid }} (Dawn Metal)
+    name: Build onnx-${{ matrix.rid }} (Dawn Metal + CoreML)
     runs-on: macos-15
     needs: lint
     env:
@@ -110,7 +111,7 @@ jobs:
           if-no-files-found: error
 
   build-android:
-    name: Build onnx-${{ matrix.rid }} (Dawn Vulkan)
+    name: Build onnx-${{ matrix.rid }} (Dawn Vulkan + NNAPI)
     runs-on: ubuntu-24.04
     needs: lint
     env:

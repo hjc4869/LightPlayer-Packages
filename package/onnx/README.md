@@ -1,8 +1,9 @@
 # LightStudio.Onnx
 
 ONNX Runtime 1.30.0 with the complete upstream .NET managed assemblies and an
-embedded Dawn/WebGPU execution provider. Add only `LightStudio.Onnx`; do not also
-reference `Microsoft.ML.OnnxRuntime`, `.Managed`, or `.EP.WebGpu`.
+embedded Dawn/WebGPU execution provider, plus NNAPI on Android and CoreML on
+macOS. Add only `LightStudio.Onnx`; do not also reference
+`Microsoft.ML.OnnxRuntime`, `.Managed`, or `.EP.WebGpu`.
 
 ```csharp
 using Microsoft.ML.OnnxRuntime;
@@ -16,25 +17,51 @@ using var session = new InferenceSession("model.onnx", options);
 ```
 
 The standard namespaces, `InferenceSession`, `DenseTensor<T>`, `OrtValue`, I/O
-binding, metadata, and profiling APIs are preserved. WebGPU selection is explicit;
-an unconfigured session uses CPU. Unsupported WebGPU operators may fall back to
-CPU. Use `options.AddSessionConfigEntry("session.disable_cpu_ep_fallback", "1")`
-when fallback must be rejected. Graph capture is opt-in and requires static shapes.
-Native training and non-WebGPU accelerator providers are not enabled, just as
-training requires a separate native build with the upstream inference package.
+binding, metadata, and profiling APIs are preserved. Accelerator selection is
+explicit; an unconfigured session uses CPU. Unsupported operators may fall back
+to CPU. Use `options.AddSessionConfigEntry("session.disable_cpu_ep_fallback", "1")`
+when CPU fallback must be rejected. WebGPU graph capture is opt-in and requires
+static shapes. Native training, CUDA, and ROCm are not enabled.
+
+## Platform Providers
+
+For Android, replace the WebGPU registration above with the standard NNAPI API
+from the Android-targeted managed assembly:
+
+```csharp
+options.AppendExecutionProvider_Nnapi();
+```
+
+For macOS, use the generic CoreML API with the unchanged upstream desktop
+assemblies. The legacy `AppendExecutionProvider_CoreML` helper is conditional in
+upstream managed builds.
+
+```csharp
+options.AppendExecutionProvider("CoreML", new Dictionary<string, string>
+{
+    ["ModelFormat"] = "MLProgram",
+    ["MLComputeUnits"] = "ALL"
+});
+```
+
+To also use Dawn for unsupported operators, append WebGPU after the platform
+provider. Providers are prioritized in append order, with CPU as the final
+fallback by default. NNAPI and CoreML acceleration depends on device capabilities
+and operator support; enabling a provider does not guarantee GPU or NPU execution.
 
 ## Platforms
 
-| RIDs | Dawn backend | Requirements |
-| --- | --- | --- |
-| `linux-x64`, `linux-arm64` | Vulkan | glibc 2.39 baseline, compatible Vulkan driver/loader |
-| `osx-x64`, `osx-arm64` | Metal | macOS 15 or later with a supported Metal device |
-| `android-x64`, `android-arm64` | Vulkan | Android API 27 or later with Vulkan support |
+| RIDs | Execution providers | Dawn backend | Requirements |
+| --- | --- | --- | --- |
+| `linux-x64`, `linux-arm64` | CPU, WebGPU | Vulkan | glibc 2.39 baseline; compatible Vulkan driver/loader for WebGPU |
+| `osx-x64`, `osx-arm64` | CPU, WebGPU, CoreML | Metal | macOS 15 or later; supported Metal device for WebGPU |
+| `android-x64`, `android-arm64` | CPU, WebGPU, NNAPI | Vulkan | Android API 27 or later; Vulkan support for WebGPU |
 
-Dawn is linked into the runtime library. The OS, graphics driver, Vulkan loader
-(Linux/Android), and macOS system C++ runtime remain system prerequisites. Android
-uses static libc++ and 16 KB ELF load alignment. Telemetry is disabled. This is not
-a CUDA, NNAPI, CoreML, or ROCm package. Standard framework dependencies
+Dawn and the platform execution providers are linked into the runtime library.
+NNAPI and CoreML use the platform's system APIs. The OS, graphics driver, Vulkan
+loader (Linux/Android WebGPU), and macOS system C++ runtime remain system
+prerequisites. Android uses static libc++ and 16 KB ELF load alignment. Telemetry
+is disabled. Standard framework dependencies
 `System.Memory` and `System.Numerics.Tensors` remain normal NuGet dependencies.
 
 Managed assets cover .NET Standard 2.0, .NET 8+, and .NET 9+ Android. Other mobile

@@ -25,6 +25,7 @@ case "$rid" in
       exit 1
     fi
     if [[ "$rid" == android-* ]]; then
+      [[ "$exports" == *OrtSessionOptionsAppendExecutionProvider_Nnapi* ]]
       segments="$("$readelf_tool" -lW "$library")"
       while read -r alignment; do
         (( alignment >= 16384 ))
@@ -60,6 +61,7 @@ case "$rid" in
     done < <(awk 'NR > 1 { print $1 }' <<< "$dependencies")
     exports="$(nm -gU "$library")"
     [[ "$exports" == *_OrtGetApiBase* ]]
+    [[ "$exports" == *_OrtSessionOptionsAppendExecutionProvider_CoreML* ]]
     codesign --verify "$library"
     ;;
   *) printf 'Unsupported RID: %s\n' "$rid" >&2; exit 1 ;;
