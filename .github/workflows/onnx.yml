@@ -110,49 +110,10 @@ jobs:
           path: artifacts/onnx-${{ matrix.rid }}
           if-no-files-found: error
 
-  build-android:
-    name: Build onnx-${{ matrix.rid }} (Dawn Vulkan + NNAPI)
-    runs-on: ubuntu-24.04
-    needs: lint
-    env:
-      ANDROID_API_LEVEL: "27"
-    strategy:
-      fail-fast: false
-      matrix:
-        rid: [android-arm64, android-x64]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 8.0.x
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-      - uses: android-actions/setup-android@v4
-        with:
-          packages: 'ndk;28.2.13676358'
-      - name: Install build tools
-        run: python -m pip install cmake==3.31.6 ninja==1.11.1.4 Jinja2==3.1.6 packaging==25.0
-      - name: Build and inspect Android runtime
-        run: |
-          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/28.2.13676358"
-          bash scripts/build-onnx.sh "${{ matrix.rid }}"
-          bash scripts/check-onnx-native.sh "${{ matrix.rid }}"
-          bash scripts/test-onnx-package.sh "${{ matrix.rid }}" "1.30.0-ci.${{ github.run_id }}"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: onnx-${{ matrix.rid }}
-          path: artifacts/onnx-${{ matrix.rid }}
-          if-no-files-found: error
-
   pack-and-publish:
     name: Pack complete LightStudio.Onnx
     runs-on: ubuntu-24.04
-    needs: [build-linux, build-macos, build-android]
+    needs: [build-linux, build-macos]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -184,7 +145,7 @@ jobs:
           dotnet pack package/onnx/LightStudio.Onnx.csproj -c Release -o artifacts/packages -p:PackageVersion="$PACKAGE_VERSION"
           dotnet run --project tests/onnx/consumer/OnnxConsumer.csproj -c Release -p:OnnxPackageVersion="$PACKAGE_VERSION" -- \
             --check-package "artifacts/packages/LightStudio.Onnx.$PACKAGE_VERSION.nupkg" \
-            'linux-x64;linux-arm64;osx-x64;osx-arm64;android-x64;android-arm64'
+            'linux-x64;linux-arm64;osx-x64;osx-arm64'
           dotnet run --project tests/onnx/consumer/OnnxConsumer.csproj -c Release -p:OnnxPackageVersion="$PACKAGE_VERSION" -- \
             --cpu-smoke artifacts/onnx-linux-x64/smoke.onnx
       - uses: actions/upload-artifact@v4

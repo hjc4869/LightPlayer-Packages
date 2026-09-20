@@ -1,11 +1,6 @@
 <Project>
-  <PropertyGroup>
-    <_LightStudioOnnxSupportedRids>;linux-x64;linux-arm64;osx-x64;osx-arm64;android-x64;android-arm64;</_LightStudioOnnxSupportedRids>
-  </PropertyGroup>
   <Target Name="ValidateLightStudioOnnxPlatform" BeforeTargets="PrepareForBuild">
     <Error Condition="'$(RuntimeIdentifier)' == 'browser-wasm' or '$(TargetPlatformIdentifier)' == 'browser'" Text="LightStudio.Onnx does not ship browser-wasm: upstream browser WebGPU requires an asynchronous JavaScript bridge that is not supported by the full synchronous .NET API in a threaded WASM application." />
-    <Error Condition="'$(RuntimeIdentifier)' != '' and '$(RuntimeIdentifier)' != 'browser-wasm' and !$([System.String]::Copy('$(_LightStudioOnnxSupportedRids)').Contains(';$(RuntimeIdentifier);'))" Text="LightStudio.Onnx does not support RuntimeIdentifier '$(RuntimeIdentifier)'. Supported RIDs: $(_LightStudioOnnxSupportedRids)" />
-    <Error Condition="'$(TargetPlatformIdentifier)' == 'android' and '$(SupportedOSPlatformVersion)' != '' and $([MSBuild]::VersionLessThan('$(SupportedOSPlatformVersion)', '27.0'))" Text="LightStudio.Onnx requires Android API 27 or later. Set SupportedOSPlatformVersion to at least 27.0." />
     <ItemGroup>
       <_LightStudioOnnxConflict Include="@(PackageReference)" Condition="$([System.String]::Copy('%(PackageReference.Identity)').StartsWith('Microsoft.ML.OnnxRuntime'))" />
     </ItemGroup>

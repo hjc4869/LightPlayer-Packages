@@ -32,33 +32,31 @@ expected_failure() {
 
 expected_failure 'Missing ONNX artifact' dotnet msbuild "$project" -nologo -t:ValidateOnnxArtifacts \
   "${pack_args[@]}" "-p:OnnxArtifactsPath=$test_root/empty"
-expected_failure 'Release packages must contain all six' dotnet msbuild "$project" -nologo -t:ValidateOnnxArtifacts \
+expected_failure 'Release packages must contain all four' dotnet msbuild "$project" -nologo -t:ValidateOnnxArtifacts \
   "-p:OnnxRuntimeIdentifiers=$rid" "-p:PackageVersion=$version"
 expected_failure 'Partial ONNX packages require a prerelease' dotnet msbuild "$project" -nologo -t:ValidateOnnxArtifacts \
   "-p:OnnxRuntimeIdentifiers=$rid" -p:OnnxAllowPartialPackage=true -p:PackageVersion=1.30.0
+for consumer_rid in linux-x64 linux-arm64 osx-x64 osx-arm64 unlisted-rid; do
+  dotnet msbuild "$consumer" -nologo -t:ValidateLightStudioOnnxPlatform \
+    "${restore_args[@]}" "-p:RuntimeIdentifier=$consumer_rid"
+done
 expected_failure 'does not ship browser-wasm' dotnet msbuild "$consumer" -nologo -t:ValidateLightStudioOnnxPlatform \
   "${restore_args[@]}" -p:RuntimeIdentifier=browser-wasm -p:WasmEnableThreads=true
-expected_failure 'does not support RuntimeIdentifier' dotnet msbuild "$consumer" -nologo -t:ValidateLightStudioOnnxPlatform \
-  "${restore_args[@]}" -p:RuntimeIdentifier=linux-musl-x64
-expected_failure 'requires Android API 27' dotnet msbuild "$consumer" -nologo -t:ValidateLightStudioOnnxPlatform \
-  "${restore_args[@]}" -p:TargetPlatformIdentifier=android -p:SupportedOSPlatformVersion=26.0
 expected_failure 'Remove conflicting Microsoft ONNX Runtime references' dotnet msbuild "$consumer" -nologo -t:ValidateLightStudioOnnxPlatform \
   "${restore_args[@]}" -p:OnnxTestConflictingReference=true
 
-if [[ "$rid" != android-* ]]; then
-  dotnet publish "$consumer" -c Release -r "$rid" --self-contained true \
-    "${restore_args[@]}" -o "$test_root/publish"
-  executable="$test_root/publish/OnnxConsumer"
-  native_name=libonnxruntime.so
-  case "$rid" in
-    osx-*) native_name=libonnxruntime.dylib ;;
-  esac
-  cmp "$root/artifacts/onnx-$rid/$native_name" "$test_root/publish/$native_name"
-  if [[ "${ONNX_SKIP_EXECUTION:-0}" != 1 ]]; then
-    "$executable" --cpu-smoke "$root/artifacts/onnx-$rid/smoke.onnx"
-    if [[ "${ONNX_TEST_GPU:-0}" == 1 ]]; then
-      "$executable" --gpu-smoke "$root/artifacts/onnx-$rid/smoke.onnx"
-    fi
+dotnet publish "$consumer" -c Release -r "$rid" --self-contained true \
+  "${restore_args[@]}" -o "$test_root/publish"
+executable="$test_root/publish/OnnxConsumer"
+native_name=libonnxruntime.so
+case "$rid" in
+  osx-*) native_name=libonnxruntime.dylib ;;
+esac
+cmp "$root/artifacts/onnx-$rid/$native_name" "$test_root/publish/$native_name"
+if [[ "${ONNX_SKIP_EXECUTION:-0}" != 1 ]]; then
+  "$executable" --cpu-smoke "$root/artifacts/onnx-$rid/smoke.onnx"
+  if [[ "${ONNX_TEST_GPU:-0}" == 1 ]]; then
+    "$executable" --gpu-smoke "$root/artifacts/onnx-$rid/smoke.onnx"
   fi
 fi
 printf 'PASS: %s package layout, release guards, platform guards, and native asset selection.\n' "$rid"

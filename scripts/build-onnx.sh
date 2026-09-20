@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TARGET="${1:?Usage: build-onnx.sh <linux-x64|linux-arm64|osx-x64|osx-arm64|android-x64|android-arm64>}"
+TARGET="${1:?Usage: build-onnx.sh <linux-x64|linux-arm64|osx-x64|osx-arm64>}"
 ONNX_VERSION=1.30.0
 ONNX_REVISION=f2c39fe2f838cf35ce7da92824f5a5e3ee6e88a7
 SOURCE_DIR="${ONNX_SOURCE_DIR:-$ROOT_DIR/artifacts/build/onnxruntime-src}"
@@ -23,16 +23,6 @@ case "$TARGET" in
     fi
     cmake_args+=("CMAKE_C_COMPILER=${CC:-clang}" "CMAKE_CXX_COMPILER=${CXX:-clang++}"
       'CMAKE_SHARED_LINKER_FLAGS=-static-libstdc++ -static-libgcc -Wl,--exclude-libs,libstdc++.a:libgcc.a:libgcc_eh.a')
-    ;;
-  android-arm64|android-x64)
-    providers+=', NNAPI'
-    ndk="${ANDROID_NDK_HOME:?Set ANDROID_NDK_HOME to Android NDK r28c or newer}"
-    abi=arm64-v8a
-    [[ "$TARGET" != android-x64 ]] || abi=x86_64
-    platform_args+=(--use_nnapi --android --android_abi "$abi" --android_api "${ANDROID_API_LEVEL:-27}"
-      --android_ndk_path "$ndk" --android_sdk_path "${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$ndk}}")
-    cmake_args+=(ANDROID_STL=c++_static
-      'CMAKE_SHARED_LINKER_FLAGS=-Wl,-z,max-page-size=16384 -Wl,--exclude-libs,libc++_static.a:libc++abi.a:libunwind.a')
     ;;
   osx-arm64|osx-x64)
     providers+=', CoreML'
@@ -90,10 +80,6 @@ case "$TARGET" in
     [[ -n "$gcc_license" ]]
     cp "$gcc_license" "$PREFIX/licenses/toolchain/GCC-copyright.txt"
     cp /usr/share/common-licenses/GPL-3 "$PREFIX/licenses/toolchain/GPL-3.txt"
-    ;;
-  android-*)
-    mkdir -p "$PREFIX/licenses/toolchain"
-    cp "$ndk/toolchains/llvm/prebuilt/"*/NOTICE "$PREFIX/licenses/toolchain/NOTICE.toolchain"
     ;;
   osx-*)
     install_name_tool -id "@rpath/$native_name" "$PREFIX/$native_name"

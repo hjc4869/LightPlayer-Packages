@@ -6,7 +6,7 @@ rid="${1:?Usage: check-onnx-native.sh <rid>}"
 prefix="$root/artifacts/onnx-$rid"
 
 case "$rid" in
-  linux-*|android-*)
+  linux-*)
     library="$prefix/libonnxruntime.so"
     readelf_tool="${READELF:-readelf}"
     header="$("$readelf_tool" -h "$library")"
@@ -24,27 +24,18 @@ case "$rid" in
       printf 'Unbundled dependency for %s:\n%s\n' "$rid" "$dependencies" >&2
       exit 1
     fi
-    if [[ "$rid" == android-* ]]; then
-      [[ "$exports" == *OrtSessionOptionsAppendExecutionProvider_Nnapi* ]]
-      segments="$("$readelf_tool" -lW "$library")"
-      while read -r alignment; do
-        (( alignment >= 16384 ))
-      done < <(awk '/LOAD/ { print $NF }' <<< "$segments")
-      [[ -s "$prefix/licenses/toolchain/NOTICE.toolchain" ]]
-    else
-      versions="$("$readelf_tool" --version-info "$library")"
-      maximum="$(grep -oE 'GLIBC_[0-9.]+' <<< "$versions" | sort -Vu | tail -1)"
-      maximum="${maximum#GLIBC_}"
-      baseline="${ONNX_MAX_GLIBC:-2.39}"
-      newest="$(printf '%s\n' "$maximum" "$baseline" | sort -V | tail -1)"
-      if [[ "$newest" != "$baseline" ]]; then
-        printf '%s requires glibc %s, newer than release baseline %s. Use the pinned Linux image.\n' "$rid" "$maximum" "$baseline" >&2
-        exit 1
-      fi
-      printf '%s maximum GLIBC_%s (limit %s)\n' "$rid" "$maximum" "$baseline"
-      [[ -s "$prefix/licenses/toolchain/GCC-copyright.txt" ]]
-      [[ -s "$prefix/licenses/toolchain/GPL-3.txt" ]]
+    versions="$("$readelf_tool" --version-info "$library")"
+    maximum="$(grep -oE 'GLIBC_[0-9.]+' <<< "$versions" | sort -Vu | tail -1)"
+    maximum="${maximum#GLIBC_}"
+    baseline="${ONNX_MAX_GLIBC:-2.39}"
+    newest="$(printf '%s\n' "$maximum" "$baseline" | sort -V | tail -1)"
+    if [[ "$newest" != "$baseline" ]]; then
+      printf '%s requires glibc %s, newer than release baseline %s. Use the pinned Linux image.\n' "$rid" "$maximum" "$baseline" >&2
+      exit 1
     fi
+    printf '%s maximum GLIBC_%s (limit %s)\n' "$rid" "$maximum" "$baseline"
+    [[ -s "$prefix/licenses/toolchain/GCC-copyright.txt" ]]
+    [[ -s "$prefix/licenses/toolchain/GPL-3.txt" ]]
     printf '%s\n' "$dependencies" | grep NEEDED
     ;;
   osx-*)

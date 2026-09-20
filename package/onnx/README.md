@@ -1,8 +1,8 @@
 # LightStudio.Onnx
 
-ONNX Runtime 1.30.0 with the complete upstream .NET managed assemblies and an
-embedded Dawn/WebGPU execution provider, plus NNAPI on Android and CoreML on
-macOS. Add only `LightStudio.Onnx`; do not also reference
+ONNX Runtime 1.30.0 with the complete upstream .NET managed API, an embedded
+Dawn/WebGPU execution provider, and CoreML on macOS. Add only `LightStudio.Onnx`;
+do not also reference
 `Microsoft.ML.OnnxRuntime`, `.Managed`, or `.EP.WebGpu`.
 
 ```csharp
@@ -25,13 +25,6 @@ static shapes. Native training, CUDA, and ROCm are not enabled.
 
 ## Platform Providers
 
-For Android, replace the WebGPU registration above with the standard NNAPI API
-from the Android-targeted managed assembly:
-
-```csharp
-options.AppendExecutionProvider_Nnapi();
-```
-
 For macOS, use the generic CoreML API with the unchanged upstream desktop
 assemblies. The legacy `AppendExecutionProvider_CoreML` helper is conditional in
 upstream managed builds.
@@ -44,9 +37,9 @@ options.AppendExecutionProvider("CoreML", new Dictionary<string, string>
 });
 ```
 
-To also use Dawn for unsupported operators, append WebGPU after the platform
-provider. Providers are prioritized in append order, with CPU as the final
-fallback by default. NNAPI and CoreML acceleration depends on device capabilities
+To also use Dawn for unsupported operators, append WebGPU after CoreML.
+Providers are prioritized in append order, with CPU as the final
+fallback by default. CoreML acceleration depends on device capabilities
 and operator support; enabling a provider does not guarantee GPU or NPU execution.
 
 ## Platforms
@@ -55,16 +48,13 @@ and operator support; enabling a provider does not guarantee GPU or NPU executio
 | --- | --- | --- | --- |
 | `linux-x64`, `linux-arm64` | CPU, WebGPU | Vulkan | glibc 2.39 baseline; compatible Vulkan driver/loader for WebGPU |
 | `osx-x64`, `osx-arm64` | CPU, WebGPU, CoreML | Metal | macOS 15 or later; supported Metal device for WebGPU |
-| `android-x64`, `android-arm64` | CPU, WebGPU, NNAPI | Vulkan | Android API 27 or later; Vulkan support for WebGPU |
 
-Dawn and the platform execution providers are linked into the runtime library.
-NNAPI and CoreML use the platform's system APIs. The OS, graphics driver, Vulkan
-loader (Linux/Android WebGPU), and macOS system C++ runtime remain system
-prerequisites. Android uses static libc++ and 16 KB ELF load alignment. Telemetry
-is disabled. Standard framework dependencies
+Dawn and CoreML are linked into the runtime library. CoreML uses macOS system
+APIs. The OS, graphics driver, Vulkan loader (Linux WebGPU), and macOS system C++
+runtime remain system prerequisites. Telemetry is disabled. Standard framework dependencies
 `System.Memory` and `System.Numerics.Tensors` remain normal NuGet dependencies.
 
-Managed assets cover .NET Standard 2.0, .NET 8+, and .NET 9+ Android. Other mobile
+Managed assets cover .NET Standard 2.0 and .NET 8+. Mobile
 platforms, musl RIDs, and static macOS linking are not included.
 
 ## Browser Decision
@@ -85,7 +75,7 @@ unchanged, with no Microsoft ONNX Runtime package dependency in the final NuGet.
 Upstream and dependency notices are included under `licenses/`.
 
 Build a native RID with `bash scripts/build-onnx.sh <rid>`, then pack after all
-six native outputs are present:
+four native outputs are present:
 
 ```sh
 dotnet pack package/onnx/LightStudio.Onnx.csproj -c Release -o artifacts/packages
@@ -97,6 +87,6 @@ For local testing only, a deliberately partial prerelease can be built with
 
 Use the pinned Linux Dockerfile for release builds; compiling directly on a newer
 distribution can raise the glibc requirement. The GitHub Actions workflow builds
-all six RIDs on `onnx-v*` tags or manual dispatch, validates native dependencies
+all four RIDs on `onnx-v*` tags or manual dispatch, validates native dependencies
 and .NET consumers, and uploads the complete package. Only manual dispatch with
 `publish=true` pushes to NuGet.org using `NUGET_API_KEY`.

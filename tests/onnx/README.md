@@ -3,10 +3,10 @@
 The package-only consumer checks NuGet contents and exercises the DenseTensor
 and OrtValue APIs through CPU and WebGPU multiplication inference.
 
-Run `bash tests/onnx/build-args.sh` to check provider selection for all six RIDs
-without native compilation. The test requires static Dawn/WebGPU everywhere,
-NNAPI only on Android, and CoreML only on macOS. Native validation also requires
-the NNAPI export on Android and the CoreML export on macOS.
+Run `bash tests/onnx/build-args.sh` to check provider selection for all four RIDs
+without native compilation. The test requires static Dawn/WebGPU everywhere
+and CoreML only on macOS. Native validation also requires the CoreML export
+on macOS.
 
 ## Reproduce
 
@@ -30,20 +30,16 @@ inside the container instead of reusing a CMake cache from another toolchain.
 - Linux x64: source build, clean NuGet restore, self-contained publish, DenseTensor
   and OrtValue CPU/GPU inference, and software Vulkan
   smoke all passed. Highest imported glibc version is 2.38; CI enforces <= 2.39.
-- Android ARM64 and x64: previous Dawn/WebGPU-only builds passed with NDK r28c/API 27.
-  Both passed ELF architecture/export/dependency checks, 16 KB load alignment,
-  license staging, and package validation. NNAPI-enabled artifacts require a
-  rebuild; no Android device or NNAPI inference was run.
-- Native Linux/Android libraries have no dynamic Dawn or C++ runtime dependency.
+- Native Linux libraries have no dynamic Dawn or C++ runtime dependency.
 - Package checks verify managed payloads, native RID selection, notices, no
-  Microsoft ONNX package dependencies, partial-release rejection, unsupported
-  platform rejection, and conflicting direct Microsoft ONNX references.
+  Microsoft ONNX package dependencies, partial-release rejection, browser
+  exclusion, and conflicting direct Microsoft ONNX references.
 - Linux ARM64 and macOS x64/ARM64 builds are configured in CI but were not
   executed on this Linux workstation. CoreML inference has not been tested here.
   Hosted CI itself has not been dispatched here.
 - Workflow and shell scripts pass actionlint 1.7.12 and ShellCheck.
 
-The local packages are explicitly partial prereleases, not the six-RID
+The local packages are explicitly partial prereleases, not the four-RID
 release. The release pack requires every native artifact; no placeholder native
 assets were used. Nothing was published.
 

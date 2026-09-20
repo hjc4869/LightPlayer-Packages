@@ -21,17 +21,20 @@ internal static class PackageChecks
             Require($"licenses/{runtime}/dependencies/dawn-src/LICENSE");
             Require($"licenses/{runtime}/onnxruntime/ThirdPartyNotices.txt");
             Require($"build-info/{runtime}.txt");
-            if (runtime.StartsWith("android-", StringComparison.Ordinal))
-            {
-                Require($"licenses/{runtime}/toolchain/NOTICE.toolchain");
-            }
             if (runtime.StartsWith("linux-", StringComparison.Ordinal))
             {
                 Require($"licenses/{runtime}/toolchain/GCC-copyright.txt");
                 Require($"licenses/{runtime}/toolchain/GPL-3.txt");
             }
         }
-        foreach (var framework in new[] { "netstandard2.0", "net8.0", "net9.0-android35.0" })
+        var frameworks = new[] { "netstandard2.0", "net8.0" };
+        var packagedFrameworks = entries.Keys.Where(path => path.StartsWith("lib/", StringComparison.Ordinal))
+            .Select(path => path.Split('/')[1]).Distinct().Order().ToArray();
+        if (!frameworks.Order().SequenceEqual(packagedFrameworks))
+        {
+            throw new InvalidOperationException($"Unexpected managed framework set: {string.Join(", ", packagedFrameworks)}");
+        }
+        foreach (var framework in frameworks)
         {
             Require($"lib/{framework}/Microsoft.ML.OnnxRuntime.dll", 100_000);
             Require($"lib/{framework}/Microsoft.ML.OnnxRuntime.pdb");

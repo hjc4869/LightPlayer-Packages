@@ -6,8 +6,8 @@
     <PackageId>LightStudio.Onnx</PackageId>
     <Version>1.30.0</Version>
     <Authors>LightStudio</Authors>
-    <Description>Complete ONNX Runtime .NET managed API with embedded Dawn/WebGPU native runtimes for Linux, macOS, and Android on x64 and ARM64, plus Android NNAPI and macOS CoreML. No Microsoft ONNX Runtime NuGet dependency.</Description>
-    <PackageTags>onnx;onnxruntime;webgpu;dawn;nnapi;coreml;inference;android;linux;macos</PackageTags>
+    <Description>Complete ONNX Runtime .NET managed API with embedded Dawn/WebGPU native runtimes for Linux and macOS on x64 and ARM64, plus macOS CoreML. No Microsoft ONNX Runtime NuGet dependency.</Description>
+    <PackageTags>onnx;onnxruntime;webgpu;dawn;coreml;inference;linux;macos</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseFile>licenses/onnxruntime/LICENSE.txt</PackageLicenseFile>
     <RepositoryType>git</RepositoryType>
@@ -16,7 +16,7 @@
     <NoWarn>$(NoWarn);NU5128</NoWarn>
     <OnnxArtifactsPath Condition="'$(OnnxArtifactsPath)' == ''">$(MSBuildThisFileDirectory)../../artifacts</OnnxArtifactsPath>
     <PkgMicrosoft_ML_OnnxRuntime_Managed Condition="'$(PkgMicrosoft_ML_OnnxRuntime_Managed)' == ''">$(NuGetPackageRoot)microsoft.ml.onnxruntime.managed/1.30.0</PkgMicrosoft_ML_OnnxRuntime_Managed>
-    <_OnnxAllRids>linux-x64;linux-arm64;osx-x64;osx-arm64;android-x64;android-arm64</_OnnxAllRids>
+    <_OnnxAllRids>linux-x64;linux-arm64;osx-x64;osx-arm64</_OnnxAllRids>
     <OnnxRuntimeIdentifiers Condition="'$(OnnxRuntimeIdentifiers)' == ''">$(_OnnxAllRids)</OnnxRuntimeIdentifiers>
     <_OnnxSelectedRids>;$(OnnxRuntimeIdentifiers);</_OnnxSelectedRids>
   </PropertyGroup>
@@ -31,7 +31,6 @@
     <_OnnxRequiredLicense Include="@(_OnnxRid->'$(OnnxArtifactsPath)/onnx-%(Identity)/licenses/dependencies/dawn-src/LICENSE')" />
     <None Include="$(PkgMicrosoft_ML_OnnxRuntime_Managed)/lib/netstandard2.0/Microsoft.ML.OnnxRuntime.dll;$(PkgMicrosoft_ML_OnnxRuntime_Managed)/lib/netstandard2.0/Microsoft.ML.OnnxRuntime.pdb" Pack="true" OnnxRequired="true" PackagePath="lib/netstandard2.0/" />
     <None Include="$(PkgMicrosoft_ML_OnnxRuntime_Managed)/lib/net8.0/Microsoft.ML.OnnxRuntime.dll;$(PkgMicrosoft_ML_OnnxRuntime_Managed)/lib/net8.0/Microsoft.ML.OnnxRuntime.pdb" Pack="true" OnnxRequired="true" PackagePath="lib/net8.0/" />
-    <None Include="$(PkgMicrosoft_ML_OnnxRuntime_Managed)/lib/net9.0-android35.0/Microsoft.ML.OnnxRuntime.dll;$(PkgMicrosoft_ML_OnnxRuntime_Managed)/lib/net9.0-android35.0/Microsoft.ML.OnnxRuntime.pdb;$(PkgMicrosoft_ML_OnnxRuntime_Managed)/lib/net9.0-android35.0/Microsoft.ML.OnnxRuntime.xml" Pack="true" OnnxRequired="true" PackagePath="lib/net9.0-android35.0/" />
     <None Include="$(PkgMicrosoft_ML_OnnxRuntime_Managed)/LICENSE.txt" Pack="true" OnnxRequired="true" PackagePath="licenses/onnxruntime/" />
     <None Include="$(PkgMicrosoft_ML_OnnxRuntime_Managed)/ThirdPartyNotices.txt" Pack="true" OnnxRequired="true" PackagePath="licenses/onnxruntime/" />
     <None Include="build/LightStudio.Onnx.targets" Pack="true" PackagePath="build/;buildTransitive/" />
@@ -60,21 +59,9 @@
     <None Include="$(OnnxArtifactsPath)/onnx-osx-arm64/build-info.txt" Pack="true" OnnxRequired="true" PackagePath="build-info/osx-arm64.txt" />
     <None Include="$(OnnxArtifactsPath)/onnx-osx-arm64/licenses/**/*" Pack="true" PackagePath="licenses/osx-arm64/" />
   </ItemGroup>
-  <ItemGroup Condition="$(_OnnxSelectedRids.Contains(';android-x64;'))">
-    <_OnnxRequiredLicense Include="$(OnnxArtifactsPath)/onnx-android-x64/licenses/toolchain/NOTICE.toolchain" />
-    <None Include="$(OnnxArtifactsPath)/onnx-android-x64/libonnxruntime.so" Pack="true" OnnxRequired="true" PackagePath="runtimes/android-x64/native/" />
-    <None Include="$(OnnxArtifactsPath)/onnx-android-x64/build-info.txt" Pack="true" OnnxRequired="true" PackagePath="build-info/android-x64.txt" />
-    <None Include="$(OnnxArtifactsPath)/onnx-android-x64/licenses/**/*" Pack="true" PackagePath="licenses/android-x64/" />
-  </ItemGroup>
-  <ItemGroup Condition="$(_OnnxSelectedRids.Contains(';android-arm64;'))">
-    <_OnnxRequiredLicense Include="$(OnnxArtifactsPath)/onnx-android-arm64/licenses/toolchain/NOTICE.toolchain" />
-    <None Include="$(OnnxArtifactsPath)/onnx-android-arm64/libonnxruntime.so" Pack="true" OnnxRequired="true" PackagePath="runtimes/android-arm64/native/" />
-    <None Include="$(OnnxArtifactsPath)/onnx-android-arm64/build-info.txt" Pack="true" OnnxRequired="true" PackagePath="build-info/android-arm64.txt" />
-    <None Include="$(OnnxArtifactsPath)/onnx-android-arm64/licenses/**/*" Pack="true" PackagePath="licenses/android-arm64/" />
-  </ItemGroup>
 
   <Target Name="ValidateOnnxArtifacts" BeforeTargets="GenerateNuspec">
-    <Error Condition="'$(OnnxRuntimeIdentifiers)' != '$(_OnnxAllRids)' and '$(OnnxAllowPartialPackage)' != 'true'" Text="Release packages must contain all six ONNX RIDs. For local testing only, explicitly set OnnxAllowPartialPackage=true and use a prerelease version." />
+    <Error Condition="'$(OnnxRuntimeIdentifiers)' != '$(_OnnxAllRids)' and '$(OnnxAllowPartialPackage)' != 'true'" Text="Release packages must contain all four ONNX RIDs. For local testing only, explicitly set OnnxAllowPartialPackage=true and use a prerelease version." />
     <Error Condition="'$(OnnxAllowPartialPackage)' == 'true' and !$([System.String]::Copy('$(PackageVersion)').Contains('-'))" Text="Partial ONNX packages require a prerelease version and must not be published as releases." />
     <ItemGroup>
       <_OnnxRequiredArtifact Include="@(None)" Condition="'%(None.OnnxRequired)' == 'true'" />

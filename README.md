@@ -4,7 +4,7 @@ This repository builds native and managed NuGet packages for .NET:
 
 - [`LightStudio.Ffmpeg`](https://www.nuget.org/packages/LightStudio.Ffmpeg/): FFmpeg 9.0.1 and its decoding dependencies.
 - [LightStudio.Photos](package/photos/README.md): LibRaw 0.22.2 and Little CMS 2.19.1 for RAW photos and ICC color management. See [Photos builds](#photos-builds) for its platform matrix and workflow.
-- [LightStudio.Onnx](package/onnx/README.md): ONNX Runtime 1.30.0 with its complete .NET managed API and embedded Dawn/WebGPU for six native RIDs on Linux, macOS, and Android, plus Android NNAPI and macOS CoreML. See [ONNX validation](tests/onnx/README.md) for package checks and platform limitations.
+- [LightStudio.Onnx](package/onnx/README.md): ONNX Runtime 1.30.0 with its complete .NET managed API and embedded Dawn/WebGPU for four native RIDs on Linux and macOS, plus macOS CoreML. See [ONNX validation](tests/onnx/README.md) for package checks and platform limitations.
 - [LightStudio.sqlite-vec](package/sqlite-vec/README.md): sqlite-vec 0.1.9 loadable native extensions for eight native RIDs, with no ONNX dependency and no bundled SQLite engine. Windows can use the system WinSQLite engine.
 
 ## FFmpeg Runtimes
@@ -182,23 +182,20 @@ using `NUGET_API_KEY` after all build and validation jobs pass.
 ## ONNX Builds
 
 [The ONNX workflow](.github/workflows/onnx.yml) builds `linux-x64`, `linux-arm64`,
-`osx-x64`, `osx-arm64`, `android-x64`, and `android-arm64`.
-It uses Dawn Vulkan on Linux/Android and Dawn Metal on macOS. Native
-Android NNAPI and macOS CoreML execution providers are also enabled alongside
-Dawn. Provider implementations are embedded into the runtime library; NNAPI and
-CoreML use the platform's system APIs.
+`osx-x64`, and `osx-arm64`.
+It uses Dawn Vulkan on Linux and Dawn Metal on macOS. The macOS CoreML execution
+provider is also enabled alongside Dawn. Provider implementations are embedded
+into the runtime library; CoreML uses macOS system APIs.
 The NuGet contains the complete upstream managed assemblies; consumers need no Microsoft ONNX
 NuGet references. WebGPU selection uses the standard
-`SessionOptions.AppendExecutionProvider("WebGPU", options)` API. Select Android
-NNAPI with `SessionOptions.AppendExecutionProvider_Nnapi()` and macOS CoreML with
+`SessionOptions.AppendExecutionProvider("WebGPU", options)` API. Select macOS CoreML with
 `SessionOptions.AppendExecutionProvider("CoreML", options)`; see the
 [package README](package/onnx/README.md) for provider options and priority.
 
 Sources are downloaded at a verified upstream commit into `artifacts/build`.
 Linux release builds use the pinned
 [Ubuntu 24.04 image](scripts/onnx-linux.Dockerfile) and enforce a glibc 2.39 ceiling.
-Android targets API 27 with static libc++ and 16 KB load alignment. macOS targets
-15.0.
+macOS targets 15.0.
 
 ```sh
 bash scripts/build-onnx.sh linux-x64
@@ -207,7 +204,7 @@ ONNX_TEST_GPU=1 bash scripts/test-onnx-package.sh linux-x64
 dotnet pack package/onnx/LightStudio.Onnx.csproj -c Release -o artifacts/packages
 ```
 
-The final command requires all six native outputs. Use the Linux Docker build
+The final command requires all four native outputs. Use the Linux Docker build
 documented in [the validation record](tests/onnx/README.md) for release-compatible
 binaries. Local subset packages require explicit opt-in and a prerelease version;
 they are not full releases. Tags named `onnx-v<version>` build/upload only. Manual
