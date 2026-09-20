@@ -1,9 +1,11 @@
 # LightStudio.Onnx
 
-ONNX Runtime 1.30.0 with the complete upstream .NET managed API, an embedded
-Dawn/WebGPU execution provider, and CoreML on macOS. Add only `LightStudio.Onnx`;
+ONNX Runtime 1.30.0 with the complete upstream .NET managed API, embedded
+Dawn/WebGPU on Linux, and CoreML on macOS. Add only `LightStudio.Onnx`;
 do not also reference
 `Microsoft.ML.OnnxRuntime`, `.Managed`, or `.EP.WebGpu`.
+
+On Linux, enable WebGPU explicitly:
 
 ```csharp
 using Microsoft.ML.OnnxRuntime;
@@ -37,21 +39,21 @@ options.AppendExecutionProvider("CoreML", new Dictionary<string, string>
 });
 ```
 
-To also use Dawn for unsupported operators, append WebGPU after CoreML.
-Providers are prioritized in append order, with CPU as the final
-fallback by default. CoreML acceleration depends on device capabilities
-and operator support; enabling a provider does not guarantee GPU or NPU execution.
+CoreML falls back to CPU for unsupported operators by default. Acceleration
+depends on device capabilities and operator support; enabling CoreML does not
+guarantee GPU or NPU execution.
 
 ## Platforms
 
-| RIDs | Execution providers | Dawn backend | Requirements |
-| --- | --- | --- | --- |
-| `linux-x64`, `linux-arm64` | CPU, WebGPU | Vulkan | glibc 2.39 baseline; compatible Vulkan driver/loader for WebGPU |
-| `osx-x64`, `osx-arm64` | CPU, WebGPU, CoreML | Metal | macOS 15 or later; supported Metal device for WebGPU |
+| RIDs | Execution providers | Requirements |
+| --- | --- | --- |
+| `linux-x64`, `linux-arm64` | CPU, WebGPU | glibc 2.39 baseline; compatible Vulkan driver/loader for WebGPU |
+| `osx-x64`, `osx-arm64` | CPU, CoreML | macOS 15 or later |
 
-Dawn and CoreML are linked into the runtime library. CoreML uses macOS system
-APIs. The OS, graphics driver, Vulkan loader (Linux WebGPU), and macOS system C++
-runtime remain system prerequisites. Telemetry is disabled. Standard framework dependencies
+Dawn is embedded in the Linux runtime library. The macOS runtime includes CoreML
+integration using macOS system APIs. The OS, graphics driver, Vulkan loader
+(Linux WebGPU), and macOS system C++ runtime remain system prerequisites.
+Telemetry is disabled. Standard framework dependencies
 `System.Memory` and `System.Numerics.Tensors` remain normal NuGet dependencies.
 
 Managed assets cover .NET Standard 2.0 and .NET 8+. Mobile

@@ -11,10 +11,12 @@ PREFIX="$ROOT_DIR/artifacts/onnx-$TARGET"
 
 platform_args=(--build_shared_lib)
 cmake_args=(CMAKE_POSITION_INDEPENDENT_CODE=ON onnxruntime_BUILD_UNIT_TESTS=OFF)
-providers='CPU, WebGPU'
+providers=CPU
 native_name=libonnxruntime.so
 case "$TARGET" in
   linux-x64|linux-arm64)
+    providers+=', WebGPU'
+    platform_args+=(--use_webgpu static_lib)
     expected_arch=x86_64
     [[ "$TARGET" != linux-arm64 ]] || expected_arch=aarch64
     if [[ "$(uname -m)" != "$expected_arch" ]]; then
@@ -51,7 +53,7 @@ fi
   --build_dir "$BUILD_DIR" \
   --config Release --update --build --parallel "${JOBS:-8}" \
   --skip_tests --skip_submodule_sync --skip_pip_install \
-  --cmake_generator Ninja --use_webgpu static_lib \
+  --cmake_generator Ninja \
   --compile_no_warning_as_error --no_telemetry \
   "${platform_args[@]}" --cmake_extra_defines "${cmake_args[@]}"
 
@@ -86,6 +88,9 @@ case "$TARGET" in
     codesign --force --sign - "$PREFIX/$native_name"
     ;;
 esac
-printf 'ONNX Runtime %s\nCommit: %s\nRID: %s\nExecution providers: %s\nWebGPU: embedded Dawn\nTelemetry: disabled\n' \
+printf 'ONNX Runtime %s\nCommit: %s\nRID: %s\nExecution providers: %s\nTelemetry: disabled\n' \
   "$ONNX_VERSION" "$ONNX_REVISION" "$TARGET" "$providers" > "$PREFIX/build-info.txt"
-printf 'Built %s with %s (embedded Dawn/WebGPU): %s\n' "$TARGET" "$providers" "$PREFIX"
+if [[ "$TARGET" == linux-* ]]; then
+  printf 'WebGPU: embedded Dawn\n' >> "$PREFIX/build-info.txt"
+fi
+printf 'Built %s with %s: %s\n' "$TARGET" "$providers" "$PREFIX"

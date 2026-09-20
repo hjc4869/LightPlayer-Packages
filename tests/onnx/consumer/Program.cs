@@ -8,10 +8,14 @@ if (args.Length == 3 && args[0] == "--check-package")
 }
 var environment = OrtEnv.Instance();
 var providers = environment.GetAvailableProviders();
+var accelerator = OperatingSystem.IsMacOS() ? "CoreML" : "WebGPU";
+var expectedProviders = OperatingSystem.IsMacOS()
+    ? new[] { "CPUExecutionProvider", "CoreMLExecutionProvider" }
+    : new[] { "CPUExecutionProvider", "WebGpuExecutionProvider" };
 Console.WriteLine($"ONNX Runtime: {environment.GetVersionString()}; providers: {string.Join(", ", providers)}");
-if (environment.GetVersionString() != "1.30.0" || !providers.Contains("WebGpuExecutionProvider"))
+if (environment.GetVersionString() != "1.30.0" || !providers.Order().SequenceEqual(expectedProviders.Order()))
 {
-    throw new InvalidOperationException("Expected ONNX Runtime 1.30.0 with embedded WebGPU.");
+    throw new InvalidOperationException($"Expected ONNX Runtime 1.30.0 with providers: {string.Join(", ", expectedProviders)}.");
 }
 environment.DisableTelemetryEvents();
 var mode = args.Length == 0 ? "--cpu-smoke" : args[0];
@@ -21,7 +25,7 @@ if (mode is "--cpu-smoke" or "--gpu-smoke")
     using var options = new SessionOptions { IntraOpNumThreads = 2 };
     if (mode == "--gpu-smoke")
     {
-        options.AppendExecutionProvider("WebGPU");
+        options.AppendExecutionProvider(accelerator);
         options.AddSessionConfigEntry("session.disable_cpu_ep_fallback", "1");
     }
     using var session = new InferenceSession(model, options);

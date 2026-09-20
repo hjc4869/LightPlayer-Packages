@@ -18,11 +18,11 @@ internal static class PackageChecks
         {
             var nativeName = runtime.StartsWith("osx-", StringComparison.Ordinal) ? "libonnxruntime.dylib" : "libonnxruntime.so";
             Require($"runtimes/{runtime}/native/{nativeName}", 1_000_000);
-            Require($"licenses/{runtime}/dependencies/dawn-src/LICENSE");
             Require($"licenses/{runtime}/onnxruntime/ThirdPartyNotices.txt");
             Require($"build-info/{runtime}.txt");
             if (runtime.StartsWith("linux-", StringComparison.Ordinal))
             {
+                Require($"licenses/{runtime}/dependencies/dawn-src/LICENSE");
                 Require($"licenses/{runtime}/toolchain/GCC-copyright.txt");
                 Require($"licenses/{runtime}/toolchain/GPL-3.txt");
             }

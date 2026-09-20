@@ -6,7 +6,7 @@
     <PackageId>LightStudio.Onnx</PackageId>
     <Version>1.30.0</Version>
     <Authors>LightStudio</Authors>
-    <Description>Complete ONNX Runtime .NET managed API with embedded Dawn/WebGPU native runtimes for Linux and macOS on x64 and ARM64, plus macOS CoreML. No Microsoft ONNX Runtime NuGet dependency.</Description>
+    <Description>Complete ONNX Runtime .NET managed API with native runtimes for Linux and macOS on x64 and ARM64, embedded Dawn/WebGPU on Linux, and CoreML on macOS. No Microsoft ONNX Runtime NuGet dependency.</Description>
     <PackageTags>onnx;onnxruntime;webgpu;dawn;coreml;inference;linux;macos</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseFile>licenses/onnxruntime/LICENSE.txt</PackageLicenseFile>
@@ -28,7 +28,6 @@
     <_OnnxRid Include="$(OnnxRuntimeIdentifiers)" />
     <_OnnxRequiredLicense Include="@(_OnnxRid->'$(OnnxArtifactsPath)/onnx-%(Identity)/licenses/onnxruntime/LICENSE')" />
     <_OnnxRequiredLicense Include="@(_OnnxRid->'$(OnnxArtifactsPath)/onnx-%(Identity)/licenses/onnxruntime/ThirdPartyNotices.txt')" />
-    <_OnnxRequiredLicense Include="@(_OnnxRid->'$(OnnxArtifactsPath)/onnx-%(Identity)/licenses/dependencies/dawn-src/LICENSE')" />
     <None Include="$(PkgMicrosoft_ML_OnnxRuntime_Managed)/lib/netstandard2.0/Microsoft.ML.OnnxRuntime.dll;$(PkgMicrosoft_ML_OnnxRuntime_Managed)/lib/netstandard2.0/Microsoft.ML.OnnxRuntime.pdb" Pack="true" OnnxRequired="true" PackagePath="lib/netstandard2.0/" />
     <None Include="$(PkgMicrosoft_ML_OnnxRuntime_Managed)/lib/net8.0/Microsoft.ML.OnnxRuntime.dll;$(PkgMicrosoft_ML_OnnxRuntime_Managed)/lib/net8.0/Microsoft.ML.OnnxRuntime.pdb" Pack="true" OnnxRequired="true" PackagePath="lib/net8.0/" />
     <None Include="$(PkgMicrosoft_ML_OnnxRuntime_Managed)/LICENSE.txt" Pack="true" OnnxRequired="true" PackagePath="licenses/onnxruntime/" />
@@ -38,12 +37,14 @@
   </ItemGroup>
 
   <ItemGroup Condition="$(_OnnxSelectedRids.Contains(';linux-x64;'))">
+    <_OnnxRequiredLicense Include="$(OnnxArtifactsPath)/onnx-linux-x64/licenses/dependencies/dawn-src/LICENSE" />
     <_OnnxRequiredLicense Include="$(OnnxArtifactsPath)/onnx-linux-x64/licenses/toolchain/GCC-copyright.txt;$(OnnxArtifactsPath)/onnx-linux-x64/licenses/toolchain/GPL-3.txt" />
     <None Include="$(OnnxArtifactsPath)/onnx-linux-x64/libonnxruntime.so" Pack="true" OnnxRequired="true" PackagePath="runtimes/linux-x64/native/" />
     <None Include="$(OnnxArtifactsPath)/onnx-linux-x64/build-info.txt" Pack="true" OnnxRequired="true" PackagePath="build-info/linux-x64.txt" />
     <None Include="$(OnnxArtifactsPath)/onnx-linux-x64/licenses/**/*" Pack="true" PackagePath="licenses/linux-x64/" />
   </ItemGroup>
   <ItemGroup Condition="$(_OnnxSelectedRids.Contains(';linux-arm64;'))">
+    <_OnnxRequiredLicense Include="$(OnnxArtifactsPath)/onnx-linux-arm64/licenses/dependencies/dawn-src/LICENSE" />
     <_OnnxRequiredLicense Include="$(OnnxArtifactsPath)/onnx-linux-arm64/licenses/toolchain/GCC-copyright.txt;$(OnnxArtifactsPath)/onnx-linux-arm64/licenses/toolchain/GPL-3.txt" />
     <None Include="$(OnnxArtifactsPath)/onnx-linux-arm64/libonnxruntime.so" Pack="true" OnnxRequired="true" PackagePath="runtimes/linux-arm64/native/" />
     <None Include="$(OnnxArtifactsPath)/onnx-linux-arm64/build-info.txt" Pack="true" OnnxRequired="true" PackagePath="build-info/linux-arm64.txt" />

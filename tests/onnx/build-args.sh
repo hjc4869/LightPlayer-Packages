@@ -28,12 +28,11 @@ check_build_args() {
     esac
     shift
   done
-  [[ "$webgpu" == 1 ]]
   case "$ONNX_TEST_RID" in
-    osx-*) [[ "$coreml" == 1 ]] ;;
-    linux-*) [[ "$coreml" == 0 ]] ;;
+    osx-*) [[ "$webgpu" == 0 && "$coreml" == 1 ]] ;;
+    linux-*) [[ "$webgpu" == 1 && "$coreml" == 0 ]] ;;
   esac
-  printf 'PASS: %s provider build arguments, including static Dawn/WebGPU.\n' "$ONNX_TEST_RID"
+  printf 'PASS: %s provider build arguments.\n' "$ONNX_TEST_RID"
   exit 0
 }
 

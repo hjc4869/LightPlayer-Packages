@@ -1,12 +1,14 @@
 # ONNX Validation
 
-The package-only consumer checks NuGet contents and exercises the DenseTensor
-and OrtValue APIs through CPU and WebGPU multiplication inference.
+The package-only consumer checks NuGet contents and the native provider set:
+CPU/WebGPU on Linux and CPU/CoreML on macOS. It exercises the DenseTensor and
+OrtValue APIs through CPU multiplication inference. `ONNX_TEST_GPU=1` also tests
+the platform accelerator: WebGPU on Linux or CoreML on macOS.
 
 Run `bash tests/onnx/build-args.sh` to check provider selection for all four RIDs
-without native compilation. The test requires static Dawn/WebGPU everywhere
-and CoreML only on macOS. Native validation also requires the CoreML export
-on macOS.
+without native compilation. The test requires static Dawn/WebGPU only on Linux
+and CoreML only on macOS. Native validation requires Dawn licenses only on Linux
+and the CoreML export on macOS.
 
 ## Reproduce
 

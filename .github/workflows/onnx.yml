@@ -77,7 +77,7 @@ jobs:
           if-no-files-found: error
 
   build-macos:
-    name: Build onnx-${{ matrix.rid }} (Dawn Metal + CoreML)
+    name: Build onnx-${{ matrix.rid }} (CoreML)
     runs-on: macos-15
     needs: lint
     env:

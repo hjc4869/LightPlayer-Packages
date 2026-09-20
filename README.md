@@ -4,7 +4,7 @@ This repository builds native and managed NuGet packages for .NET:
 
 - [`LightStudio.Ffmpeg`](https://www.nuget.org/packages/LightStudio.Ffmpeg/): FFmpeg 9.0.1 and its decoding dependencies.
 - [LightStudio.Photos](package/photos/README.md): LibRaw 0.22.2 and Little CMS 2.19.1 for RAW photos and ICC color management. See [Photos builds](#photos-builds) for its platform matrix and workflow.
-- [LightStudio.Onnx](package/onnx/README.md): ONNX Runtime 1.30.0 with its complete .NET managed API and embedded Dawn/WebGPU for four native RIDs on Linux and macOS, plus macOS CoreML. See [ONNX validation](tests/onnx/README.md) for package checks and platform limitations.
+- [LightStudio.Onnx](package/onnx/README.md): ONNX Runtime 1.30.0 with its complete .NET managed API for four native RIDs, embedded Dawn/WebGPU on Linux, and CoreML on macOS. See [ONNX validation](tests/onnx/README.md) for package checks and platform limitations.
 - [LightStudio.sqlite-vec](package/sqlite-vec/README.md): sqlite-vec 0.1.9 loadable native extensions for eight native RIDs, with no ONNX dependency and no bundled SQLite engine. Windows can use the system WinSQLite engine.
 
 ## FFmpeg Runtimes
@@ -183,11 +183,10 @@ using `NUGET_API_KEY` after all build and validation jobs pass.
 
 [The ONNX workflow](.github/workflows/onnx.yml) builds `linux-x64`, `linux-arm64`,
 `osx-x64`, and `osx-arm64`.
-It uses Dawn Vulkan on Linux and Dawn Metal on macOS. The macOS CoreML execution
-provider is also enabled alongside Dawn. Provider implementations are embedded
-into the runtime library; CoreML uses macOS system APIs.
+It uses embedded Dawn/Vulkan on Linux and CoreML on macOS. Provider
+implementations are built into the runtime library; CoreML uses macOS system APIs.
 The NuGet contains the complete upstream managed assemblies; consumers need no Microsoft ONNX
-NuGet references. WebGPU selection uses the standard
+NuGet references. WebGPU selection on Linux uses the standard
 `SessionOptions.AppendExecutionProvider("WebGPU", options)` API. Select macOS CoreML with
 `SessionOptions.AppendExecutionProvider("CoreML", options)`; see the
 [package README](package/onnx/README.md) for provider options and priority.

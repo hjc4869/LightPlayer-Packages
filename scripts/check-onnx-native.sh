@@ -34,6 +34,7 @@ case "$rid" in
       exit 1
     fi
     printf '%s maximum GLIBC_%s (limit %s)\n' "$rid" "$maximum" "$baseline"
+    [[ -s "$prefix/licenses/dependencies/dawn-src/LICENSE" ]]
     [[ -s "$prefix/licenses/toolchain/GCC-copyright.txt" ]]
     [[ -s "$prefix/licenses/toolchain/GPL-3.txt" ]]
     printf '%s\n' "$dependencies" | grep NEEDED
@@ -59,7 +60,6 @@ case "$rid" in
 esac
 
 [[ -s "$library" && -s "$prefix/build-info.txt" ]]
-[[ -s "$prefix/licenses/dependencies/dawn-src/LICENSE" ]]
 [[ -s "$prefix/licenses/onnxruntime/LICENSE" ]]
 [[ -s "$prefix/licenses/onnxruntime/ThirdPartyNotices.txt" ]]
 printf 'PASS: %s native architecture, exports, dependencies, and licenses.\n' "$rid"
