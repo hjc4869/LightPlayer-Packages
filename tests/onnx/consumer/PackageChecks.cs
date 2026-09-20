@@ -16,8 +16,7 @@ internal static class PackageChecks
         }
         foreach (var runtime in runtimes)
         {
-            var nativeName = runtime.StartsWith("win-", StringComparison.Ordinal) ? "onnxruntime.dll"
-                : runtime.StartsWith("osx-", StringComparison.Ordinal) ? "libonnxruntime.dylib" : "libonnxruntime.so";
+            var nativeName = runtime.StartsWith("osx-", StringComparison.Ordinal) ? "libonnxruntime.dylib" : "libonnxruntime.so";
             Require($"runtimes/{runtime}/native/{nativeName}", 1_000_000);
             Require($"licenses/{runtime}/dependencies/dawn-src/LICENSE");
             Require($"licenses/{runtime}/onnxruntime/ThirdPartyNotices.txt");

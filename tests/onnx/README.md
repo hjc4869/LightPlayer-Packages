@@ -20,15 +20,6 @@ If the local Docker daemon has no bridge network, `--network host` works for the
 build and run commands. If switching toolchains, use a separate `ONNX_BUILD_DIR`
 inside the container instead of reusing a CMake cache from another toolchain.
 
-On native Windows ARM64, the build script sets `onnxruntime_CROSS_COMPILING=OFF`.
-ORT 1.30.0 otherwise forces cross-compilation mode even on an ARM64 host, causing
-DXC to configure an incorrect host-tool build with missing TableGen projects.
-Host detection prefers MSVC's `VSCMD_ARG_HOST_ARCH`; checking only
-`PROCESSOR_ARCHITECTURE` did not select the override in the Git Bash CI step.
-The override is not applied to ARM64 cross-builds on x64 Windows. Run
-`bash tests/onnx/build-args.sh` to check native and cross-host argument selection
-without downloading sources or compiling. This check also runs in CI's lint job.
-
 ## Other Validation
 
 - Linux x64: source build, clean NuGet restore, self-contained publish, DenseTensor
@@ -41,12 +32,11 @@ without downloading sources or compiling. This check also runs in CI's lint job.
 - Package checks verify managed payloads, native RID selection, notices, no
   Microsoft ONNX package dependencies, partial-release rejection, unsupported
   platform rejection, and conflicting direct Microsoft ONNX references.
-- Windows x64/ARM64, Linux ARM64, and macOS x64/ARM64 builds are configured in
-  CI but were not executed on this Linux workstation. Windows ARM64 execution
-  is a separate required CI job. Hosted CI itself has not been dispatched here.
+- Linux ARM64 and macOS x64/ARM64 builds are configured in CI but were not
+  executed on this Linux workstation. Hosted CI itself has not been dispatched here.
 - Workflow and shell scripts pass actionlint 1.7.12 and ShellCheck.
 
-The local packages are explicitly partial prereleases, not the eight-RID
+The local packages are explicitly partial prereleases, not the six-RID
 release. The release pack requires every native artifact; no placeholder native
 assets were used. Nothing was published.
 

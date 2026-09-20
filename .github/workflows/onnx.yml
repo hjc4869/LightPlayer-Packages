@@ -35,9 +35,7 @@ jobs:
       - name: Check workflow and shell scripts
         run: |
           docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12 .github/workflows/onnx.yml
-          docker run --rm -v "$PWD:/repo" -w /repo --entrypoint shellcheck rhysd/actionlint:1.7.12 scripts/build-onnx.sh scripts/check-onnx-native.sh scripts/test-onnx-package.sh tests/onnx/build-args.sh
-      - name: Test Windows native build argument selection
-        run: bash tests/onnx/build-args.sh
+          docker run --rm -v "$PWD:/repo" -w /repo --entrypoint shellcheck rhysd/actionlint:1.7.12 scripts/build-onnx.sh scripts/check-onnx-native.sh scripts/test-onnx-package.sh
 
   build-linux:
     name: Build onnx-${{ matrix.rid }} (glibc 2.39)
@@ -76,70 +74,6 @@ jobs:
           name: onnx-${{ matrix.rid }}
           path: artifacts/onnx-${{ matrix.rid }}
           if-no-files-found: error
-
-  build-windows:
-    name: Build onnx-${{ matrix.rid }} (Dawn D3D12)
-    runs-on: ${{ matrix.runner }}
-    needs: lint
-    defaults:
-      run:
-        shell: bash
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - rid: win-x64
-            runner: windows-2022
-            toolchain_arch: amd64
-            python_arch: x64
-          - rid: win-arm64
-            runner: windows-11-arm
-            toolchain_arch: arm64
-            python_arch: arm64
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          architecture: ${{ matrix.python_arch }}
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 8.0.x
-      - uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: ${{ matrix.toolchain_arch }}
-      - name: Install build tools
-        run: |
-          git config --global core.longpaths true
-          python -m pip install cmake==3.31.6 ninja==1.11.1.4 Jinja2==3.1.6 packaging==25.0
-      - name: Build native runtime and inspect imports
-        run: |
-          bash scripts/build-onnx.sh "${{ matrix.rid }}"
-          bash scripts/check-onnx-native.sh "${{ matrix.rid }}"
-      - name: Check package and publish native consumer
-        run: bash scripts/test-onnx-package.sh "${{ matrix.rid }}" "1.30.0-ci.${{ github.run_id }}"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: onnx-${{ matrix.rid }}
-          path: artifacts/onnx-${{ matrix.rid }}
-          if-no-files-found: error
-
-  test-windows-arm64:
-    name: Execute Windows ARM64 managed consumer
-    runs-on: windows-11-arm
-    needs: build-windows
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 8.0.x
-      - uses: actions/download-artifact@v4
-        with:
-          name: onnx-win-arm64
-          path: artifacts/onnx-win-arm64
-      - name: Test the actual ARM64 package on ARM64 Windows
-        shell: bash
-        run: bash scripts/test-onnx-package.sh win-arm64 "1.30.0-ci.${{ github.run_id }}"
 
   build-macos:
     name: Build onnx-${{ matrix.rid }} (Dawn Metal)
@@ -217,7 +151,7 @@ jobs:
   pack-and-publish:
     name: Pack complete LightStudio.Onnx
     runs-on: ubuntu-24.04
-    needs: [build-linux, test-windows-arm64, build-macos, build-android]
+    needs: [build-linux, build-macos, build-android]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -249,7 +183,7 @@ jobs:
           dotnet pack package/onnx/LightStudio.Onnx.csproj -c Release -o artifacts/packages -p:PackageVersion="$PACKAGE_VERSION"
           dotnet run --project tests/onnx/consumer/OnnxConsumer.csproj -c Release -p:OnnxPackageVersion="$PACKAGE_VERSION" -- \
             --check-package "artifacts/packages/LightStudio.Onnx.$PACKAGE_VERSION.nupkg" \
-            'linux-x64;linux-arm64;win-x64;win-arm64;osx-x64;osx-arm64;android-x64;android-arm64'
+            'linux-x64;linux-arm64;osx-x64;osx-arm64;android-x64;android-arm64'
           dotnet run --project tests/onnx/consumer/OnnxConsumer.csproj -c Release -p:OnnxPackageVersion="$PACKAGE_VERSION" -- \
             --cpu-smoke artifacts/onnx-linux-x64/smoke.onnx
       - uses: actions/upload-artifact@v4

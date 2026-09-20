@@ -28,18 +28,14 @@ training requires a separate native build with the upstream inference package.
 | RIDs | Dawn backend | Requirements |
 | --- | --- | --- |
 | `linux-x64`, `linux-arm64` | Vulkan | glibc 2.39 baseline, compatible Vulkan driver/loader |
-| `win-x64`, `win-arm64` | D3D12 | Windows 10/11 with a compatible D3D12 driver |
 | `osx-x64`, `osx-arm64` | Metal | macOS 15 or later with a supported Metal device |
 | `android-x64`, `android-arm64` | Vulkan | Android API 27 or later with Vulkan support |
 
-Dawn is linked into the runtime library. Windows also bundles the built DXC
-compiler and the target-architecture DXIL validator from the build's selected
-Windows SDK beside the runtime, with their license notices. The OS, graphics
-driver, Vulkan loader (Linux/Android), and macOS system C++ runtime remain system
-prerequisites. Android uses static libc++ and 16 KB ELF load alignment; Windows
-uses static MSVC runtime. Telemetry is disabled. This is not a CUDA, DirectML,
-NNAPI, CoreML, or ROCm package. Standard framework dependencies `System.Memory`
-and `System.Numerics.Tensors` remain normal NuGet dependencies.
+Dawn is linked into the runtime library. The OS, graphics driver, Vulkan loader
+(Linux/Android), and macOS system C++ runtime remain system prerequisites. Android
+uses static libc++ and 16 KB ELF load alignment. Telemetry is disabled. This is not
+a CUDA, NNAPI, CoreML, or ROCm package. Standard framework dependencies
+`System.Memory` and `System.Numerics.Tensors` remain normal NuGet dependencies.
 
 Managed assets cover .NET Standard 2.0, .NET 8+, and .NET 9+ Android. Other mobile
 platforms, musl RIDs, and static macOS linking are not included.
@@ -62,7 +58,7 @@ unchanged, with no Microsoft ONNX Runtime package dependency in the final NuGet.
 Upstream and dependency notices are included under `licenses/`.
 
 Build a native RID with `bash scripts/build-onnx.sh <rid>`, then pack after all
-eight native outputs are present:
+six native outputs are present:
 
 ```sh
 dotnet pack package/onnx/LightStudio.Onnx.csproj -c Release -o artifacts/packages
@@ -74,6 +70,6 @@ For local testing only, a deliberately partial prerelease can be built with
 
 Use the pinned Linux Dockerfile for release builds; compiling directly on a newer
 distribution can raise the glibc requirement. The GitHub Actions workflow builds
-all eight RIDs on `onnx-v*` tags or manual dispatch, validates native dependencies
+all six RIDs on `onnx-v*` tags or manual dispatch, validates native dependencies
 and .NET consumers, and uploads the complete package. Only manual dispatch with
 `publish=true` pushes to NuGet.org using `NUGET_API_KEY`.

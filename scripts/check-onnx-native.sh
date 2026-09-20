@@ -62,30 +62,6 @@ case "$rid" in
     [[ "$exports" == *_OrtGetApiBase* ]]
     codesign --verify "$library"
     ;;
-  win-*)
-    library="$prefix/onnxruntime.dll"
-    exports="$(MSYS_NO_PATHCONV=1 dumpbin /EXPORTS "$(cygpath -w "$library")")"
-    [[ "$exports" == *OrtGetApiBase* ]]
-    for native_name in onnxruntime.dll dxcompiler.dll dxil.dll; do
-      [[ -s "$prefix/$native_name" ]]
-      windows_path="$(cygpath -w "$prefix/$native_name")"
-      dependencies="$(MSYS_NO_PATHCONV=1 dumpbin /DEPENDENTS "$windows_path")"
-      header="$(MSYS_NO_PATHCONV=1 dumpbin /HEADERS "$windows_path")"
-      case "$rid" in
-        win-arm64) [[ "$header" == *'machine (ARM64)'* ]] ;;
-        win-x64) [[ "$header" == *'machine (x64)'* ]] ;;
-        *) exit 1 ;;
-      esac
-      if grep -Ei '(vcruntime|msvcp|libgcc|libstdc|webgpu_dawn|onnxruntime_providers).*\.dll' <<< "$dependencies"; then
-        printf 'Unbundled Windows runtime dependency in %s.\n' "$native_name" >&2
-        exit 1
-      fi
-    done
-    [[ -s "$prefix/licenses/dependencies/dawn-src/third_party/directx-shader-compiler/src/LICENSE.TXT" ]]
-    [[ -s "$prefix/licenses/dependencies/dawn-src/third_party/directx-shader-compiler/src/ThirdPartyNotices.txt" ]]
-    [[ -s "$prefix/licenses/toolchain/windows-sdk/sdk_license.rtf" ]]
-    [[ -s "$prefix/licenses/toolchain/windows-sdk/sdk_third_party_notices.rtf" ]]
-    ;;
   *) printf 'Unsupported RID: %s\n' "$rid" >&2; exit 1 ;;
 esac
 

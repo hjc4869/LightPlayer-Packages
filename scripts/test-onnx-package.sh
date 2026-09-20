@@ -32,7 +32,7 @@ expected_failure() {
 
 expected_failure 'Missing ONNX artifact' dotnet msbuild "$project" -nologo -t:ValidateOnnxArtifacts \
   "${pack_args[@]}" "-p:OnnxArtifactsPath=$test_root/empty"
-expected_failure 'Release packages must contain all eight' dotnet msbuild "$project" -nologo -t:ValidateOnnxArtifacts \
+expected_failure 'Release packages must contain all six' dotnet msbuild "$project" -nologo -t:ValidateOnnxArtifacts \
   "-p:OnnxRuntimeIdentifiers=$rid" "-p:PackageVersion=$version"
 expected_failure 'Partial ONNX packages require a prerelease' dotnet msbuild "$project" -nologo -t:ValidateOnnxArtifacts \
   "-p:OnnxRuntimeIdentifiers=$rid" -p:OnnxAllowPartialPackage=true -p:PackageVersion=1.30.0
@@ -51,7 +51,6 @@ if [[ "$rid" != android-* ]]; then
   executable="$test_root/publish/OnnxConsumer"
   native_name=libonnxruntime.so
   case "$rid" in
-    win-*) executable="$executable.exe"; native_name=onnxruntime.dll ;;
     osx-*) native_name=libonnxruntime.dylib ;;
   esac
   cmp "$root/artifacts/onnx-$rid/$native_name" "$test_root/publish/$native_name"

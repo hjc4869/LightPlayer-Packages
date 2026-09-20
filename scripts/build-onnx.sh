@@ -2,14 +2,12 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TARGET="${1:?Usage: build-onnx.sh <linux-x64|linux-arm64|win-x64|win-arm64|osx-x64|osx-arm64|android-x64|android-arm64>}"
+TARGET="${1:?Usage: build-onnx.sh <linux-x64|linux-arm64|osx-x64|osx-arm64|android-x64|android-arm64>}"
 ONNX_VERSION=1.30.0
 ONNX_REVISION=f2c39fe2f838cf35ce7da92824f5a5e3ee6e88a7
 SOURCE_DIR="${ONNX_SOURCE_DIR:-$ROOT_DIR/artifacts/build/onnxruntime-src}"
 BUILD_DIR="${ONNX_BUILD_DIR:-$ROOT_DIR/artifacts/build/onnx-$TARGET}"
 PREFIX="$ROOT_DIR/artifacts/onnx-$TARGET"
-generator=Ninja
-build_output="$BUILD_DIR/Release"
 
 platform_args=(--build_shared_lib)
 cmake_args=(CMAKE_POSITION_INDEPENDENT_CODE=ON onnxruntime_BUILD_UNIT_TESTS=OFF)
@@ -41,21 +39,6 @@ case "$TARGET" in
     platform_args+=(--osx_arch "$arch" --apple_deploy_target "${MACOSX_DEPLOYMENT_TARGET:-15.0}")
     cmake_args+=('CMAKE_INSTALL_RPATH=@loader_path' CMAKE_BUILD_WITH_INSTALL_RPATH=ON)
     ;;
-  win-x64|win-arm64)
-    generator='Visual Studio 17 2022'
-    build_output="$BUILD_DIR/Release/Release"
-    native_name=onnxruntime.dll
-    platform_args+=(--enable_msvc_static_runtime)
-    if [[ "$TARGET" == win-arm64 ]]; then
-      platform_args+=(--arm64)
-      windows_host_arch="${VSCMD_ARG_HOST_ARCH:-${PROCESSOR_ARCHITEW6432:-${PROCESSOR_ARCHITECTURE:-}}}"
-      if [[ "${windows_host_arch,,}" == arm64 ]]; then
-        printf 'Native Windows ARM64: setting onnxruntime_CROSS_COMPILING=OFF.\n'
-        cmake_args+=(onnxruntime_CROSS_COMPILING=OFF)
-      fi
-    fi
-    cmake_args+=(onnxruntime_ENABLE_DAWN_BACKEND_D3D12=ON onnxruntime_ENABLE_DAWN_BACKEND_VULKAN=OFF)
-    ;;
   *)
     printf 'Unsupported ONNX target: %s\n' "$TARGET" >&2
     exit 1
@@ -75,19 +58,12 @@ fi
   --build_dir "$BUILD_DIR" \
   --config Release --update --build --parallel "${JOBS:-8}" \
   --skip_tests --skip_submodule_sync --skip_pip_install \
-  --cmake_generator "$generator" --use_webgpu static_lib \
+  --cmake_generator Ninja --use_webgpu static_lib \
   --compile_no_warning_as_error --no_telemetry \
   "${platform_args[@]}" --cmake_extra_defines "${cmake_args[@]}"
 
 mkdir -p "$PREFIX/licenses/onnxruntime"
-cp -L "$build_output/$native_name" "$PREFIX/$native_name"
-if [[ "$TARGET" == win-* ]]; then
-  windows_sdk="$(MSYS_NO_PATHCONV=1 powershell.exe -NoProfile -ExecutionPolicy Bypass \
-    -File "$(cygpath -w "$ROOT_DIR/scripts/stage-onnx-windows.ps1")" \
-    -BuildDirectory "$(cygpath -w "$BUILD_DIR/Release")" \
-    -OutputDirectory "$(cygpath -w "$PREFIX")" -Architecture "${TARGET#win-}")"
-  windows_sdk="${windows_sdk//$'\r'/}"
-fi
+cp -L "$BUILD_DIR/Release/$native_name" "$PREFIX/$native_name"
 cp "$SOURCE_DIR/onnxruntime/test/testdata/mul_1.onnx" "$PREFIX/smoke.onnx"
 cp "$SOURCE_DIR/LICENSE" "$SOURCE_DIR/ThirdPartyNotices.txt" "$PREFIX/licenses/onnxruntime/"
 while IFS= read -r -d '' license_file; do
@@ -123,7 +99,4 @@ case "$TARGET" in
 esac
 printf 'ONNX Runtime %s\nCommit: %s\nRID: %s\nWebGPU: embedded Dawn\nTelemetry: disabled\n' \
   "$ONNX_VERSION" "$ONNX_REVISION" "$TARGET" > "$PREFIX/build-info.txt"
-if [[ "$TARGET" == win-* ]]; then
-  printf 'Windows SDK: %s\n' "$windows_sdk" >> "$PREFIX/build-info.txt"
-fi
 printf 'Built %s with embedded Dawn/WebGPU: %s\n' "$TARGET" "$PREFIX"
