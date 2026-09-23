@@ -1,7 +1,15 @@
 <Project>
   <PropertyGroup>
-    <_LightStudioSqliteVecSupportedRids>;linux-x64;linux-arm64;win-x64;win-arm64;osx-x64;osx-arm64;android-x64;android-arm64;</_LightStudioSqliteVecSupportedRids>
+    <_LightStudioSqliteVecSupportedRids>;linux-x64;linux-arm64;win-x64;win-arm64;osx-x64;osx-arm64;android-x64;android-arm64;browser-wasm;</_LightStudioSqliteVecSupportedRids>
+    <_LightStudioSqliteVecTargetsWasm>false</_LightStudioSqliteVecTargetsWasm>
+    <_LightStudioSqliteVecTargetsWasm Condition="'$(RuntimeIdentifier)' == 'browser-wasm' or '$(TargetPlatformIdentifier)' == 'browser'">true</_LightStudioSqliteVecTargetsWasm>
+    <_LightStudioSqliteVecWasmFlavor>wasm</_LightStudioSqliteVecWasmFlavor>
+    <_LightStudioSqliteVecWasmFlavor Condition="'$(WasmEnableThreads)' == 'true'">wasm-mt</_LightStudioSqliteVecWasmFlavor>
+    <_LightStudioSqliteVecWasmArchive>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../static/$(_LightStudioSqliteVecWasmFlavor)/libvec0.a'))</_LightStudioSqliteVecWasmArchive>
   </PropertyGroup>
+  <ItemGroup Condition="'$(_LightStudioSqliteVecTargetsWasm)' == 'true'">
+    <NativeFileReference Include="$(_LightStudioSqliteVecWasmArchive)" Exclude="@(NativeFileReference)" />
+  </ItemGroup>
   <Target Name="ValidateLightStudioSqliteVecPlatform" BeforeTargets="PrepareForBuild">
     <Error Condition="'$(RuntimeIdentifier)' != '' and !$([System.String]::Copy('$(_LightStudioSqliteVecSupportedRids)').Contains(';$(RuntimeIdentifier);'))" Text="LightStudio.sqlite-vec does not support RuntimeIdentifier '$(RuntimeIdentifier)'. Supported RIDs: $(_LightStudioSqliteVecSupportedRids)" />
     <Error Condition="'$(TargetPlatformIdentifier)' == 'android' and '$(SupportedOSPlatformVersion)' != '' and $([MSBuild]::VersionLessThan('$(SupportedOSPlatformVersion)', '27.0'))" Text="LightStudio.sqlite-vec requires Android API 27 or later. Set SupportedOSPlatformVersion to at least 27.0." />

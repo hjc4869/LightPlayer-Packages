@@ -35,20 +35,44 @@ expected_failure() {
 
 expected_failure 'Missing sqlite-vec artifact' dotnet msbuild "$project" -nologo -t:ValidateSqliteVecArtifacts \
   "${pack_args[@]}" "-p:SqliteVecArtifactsPath=$test_root/empty"
-expected_failure 'Release packages must contain all eight' dotnet msbuild "$project" -nologo -t:ValidateSqliteVecArtifacts \
+expected_failure 'Release packages must contain all nine' dotnet msbuild "$project" -nologo -t:ValidateSqliteVecArtifacts \
   "-p:SqliteVecRuntimeIdentifiers=$rid" "-p:PackageVersion=$version"
 expected_failure 'Partial sqlite-vec packages require a prerelease' dotnet msbuild "$project" -nologo -t:ValidateSqliteVecArtifacts \
   "-p:SqliteVecRuntimeIdentifiers=$rid" -p:SqliteVecAllowPartialPackage=true -p:PackageVersion=0.1.9
 expected_failure 'Unsupported sqlite-vec RIDs' dotnet msbuild "$project" -nologo -t:ValidateSqliteVecArtifacts \
-  -p:SqliteVecRuntimeIdentifiers=browser-wasm -p:SqliteVecAllowPartialPackage=true "-p:PackageVersion=$version"
-expected_failure 'does not support RuntimeIdentifier' dotnet msbuild "$consumer" -nologo -t:ValidateLightStudioSqliteVecPlatform \
-  "${restore_args[@]}" -p:RuntimeIdentifier=browser-wasm
+  -p:SqliteVecRuntimeIdentifiers=browser-wasm-mt -p:SqliteVecAllowPartialPackage=true "-p:PackageVersion=$version"
 expected_failure 'does not support RuntimeIdentifier' dotnet msbuild "$consumer" -nologo -t:ValidateLightStudioSqliteVecPlatform \
   "${restore_args[@]}" -p:RuntimeIdentifier=linux-musl-x64
 expected_failure 'requires Android API 27' dotnet msbuild "$consumer" -nologo -t:ValidateLightStudioSqliteVecPlatform \
   "${restore_args[@]}" -p:TargetPlatformIdentifier=android -p:SupportedOSPlatformVersion=26.0
 
-if [[ "$rid" != android-* ]]; then
+if [[ "$rid" == browser-wasm ]]; then
+  for platform in rid class-library; do
+    platform_args=(-p:RuntimeIdentifier=browser-wasm)
+    [[ "$platform" != class-library ]] || platform_args=(-p:TargetPlatformIdentifier=browser)
+    for threads in false true; do
+      flavor=wasm
+      [[ "$threads" != true ]] || flavor=wasm-mt
+      references="$(dotnet msbuild "$consumer" -nologo -t:ValidateLightStudioSqliteVecPlatform \
+        "${restore_args[@]}" "${platform_args[@]}" "-p:WasmEnableThreads=$threads" -getItem:NativeFileReference)"
+      REFERENCE_JSON="$references" EXPECTED_ARCHIVE="$test_root/restore/lightstudio.sqlite-vec/$version/static/$flavor/libvec0.a" node -e '
+        const assert = require("node:assert/strict");
+        const fs = require("node:fs");
+        const path = require("node:path");
+        const items = JSON.parse(process.env.REFERENCE_JSON).Items.NativeFileReference
+          .filter(item => item.Filename === "libvec0");
+        assert.equal(items.length, 1);
+        assert.equal(path.resolve(items[0].FullPath), path.resolve(process.env.EXPECTED_ARCHIVE));
+        assert.ok(fs.statSync(items[0].FullPath).size > 4096);
+      '
+    done
+  done
+  references="$(dotnet msbuild "$consumer" -nologo "${restore_args[@]}" \
+    -p:RuntimeIdentifier=linux-x64 -getItem:NativeFileReference)"
+  REFERENCE_JSON="$references" node -e '
+    require("node:assert/strict").equal(JSON.parse(process.env.REFERENCE_JSON).Items.NativeFileReference.length, 0);
+  '
+elif [[ "$rid" != android-* ]]; then
   dotnet publish "$consumer" -c Release -r "$rid" --self-contained true \
     "${restore_args[@]}" -o "$test_root/publish"
   executable="$test_root/publish/SqliteVecConsumer"

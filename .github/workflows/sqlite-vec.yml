@@ -36,7 +36,7 @@ jobs:
       - name: Check workflow and shell scripts
         run: |
           docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12 .github/workflows/sqlite-vec.yml
-          docker run --rm -v "$PWD:/repo" -w /repo --entrypoint shellcheck rhysd/actionlint:1.7.12 scripts/build-sqlite-vec.sh scripts/check-sqlite-vec-native.sh scripts/test-sqlite-vec-package.sh
+          docker run --rm -v "$PWD:/repo" -w /repo --entrypoint shellcheck rhysd/actionlint:1.7.12 scripts/build-sqlite-vec.sh scripts/check-sqlite-vec-native.sh scripts/test-sqlite-vec-package.sh scripts/test-sqlite-vec-wasm.sh
 
   build:
     name: Build sqlite-vec-${{ matrix.rid }}
@@ -120,10 +120,46 @@ jobs:
           path: artifacts/sqlite-vec-${{ matrix.rid }}
           if-no-files-found: error
 
+  build-browser-wasm:
+    name: Build sqlite-vec WASM variants
+    runs-on: ubuntu-24.04
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - uses: mymindstorm/setup-emsdk@v14
+        with:
+          version: '3.1.69'
+          actions-cache-folder: artifacts/emsdk-cache
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y cmake ninja-build
+      - name: Build and test single-threaded and multithreaded static libraries
+        run: |
+          for variant in browser-wasm browser-wasm-mt; do
+            bash scripts/build-sqlite-vec.sh "$variant"
+            bash scripts/test-sqlite-vec-wasm.sh "$variant"
+          done
+      - name: Verify package and NativeFileReference selection
+        run: bash scripts/test-sqlite-vec-package.sh browser-wasm "0.1.9-ci.${{ github.run_id }}.${{ github.run_attempt }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sqlite-vec-browser-wasm
+          path: artifacts/sqlite-vec-browser-wasm
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sqlite-vec-browser-wasm-mt
+          path: artifacts/sqlite-vec-browser-wasm-mt
+          if-no-files-found: error
+
   pack-and-publish:
     name: Pack complete LightStudio.sqlite-vec
     runs-on: ubuntu-24.04
-    needs: build
+    needs: [build, build-browser-wasm]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -148,14 +184,14 @@ jobs:
             exit 1
           fi
           echo "value=$package_version" >> "$GITHUB_OUTPUT"
-      - name: Pack all eight RIDs and verify the final package
+      - name: Pack all nine RIDs and verify the final package
         env:
           PACKAGE_VERSION: ${{ steps.version.outputs.value }}
         run: |
           dotnet pack package/sqlite-vec/LightStudio.sqlite-vec.csproj -c Release -o artifacts/packages -p:PackageVersion="$PACKAGE_VERSION"
           dotnet run --project tests/sqlite-vec/consumer/SqliteVecConsumer.csproj -c Release -p:SqliteVecPackageVersion="$PACKAGE_VERSION" -- \
             --check-package "artifacts/packages/LightStudio.sqlite-vec.$PACKAGE_VERSION.nupkg" \
-            'linux-x64;linux-arm64;win-x64;win-arm64;osx-x64;osx-arm64;android-x64;android-arm64'
+            'linux-x64;linux-arm64;win-x64;win-arm64;osx-x64;osx-arm64;android-x64;android-arm64;browser-wasm'
           dotnet run --project tests/sqlite-vec/consumer/SqliteVecConsumer.csproj -c Release --no-restore -p:SqliteVecPackageVersion="$PACKAGE_VERSION" -- --smoke
       - uses: actions/upload-artifact@v4
         with:

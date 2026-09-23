@@ -90,12 +90,15 @@ static void CheckPackage(string packagePath, string[] rids)
         "LightStudio.sqlite-vec must have no NuGet dependencies.");
     Require(document.Descendants().Single(element => element.Name.LocalName == "id").Value == "LightStudio.sqlite-vec",
         "Incorrect package ID.");
-    var expectedNative = rids.Select(rid => $"runtimes/{rid}/native/{NativeName(rid)}").ToHashSet();
-    var actualNative = names.Where(name => name.StartsWith("runtimes/", StringComparison.Ordinal)).ToHashSet();
-    Require(actualNative.SetEquals(expectedNative), "The native assets must be exactly one vec0 library per requested RID.");
+    string[] artifactRids = rids.SelectMany(rid => rid == "browser-wasm"
+        ? new[] { "browser-wasm", "browser-wasm-mt" } : new[] { rid }).ToArray();
+    var expectedNative = artifactRids.Select(NativePackagePath).ToHashSet();
+    var actualNative = names.Where(name => name.StartsWith("runtimes/", StringComparison.Ordinal)
+        || name.StartsWith("static/", StringComparison.Ordinal)).ToHashSet();
+    Require(actualNative.SetEquals(expectedNative), "The native assets must match the requested RIDs, including both WASM variants.");
     Require(!names.Any(name => name.StartsWith("lib/", StringComparison.Ordinal)
         || name.StartsWith("ref/", StringComparison.Ordinal)
-        || name.EndsWith(".a", StringComparison.OrdinalIgnoreCase)
+        || (!expectedNative.Contains(name) && name.EndsWith(".a", StringComparison.OrdinalIgnoreCase))
         || name.EndsWith(".lib", StringComparison.OrdinalIgnoreCase)
         || name.EndsWith(".c", StringComparison.OrdinalIgnoreCase)
         || name.EndsWith(".h", StringComparison.OrdinalIgnoreCase)
@@ -103,7 +106,7 @@ static void CheckPackage(string packagePath, string[] rids)
             || name.EndsWith(".so", StringComparison.OrdinalIgnoreCase)
             || name.EndsWith(".dylib", StringComparison.OrdinalIgnoreCase)))),
         "Unexpected managed library, SQLite engine, source, or static archive.");
-    foreach (string rid in rids)
+    foreach (string rid in artifactRids)
     {
         Require(names.Contains($"licenses/{rid}/sqlite-vec/LICENSE-MIT"), $"Missing license for {rid}.");
         if (rid.StartsWith("android-", StringComparison.Ordinal))
@@ -112,7 +115,7 @@ static void CheckPackage(string packagePath, string[] rids)
             ?? throw new InvalidDataException($"Missing build provenance for {rid}.");
         using var reader = new StreamReader(info.Open());
         Require(HasBuildRid(reader, rid), $"Incorrect build RID for {rid}.");
-        var native = archive.GetEntry($"runtimes/{rid}/native/{NativeName(rid)}")!;
+        var native = archive.GetEntry(NativePackagePath(rid))!;
         using var nativeStream = native.Open();
         using var bytes = new MemoryStream();
         nativeStream.CopyTo(bytes);
@@ -120,8 +123,15 @@ static void CheckPackage(string packagePath, string[] rids)
     }
     Require(names.Contains("build/LightStudio.sqlite-vec.targets")
         && names.Contains("buildTransitive/LightStudio.sqlite-vec.targets"), "Missing platform checks.");
-    Console.WriteLine($"PASS: {packagePath}, {rids.Length} real native RID assets, no SQLite engine or NuGet dependencies.");
+    Console.WriteLine($"PASS: {packagePath}, {artifactRids.Length} native assets, no SQLite engine or NuGet dependencies.");
 }
+
+static string NativePackagePath(string rid) => rid switch
+{
+    "browser-wasm" => "static/wasm/libvec0.a",
+    "browser-wasm-mt" => "static/wasm-mt/libvec0.a",
+    _ => $"runtimes/{rid}/native/{NativeName(rid)}"
+};
 
 static bool HasBuildRid(TextReader reader, string rid)
 {
@@ -157,6 +167,11 @@ static void TestBuildInfo()
 static void CheckArchitecture(byte[] bytes, string rid)
 {
     Require(bytes.Length > 4096, $"Invalid native library for {rid}.");
+    if (rid.StartsWith("browser-wasm", StringComparison.Ordinal))
+    {
+        Require(bytes.AsSpan(0, 8).SequenceEqual("!<arch>\n"u8), $"Not a static archive: {rid}.");
+        return;
+    }
     bool arm64 = rid.EndsWith("-arm64", StringComparison.Ordinal);
     if (rid.StartsWith("win-", StringComparison.Ordinal))
     {

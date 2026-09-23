@@ -7,8 +7,8 @@
     <PackageId>LightStudio.sqlite-vec</PackageId>
     <Version>0.1.9</Version>
     <Authors>LightStudio</Authors>
-    <Description>sqlite-vec loadable native extensions for Linux, Windows, macOS, and Android on x64 and ARM64. Only vec0 is included; bring your own SQLite engine and managed bindings.</Description>
-    <PackageTags>sqlite;sqlite-vec;vec0;vector;search;android;linux;macos;windows</PackageTags>
+    <Description>sqlite-vec loadable native extensions for Linux, Windows, macOS, and Android on x64 and ARM64, plus single-threaded and multithreaded browser-wasm static libraries. Only vec0 is included; bring your own SQLite engine and managed bindings.</Description>
+    <PackageTags>sqlite;sqlite-vec;vec0;vector;search;android;linux;macos;windows;wasm</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RepositoryType>git</RepositoryType>
@@ -16,7 +16,7 @@
     <IsPackable>true</IsPackable>
     <NoWarn>$(NoWarn);NU5128</NoWarn>
     <SqliteVecArtifactsPath Condition="'$(SqliteVecArtifactsPath)' == ''">$(MSBuildThisFileDirectory)../../artifacts</SqliteVecArtifactsPath>
-    <_SqliteVecAllRids>linux-x64;linux-arm64;win-x64;win-arm64;osx-x64;osx-arm64;android-x64;android-arm64</_SqliteVecAllRids>
+    <_SqliteVecAllRids>linux-x64;linux-arm64;win-x64;win-arm64;osx-x64;osx-arm64;android-x64;android-arm64;browser-wasm</_SqliteVecAllRids>
     <SqliteVecRuntimeIdentifiers Condition="'$(SqliteVecRuntimeIdentifiers)' == ''">$(_SqliteVecAllRids)</SqliteVecRuntimeIdentifiers>
     <_SqliteVecSelectedRids>;$(SqliteVecRuntimeIdentifiers);</_SqliteVecSelectedRids>
   </PropertyGroup>
@@ -71,8 +71,18 @@
     <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-android-arm64/licenses/**/*" Pack="true" PackagePath="licenses/android-arm64/" />
   </ItemGroup>
 
+  <ItemGroup Condition="$(_SqliteVecSelectedRids.Contains(';browser-wasm;'))">
+    <_SqliteVecRequiredLicense Include="$(SqliteVecArtifactsPath)/sqlite-vec-browser-wasm-mt/licenses/sqlite-vec/LICENSE-MIT" />
+    <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-browser-wasm/libvec0.a" Pack="true" SqliteVecRequired="true" PackagePath="static/wasm/" />
+    <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-browser-wasm-mt/libvec0.a" Pack="true" SqliteVecRequired="true" PackagePath="static/wasm-mt/" />
+    <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-browser-wasm/build-info.txt" Pack="true" SqliteVecRequired="true" PackagePath="build-info/browser-wasm.txt" />
+    <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-browser-wasm-mt/build-info.txt" Pack="true" SqliteVecRequired="true" PackagePath="build-info/browser-wasm-mt.txt" />
+    <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-browser-wasm/licenses/**/*" Pack="true" PackagePath="licenses/browser-wasm/" />
+    <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-browser-wasm-mt/licenses/**/*" Pack="true" PackagePath="licenses/browser-wasm-mt/" />
+  </ItemGroup>
+
   <Target Name="ValidateSqliteVecArtifacts" BeforeTargets="GenerateNuspec">
-    <Error Condition="'$(SqliteVecRuntimeIdentifiers)' != '$(_SqliteVecAllRids)' and '$(SqliteVecAllowPartialPackage)' != 'true'" Text="Release packages must contain all eight sqlite-vec RIDs. For local testing only, set SqliteVecAllowPartialPackage=true and use a prerelease version." />
+    <Error Condition="'$(SqliteVecRuntimeIdentifiers)' != '$(_SqliteVecAllRids)' and '$(SqliteVecAllowPartialPackage)' != 'true'" Text="Release packages must contain all nine sqlite-vec RIDs, including both browser-wasm variants. For local testing only, set SqliteVecAllowPartialPackage=true and use a prerelease version." />
     <Error Condition="'$(SqliteVecAllowPartialPackage)' == 'true' and !$([System.String]::Copy('$(PackageVersion)').Contains('-'))" Text="Partial sqlite-vec packages require a prerelease version." />
     <ItemGroup>
       <_SqliteVecRequiredArtifact Include="@(None)" Condition="'%(None.SqliteVecRequired)' == 'true'" />

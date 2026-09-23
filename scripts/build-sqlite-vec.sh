@@ -2,12 +2,19 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-rid="${1:?Usage: build-sqlite-vec.sh <linux-x64|linux-arm64|win-x64|win-arm64|osx-x64|osx-arm64|android-x64|android-arm64>}"
+rid="${1:?Usage: build-sqlite-vec.sh <linux-x64|linux-arm64|win-x64|win-arm64|osx-x64|osx-arm64|android-x64|android-arm64|browser-wasm|browser-wasm-mt>}"
 build_dir="${SQLITE_VEC_BUILD_DIR:-$root/artifacts/build/sqlite-vec-$rid}"
 prefix="${SQLITE_VEC_ARTIFACTS_DIR:-$root/artifacts}/sqlite-vec-$rid"
 cmake_args=(-G Ninja -DCMAKE_BUILD_TYPE=Release "-DSQLITE_VEC_RID=$rid")
+cmake_command=(cmake)
 
 case "$rid" in
+  browser-wasm|browser-wasm-mt)
+    cmake_command=(emcmake cmake)
+    threads=OFF
+    [[ "$rid" != browser-wasm-mt ]] || threads=ON
+    cmake_args+=("-DSQLITE_VEC_WASM_THREADS=$threads")
+    ;;
   linux-x64|linux-arm64)
     arch=x86_64
     [[ "$rid" != linux-arm64 ]] || arch=aarch64
@@ -49,7 +56,7 @@ case "$rid" in
     ;;
 esac
 
-cmake -S "$root/scripts/sqlite-vec" -B "$build_dir" "${cmake_args[@]}"
+"${cmake_command[@]}" -S "$root/scripts/sqlite-vec" -B "$build_dir" "${cmake_args[@]}"
 cmake --build "$build_dir" --config Release --parallel "${JOBS:-3}"
 cmake --install "$build_dir" --config Release --prefix "$prefix"
 

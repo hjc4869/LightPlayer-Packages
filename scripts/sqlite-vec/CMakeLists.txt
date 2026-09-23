@@ -22,8 +22,15 @@ string(REPLACE
   "static unsigned int __builtin_popcountl(unsigned long long x)"
   sqlite_vec_source "${sqlite_vec_source}"
 )
+if(EMSCRIPTEN)
+  string(REPLACE "__builtin_popcountl(" "__builtin_popcountll(" sqlite_vec_source "${sqlite_vec_source}")
+endif()
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/sqlite-vec.c" "${sqlite_vec_source}")
-add_library(vec0 SHARED "${CMAKE_CURRENT_BINARY_DIR}/sqlite-vec.c")
+if(EMSCRIPTEN)
+  add_library(vec0 STATIC "${CMAKE_CURRENT_BINARY_DIR}/sqlite-vec.c")
+else()
+  add_library(vec0 SHARED "${CMAKE_CURRENT_BINARY_DIR}/sqlite-vec.c")
+endif()
 target_include_directories(vec0 PRIVATE "${sqlite_vec_SOURCE_DIR}" "${sqlite_headers_SOURCE_DIR}")
 set_target_properties(vec0 PROPERTIES
   PREFIX ""
@@ -36,7 +43,16 @@ if(ANDROID)
   set_target_properties(vec0 PROPERTIES PREFIX "lib")
 endif()
 
-if(MSVC)
+set(sqlite_linking "extension API table only; no SQLite engine")
+if(EMSCRIPTEN)
+  option(SQLITE_VEC_WASM_THREADS "Build for a pthread-enabled WebAssembly runtime" OFF)
+  set_target_properties(vec0 PROPERTIES PREFIX "lib")
+  target_compile_definitions(vec0 PRIVATE SQLITE_CORE)
+  if(SQLITE_VEC_WASM_THREADS)
+    target_compile_options(vec0 PRIVATE -pthread)
+  endif()
+  set(sqlite_linking "static calls to application-provided SQLite; no SQLite engine")
+elseif(MSVC)
   target_compile_definitions(vec0 PRIVATE _CRT_SECURE_NO_WARNINGS)
 elseif(APPLE)
   set_target_properties(vec0 PROPERTIES INSTALL_NAME_DIR "@rpath" BUILD_WITH_INSTALL_NAME_DIR YES)
@@ -61,7 +77,11 @@ file(DOWNLOAD
   TLS_VERIFY ON
 )
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/build-info.txt"
-  "sqlite-vec ${PROJECT_VERSION}\nSource: e9f598abfa0c06b328d8fe5da9c3760cce74be10\nAmalgamation SHA256: 3acd67cb4aff080c7050926fd3cf8227905fe5b7ee3829d8ee5024ab1283cf61\nLocal fix: MSVC ARM64 64-bit popcount argument\nRID: ${SQLITE_VEC_RID}\nSQLite headers: 3.50.4\nSQLite linking: extension API table only; no SQLite engine\nC compiler: ${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION}\n"
+  "sqlite-vec ${PROJECT_VERSION}\nSource: e9f598abfa0c06b328d8fe5da9c3760cce74be10\nAmalgamation SHA256: 3acd67cb4aff080c7050926fd3cf8227905fe5b7ee3829d8ee5024ab1283cf61\nLocal fix: MSVC ARM64 64-bit popcount argument\nRID: ${SQLITE_VEC_RID}\nSQLite headers: 3.50.4\nSQLite linking: ${sqlite_linking}\nC compiler: ${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION}\n"
 )
+if(EMSCRIPTEN)
+  file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/build-info.txt"
+    "WASM threads: ${SQLITE_VEC_WASM_THREADS}\nLocal fix: WASM32 64-bit popcount builtin\n")
+endif()
 install(FILES "$<TARGET_FILE:vec0>" "${CMAKE_CURRENT_BINARY_DIR}/build-info.txt" DESTINATION .)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/LICENSE-MIT" DESTINATION licenses/sqlite-vec)

@@ -1,10 +1,10 @@
 # LightStudio.sqlite-vec
 
 Native-only [sqlite-vec](https://github.com/asg017/sqlite-vec) 0.1.9 loadable
-extensions. The package has **no NuGet dependencies** and is independent of
-LightStudio.Onnx. It contains only the vec0 shared library for each RID, plus
-licenses, build metadata, and MSBuild platform checks. No SQLite engine, SQLite
-amalgamation, static library, or managed SQLite binding is shipped.
+extensions and browser-WASM static libraries. The package has **no NuGet
+dependencies** and is independent of LightStudio.Onnx. It contains only vec0
+libraries, licenses, build metadata, and MSBuild integration. No SQLite engine,
+SQLite amalgamation, or managed SQLite binding is shipped.
 
 ## Runtimes
 
@@ -14,15 +14,17 @@ amalgamation, static library, or managed SQLite binding is shipped.
 | `win-x64`, `win-arm64` | `vec0.dll` | Windows 10/11, matching process architecture |
 | `osx-x64`, `osx-arm64` | `vec0.dylib` | macOS 11 |
 | `android-x64`, `android-arm64` | `libvec0.so` | Android API 27, 16 KB page compatible |
+| `browser-wasm`, single-threaded | `static/wasm/libvec0.a` | .NET browser WASM with native linking |
+| `browser-wasm`, multithreaded | `static/wasm-mt/libvec0.a` | Thread-enabled .NET browser WASM with native linking |
 
-Assets live in `runtimes/<rid>/native/`. The .NET SDK selects and deploys them.
+Shared assets live in `runtimes/<rid>/native/`. The .NET SDK selects and deploys them.
 The Android filename has the `lib` prefix required for APK native libraries.
-Browser WASM, iOS, 32-bit, and musl RIDs are not included. No AVX/AVX2-only
+iOS, native 32-bit, and musl RIDs are not included. No AVX/AVX2-only
 CPU baseline is imposed.
 
 ## SQLite Host
 
-Bring an SQLite engine with extension loading enabled and the managed bindings
+For desktop and Android, bring an SQLite engine with extension loading enabled and the managed bindings
 of your choice. Use SQLite 3.38 or newer for the complete vec0 query features.
 The extension is compiled against the ordinary `sqlite3ext.h` interface and
 receives SQLite functions through the `sqlite3_api_routines` table. It neither
@@ -85,24 +87,68 @@ extension loading; Android's framework database API is not sufficient. Load
 the extension on each connection that uses it. Do not pass an SQLite connection
 handle from one engine to another. Only load trusted extension binaries.
 
+### Browser WASM
+
+For `RuntimeIdentifier=browser-wasm` or `TargetPlatformIdentifier=browser`,
+the package adds a `NativeFileReference` automatically, following the FFmpeg
+package's variant selection:
+
+| `WasmEnableThreads` | Selected archive |
+| --- | --- |
+| unset or `false` | `static/wasm/libvec0.a` |
+| `true` | `static/wasm-mt/libvec0.a` |
+
+Use the .NET WASM native-build workload matching your SDK. CI uses Emscripten
+3.1.69, as does FFmpeg; rebuild with your SDK's Emscripten version if required.
+Enable multithreading in the consuming app with:
+
+```xml
+<PropertyGroup>
+    <WasmEnableThreads>true</WasmEnableThreads>
+</PropertyGroup>
+```
+
+The application must supply a statically linked SQLite engine and managed
+bindings compatible with the same WASM threading mode. The vec0 archives are
+built with `SQLITE_CORE`: they call that engine's `sqlite3_*` symbols directly,
+without embedding SQLite. Dynamic `LoadExtension` is not supported in the
+browser. Register `sqlite3_vec_init` through `sqlite3_auto_extension` before
+opening connections, or call `sqlite3_vec_init(database, &error, NULL)` for each
+existing connection using its actual native SQLite handle. Registration must
+reference the entry point so the native linker retains it. A managed native
+call can use `DllImport("__Internal", EntryPoint = "sqlite3_vec_init")`.
+The package links vec0 but does not register it automatically.
+
+Thread-enabled browser hosting also requires cross-origin isolation
+(COOP/COEP headers) and `SharedArrayBuffer` support.
+
 ## Build and Publish
 
 Sources and the MIT license are SHA-256-pinned. The SQLite amalgamation archive
 is downloaded for its headers only; `sqlite3.c` is not compiled into vec0.
 Build outputs are staged under `artifacts/sqlite-vec-<rid>/`.
-The generated source copy includes one compatibility fix: the upstream MSVC
+The generated source copy includes compatibility fixes: the upstream MSVC
 ARM64 Hamming-distance fallback accepts a 64-bit argument instead of truncating
-it to 32 bits. The downloaded upstream source remains unchanged.
+it to 32 bits, and WASM32 uses the 64-bit popcount builtin rather than the
+32-bit `unsigned long` builtin. The downloaded upstream source remains unchanged.
 
 ```sh
 bash scripts/build-sqlite-vec.sh linux-x64
 bash scripts/check-sqlite-vec-native.sh linux-x64
 bash scripts/test-sqlite-vec-package.sh linux-x64 0.1.9-local.1
 
+bash scripts/build-sqlite-vec.sh browser-wasm
+bash scripts/build-sqlite-vec.sh browser-wasm-mt
+bash scripts/test-sqlite-vec-wasm.sh browser-wasm
+bash scripts/test-sqlite-vec-wasm.sh browser-wasm-mt
+bash scripts/test-sqlite-vec-package.sh browser-wasm 0.1.9-local.1
+
 dotnet pack package/sqlite-vec/LightStudio.sqlite-vec.csproj -c Release -o artifacts/packages
 ```
 
-The final command requires all eight staged outputs. Local subset packs require
+The final command requires eight shared-library outputs and both WASM outputs.
+`browser-wasm-mt` is a build variant, not a NuGet RID; selecting `browser-wasm`
+always packs both archives. Local subset packs require
 both `SqliteVecAllowPartialPackage=true` and a prerelease `PackageVersion`;
 select RIDs with `SqliteVecRuntimeIdentifiers`. For multiple RIDs, pass the
 semicolon-separated list as an environment property. `SqliteVecArtifactsPath`
@@ -114,6 +160,9 @@ matching host architecture; use Visual Studio 2022 C++ tools on Windows,
 Xcode command-line tools on macOS, and Android NDK r28c for Android. Set
 `ANDROID_NDK_HOME` for Android builds. `SQLITE_VEC_BUILD_DIR` isolates a build
 tree; `SQLITE_VEC_ARTIFACTS_DIR` changes the staging root.
+For WASM, activate Emscripten so `emcmake`, `emcc`, `emar`, and `emnm` are
+available. The MT archive is compiled with `-pthread`; the ST archive is not.
+`LLVM_NM` can select the matching LLVM symbol tool when `emnm` is unavailable.
 
 ```sh
 docker build -f scripts/sqlite-vec-linux.Dockerfile -t lightstudio-sqlite-vec-build scripts
@@ -130,6 +179,10 @@ execute scalar, 64-bit Hamming, KNN, UPDATE, and long-metadata DELETE checks.
 Their Microsoft.Data.Sqlite reference provides a test-only SQLite engine and
 is never included in LightStudio.sqlite-vec. Android jobs check binaries and
 package contents; they do not execute a device test.
+WASM jobs inspect both archives, check MSBuild selection for browser apps and
+class libraries, and execute the SQL checks under Node with a separately
+compiled test-only SQLite engine. The MT test executes SQL on a pthread worker.
+These tests do not publish or launch a .NET browser application.
 
 The independent `sqlite-vec.yml` workflow builds on tags `sqlite-vec-v<version>`
 or manual dispatch. Tags build and upload only. Manual dispatch with
