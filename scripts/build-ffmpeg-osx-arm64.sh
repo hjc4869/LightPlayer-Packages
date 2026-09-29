@@ -183,6 +183,8 @@ cd "$build_dir"
   --enable-demuxer=jpegxl_anim \
   --enable-demuxer=webp_anim \
   --enable-demuxer=apng \
+  --enable-demuxer=sup \
+  --enable-decoder=pgssub \
   --enable-decoder=aac \
   --enable-decoder=alac \
   --enable-decoder=ape \
@@ -304,6 +306,7 @@ for protocol in HTTP HTTPS TCP TLS; do
 done
 
 for component in DASH_DEMUXER HLS_DEMUXER FILE_PROTOCOL \
+  PGSSUB_DECODER SUP_DEMUXER \
   PNG_DECODER WEBP_DECODER TIFF_DECODER MJPEG_DECODER \
   IMAGE_PNG_PIPE_DEMUXER IMAGE_JPEG_PIPE_DEMUXER IMAGE_WEBP_PIPE_DEMUXER \
   IMAGE_TIFF_PIPE_DEMUXER IMAGE_JPEGXL_PIPE_DEMUXER; do

@@ -65,6 +65,22 @@ jobs:
       - name: Build FFmpeg static libraries
         run: ./scripts/build-ffmpeg-browser-wasm.sh "${{ matrix.variant }}"
 
+      - name: Verify PGS subtitle support
+        shell: bash
+        run: |
+          variant="${{ matrix.variant }}"
+          thread_options=()
+          if [[ "$variant" == "multi-threaded" ]]; then
+            thread_options=(-pthread -sPROXY_TO_PTHREAD=1)
+          fi
+          em++ -O2 "${thread_options[@]}" \
+            -I ffmpeg -I "artifacts/build/${{ matrix.artifact }}" \
+            tests/ffmpeg/pgs-support.cc \
+            artifacts/${{ matrix.artifact }}/*.a \
+            -sALLOW_MEMORY_GROWTH=1 -sEXIT_RUNTIME=1 \
+            -o "artifacts/build/${{ matrix.artifact }}/pgs-support.js"
+          node "artifacts/build/${{ matrix.artifact }}/pgs-support.js"
+
       - name: Upload native artifacts
         uses: actions/upload-artifact@v4
         with:

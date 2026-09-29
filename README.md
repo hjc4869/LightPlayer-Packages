@@ -23,6 +23,8 @@ Every runtime bundles dav1d 1.5.4 as the AV1 decoder. The browser-wasm and osx-a
 
 The HLS and DASH demuxers and file protocol are enabled on every runtime for applications that provide manifests, playlists, and segment resources through `AVFormatContext.io_open`. FFmpeg networking remains disabled; HTTP transport belongs to the consuming application. DASH manifest parsing is provided by libxml2 2.15.3, which is linked statically into shared builds and shipped as `libxml2.a` with static builds.
 
+PGS (Blu-ray bitmap) subtitles are enabled on every runtime through the `pgssub` decoder, including embedded PGS tracks in Matroska and MPEG-TS. The `sup` demuxer also supports standalone `.sup` subtitle files. CI checks the configured components for every target and runs a linked-library PGS smoke test for both browser-wasm variants.
+
 ## Photo formats
 
 The common still-image formats are enabled on every runtime:
