@@ -14,8 +14,8 @@ This repository builds native and managed NuGet packages for .NET:
 | `android-arm64`, `android-x64` | Shared (`.so`) | `runtimes/android-<arch>/native` |
 | `osx-arm64` | Shared (`.dylib`) | `runtimes/osx-arm64/native` |
 | `osx-arm64` | Static (`.a`, native AOT only) | `static/osx-arm64` |
-| `browser-wasm`, single-threaded | Static (`.a`) | `static/wasm` |
-| `browser-wasm`, multi-threaded | Static (`.a`) | `static/wasm-mt` |
+| `browser-wasm`, single-threaded | Static (`.a`) | `static/wasm-em3`, `static/wasm-em6` |
+| `browser-wasm`, multi-threaded | Static (`.a`) | `static/wasm-mt-em3`, `static/wasm-mt-em6` |
 
 Static archives are deliberately kept outside `runtimes/` so NuGet never treats them as deployable runtime assets. The package's `build/LightStudio.Ffmpeg.targets` wires them up instead.
 
@@ -116,7 +116,7 @@ Nothing else is required. The shared libraries are deployed by the .NET SDK from
 
 ### WebAssembly
 
-The package adds the correct archives as `NativeFileReference` items automatically. `WasmEnableThreads` selects the variant: `true` links the pthread-enabled archives from `static/wasm-mt`, otherwise the single-threaded archives from `static/wasm` are used. No manual `NativeFileReference` in the consuming project is needed.
+The package adds the correct archives as `NativeFileReference` items automatically. `WasmEnableThreads=true` selects `static/wasm-mt-em<major>`; otherwise `static/wasm-em<major>` is used. Target frameworks through .NET 10 select `em3` (Emscripten 3.1.69); .NET 11 and newer select `em6` (6.0.2). This is a best-effort compatibility rule, not a guarantee for every workload/toolchain version. No manual `NativeFileReference` in the consuming project is needed.
 
 ### Static linking with native AOT
 
@@ -139,8 +139,9 @@ Each script stages its output under `artifacts/<artifact-name>`; packing require
 git submodule update --init
 ./scripts/fetch-libjxl-dependencies.sh
 
-./scripts/build-ffmpeg-browser-wasm.sh single-threaded   # artifacts/ffmpeg-browser-wasm
-./scripts/build-ffmpeg-browser-wasm.sh multi-threaded    # artifacts/ffmpeg-MT-browser-wasm
+# Run both variants with Emscripten 3.1.69, then repeat with 6.0.2 activated.
+./scripts/build-ffmpeg-browser-wasm.sh single-threaded   # artifacts/ffmpeg-browser-wasm-em<major>
+./scripts/build-ffmpeg-browser-wasm.sh multi-threaded    # artifacts/ffmpeg-MT-browser-wasm-em<major>
 
 # Run on macOS with Xcode command-line tools installed.
 ./scripts/build-ffmpeg-osx-arm64.sh                      # artifacts/ffmpeg-osx-arm64
@@ -158,7 +159,8 @@ dotnet pack package/LightStudio.Ffmpeg.csproj --output artifacts/packages
 `linux-x64`, `linux-arm64`, `win-x64`, `win-arm64`, `osx-x64`, `osx-arm64`,
 `android-x64`, `android-arm64`, and both `browser-wasm` threading variants.
 Native RIDs contain only the vec0 shared library; WASM has vec0 static archives
-selected through `NativeFileReference` according to `WasmEnableThreads`.
+for Emscripten 3.1.69 and 6.0.2, selected through `NativeFileReference` according
+to `WasmEnableThreads` and the target framework (.NET <= 10: `em3`, >= 11: `em6`).
 All outputs include licenses and build metadata. The package does not depend
 on LightStudio.Onnx, ship managed bindings, or embed a SQLite engine. Consumers
 supply their own SQLite provider and register `sqlite3_vec_init`.

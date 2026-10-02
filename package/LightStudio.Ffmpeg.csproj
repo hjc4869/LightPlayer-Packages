@@ -30,8 +30,10 @@
   <!-- Static archives live outside runtimes/ so NuGet never treats them as deployable runtime assets. -->
   <ItemGroup Label="Statically linked assets">
     <None Include="$(FFmpegArtifactsPath)/ffmpeg-osx-arm64/*.a" Pack="true" PackagePath="static/osx-arm64/" />
-    <None Include="$(FFmpegArtifactsPath)/ffmpeg-browser-wasm/*.a" Pack="true" PackagePath="static/wasm/" />
-    <None Include="$(FFmpegArtifactsPath)/ffmpeg-MT-browser-wasm/*.a" Pack="true" PackagePath="static/wasm-mt/" />
+    <None Include="$(FFmpegArtifactsPath)/ffmpeg-browser-wasm-em3/*.a" Pack="true" PackagePath="static/wasm-em3/" />
+    <None Include="$(FFmpegArtifactsPath)/ffmpeg-MT-browser-wasm-em3/*.a" Pack="true" PackagePath="static/wasm-mt-em3/" />
+    <None Include="$(FFmpegArtifactsPath)/ffmpeg-browser-wasm-em6/*.a" Pack="true" PackagePath="static/wasm-em6/" />
+    <None Include="$(FFmpegArtifactsPath)/ffmpeg-MT-browser-wasm-em6/*.a" Pack="true" PackagePath="static/wasm-mt-em6/" />
   </ItemGroup>
 
   <ItemGroup Label="Consumer MSBuild logic">
@@ -59,13 +61,11 @@
       <_FFmpegOsxArm64Static Include="$(FFmpegArtifactsPath)/ffmpeg-osx-arm64/libdav1d.a" />
       <_FFmpegOsxArm64Jxl Include="$(FFmpegArtifactsPath)/ffmpeg-osx-arm64/libjxl.a" />
       <_FFmpegOsxArm64Xml Include="$(FFmpegArtifactsPath)/ffmpeg-osx-arm64/libxml2.a" />
-      <_FFmpegWasmStatic Include="$(FFmpegArtifactsPath)/ffmpeg-browser-wasm/libdav1d.a" />
-      <_FFmpegWasmXml Include="$(FFmpegArtifactsPath)/ffmpeg-browser-wasm/libxml2.a" />
-      <_FFmpegWasmZlib Include="$(FFmpegArtifactsPath)/ffmpeg-browser-wasm/libz.a" />
-      <_FFmpegWasmMtStatic Include="$(FFmpegArtifactsPath)/ffmpeg-MT-browser-wasm/libdav1d.a" />
-      <_FFmpegWasmMtJxl Include="$(FFmpegArtifactsPath)/ffmpeg-MT-browser-wasm/libjxl.a" />
-      <_FFmpegWasmMtXml Include="$(FFmpegArtifactsPath)/ffmpeg-MT-browser-wasm/libxml2.a" />
-      <_FFmpegWasmMtZlib Include="$(FFmpegArtifactsPath)/ffmpeg-MT-browser-wasm/libz.a" />
+      <_FFmpegWasmArtifact Include="ffmpeg-browser-wasm-em3;ffmpeg-MT-browser-wasm-em3;ffmpeg-browser-wasm-em6;ffmpeg-MT-browser-wasm-em6" />
+      <_FFmpegWasmRequired Include="@(_FFmpegWasmArtifact->'$(FFmpegArtifactsPath)/%(Identity)/libdav1d.a')" />
+      <_FFmpegWasmRequired Include="@(_FFmpegWasmArtifact->'$(FFmpegArtifactsPath)/%(Identity)/libxml2.a')" />
+      <_FFmpegWasmRequired Include="@(_FFmpegWasmArtifact->'$(FFmpegArtifactsPath)/%(Identity)/libz.a')" />
+      <_FFmpegWasmRequired Include="$(FFmpegArtifactsPath)/ffmpeg-MT-browser-wasm-em3/libjxl.a;$(FFmpegArtifactsPath)/ffmpeg-MT-browser-wasm-em6/libjxl.a" />
     </ItemGroup>
     <Error Condition="'@(_FFmpegAndroidArm64)' == ''" Text="Missing android-arm64 shared libraries in '$(FFmpegArtifactsPath)/ffmpeg-android/android-arm64'. Run scripts/build-ffmpeg-android.sh or download the CI artifact before packing." />
     <Error Condition="'@(_FFmpegAndroidX64)' == ''" Text="Missing android-x64 shared libraries in '$(FFmpegArtifactsPath)/ffmpeg-android/android-x64'. Run scripts/build-ffmpeg-android.sh or download the CI artifact before packing." />
@@ -73,12 +73,6 @@
     <Error Condition="'@(_FFmpegOsxArm64Static)' == ''" Text="Missing osx-arm64 archives (including libdav1d.a) in '$(FFmpegArtifactsPath)/ffmpeg-osx-arm64'. Run scripts/build-ffmpeg-osx-arm64.sh or download the CI artifact before packing." />
     <Error Condition="'@(_FFmpegOsxArm64Jxl)' == ''" Text="Missing libjxl.a in '$(FFmpegArtifactsPath)/ffmpeg-osx-arm64'. Run scripts/build-ffmpeg-osx-arm64.sh or download the CI artifact before packing." />
     <Error Condition="'@(_FFmpegOsxArm64Xml)' == ''" Text="Missing libxml2.a in '$(FFmpegArtifactsPath)/ffmpeg-osx-arm64'. Run scripts/build-ffmpeg-osx-arm64.sh or download the CI artifact before packing." />
-    <Error Condition="'@(_FFmpegWasmStatic)' == ''" Text="Missing single-threaded browser-wasm archives (including libdav1d.a) in '$(FFmpegArtifactsPath)/ffmpeg-browser-wasm'. Run scripts/build-ffmpeg-browser-wasm.sh single-threaded or download the CI artifact before packing." />
-    <Error Condition="'@(_FFmpegWasmXml)' == ''" Text="Missing libxml2.a in '$(FFmpegArtifactsPath)/ffmpeg-browser-wasm'. Run scripts/build-ffmpeg-browser-wasm.sh single-threaded or download the CI artifact before packing." />
-    <Error Condition="'@(_FFmpegWasmZlib)' == ''" Text="Missing libz.a in '$(FFmpegArtifactsPath)/ffmpeg-browser-wasm'. Run scripts/build-ffmpeg-browser-wasm.sh single-threaded or download the CI artifact before packing." />
-    <Error Condition="'@(_FFmpegWasmMtStatic)' == ''" Text="Missing multi-threaded browser-wasm archives (including libdav1d.a) in '$(FFmpegArtifactsPath)/ffmpeg-MT-browser-wasm'. Run scripts/build-ffmpeg-browser-wasm.sh multi-threaded or download the CI artifact before packing." />
-    <Error Condition="'@(_FFmpegWasmMtJxl)' == ''" Text="Missing libjxl.a in '$(FFmpegArtifactsPath)/ffmpeg-MT-browser-wasm'. Run scripts/build-ffmpeg-browser-wasm.sh multi-threaded or download the CI artifact before packing." />
-    <Error Condition="'@(_FFmpegWasmMtXml)' == ''" Text="Missing libxml2.a in '$(FFmpegArtifactsPath)/ffmpeg-MT-browser-wasm'. Run scripts/build-ffmpeg-browser-wasm.sh multi-threaded or download the CI artifact before packing." />
-    <Error Condition="'@(_FFmpegWasmMtZlib)' == ''" Text="Missing libz.a in '$(FFmpegArtifactsPath)/ffmpeg-MT-browser-wasm'. Run scripts/build-ffmpeg-browser-wasm.sh multi-threaded or download the CI artifact before packing." />
+    <Error Condition="!Exists('%(_FFmpegWasmRequired.Identity)')" Text="Missing browser-wasm archive '%(_FFmpegWasmRequired.Identity)'. Build both thread variants with Emscripten 3.x and 6.x or download all four CI artifacts before packing." />
   </Target>
 </Project>

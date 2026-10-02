@@ -7,8 +7,8 @@ FFmpeg 9.0.1 native libraries for .NET, with AV1 decoding provided by dav1d 1.5.
 | `android-arm64`, `android-x64` | Shared (`.so`) | `runtimes/android-<arch>/native` |
 | `osx-arm64` | Shared (`.dylib`) | `runtimes/osx-arm64/native` |
 | `osx-arm64` | Static (`.a`, native AOT only) | `static/osx-arm64` |
-| `browser-wasm`, single-threaded | Static (`.a`) | `static/wasm` |
-| `browser-wasm`, multi-threaded | Static (`.a`) | `static/wasm-mt` |
+| `browser-wasm`, single-threaded | Static (`.a`) | `static/wasm-em3`, `static/wasm-em6` |
+| `browser-wasm`, multi-threaded | Static (`.a`) | `static/wasm-mt-em3`, `static/wasm-mt-em6` |
 
 The FFmpeg command-line programs, networking, device and filter implementations, encoders, and other optional external-library dependencies are not included. The `libavdevice`, `libavfilter`, and `libswscale` cores are included with their optional components disabled.
 
@@ -34,7 +34,7 @@ Shared libraries are deployed automatically by the .NET SDK. Android sonames are
 
 ## WebAssembly
 
-The package injects the matching archives as `NativeFileReference` items automatically. The variant is selected from `WasmEnableThreads`: when it is `true` the pthread-enabled archives from `static/wasm-mt` are linked, otherwise the single-threaded archives from `static/wasm`. Multi-threaded applications must serve the cross-origin isolation headers that browser pthreads require. zlib and libxml2 are included as static archives, so the consuming project does not need to provide them.
+The package injects the matching archives as `NativeFileReference` items automatically. `WasmEnableThreads=true` selects `static/wasm-mt-em<major>`; otherwise `static/wasm-em<major>` is used. Target frameworks through .NET 10 select `em3` (Emscripten 3.1.69); .NET 11 and newer select `em6` (6.0.2). This is a best-effort compatibility rule, not a guarantee for every workload/toolchain version. Multi-threaded applications must serve the cross-origin isolation headers that browser pthreads require. zlib and libxml2 are included as static archives, so the consuming project does not need to provide them.
 
 ## Static linking with native AOT
 

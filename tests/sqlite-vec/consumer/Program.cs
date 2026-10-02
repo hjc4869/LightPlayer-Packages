@@ -91,11 +91,11 @@ static void CheckPackage(string packagePath, string[] rids)
     Require(document.Descendants().Single(element => element.Name.LocalName == "id").Value == "LightStudio.sqlite-vec",
         "Incorrect package ID.");
     string[] artifactRids = rids.SelectMany(rid => rid == "browser-wasm"
-        ? new[] { "browser-wasm", "browser-wasm-mt" } : new[] { rid }).ToArray();
+        ? new[] { "browser-wasm-em3", "browser-wasm-mt-em3", "browser-wasm-em6", "browser-wasm-mt-em6" } : new[] { rid }).ToArray();
     var expectedNative = artifactRids.Select(NativePackagePath).ToHashSet();
     var actualNative = names.Where(name => name.StartsWith("runtimes/", StringComparison.Ordinal)
         || name.StartsWith("static/", StringComparison.Ordinal)).ToHashSet();
-    Require(actualNative.SetEquals(expectedNative), "The native assets must match the requested RIDs, including both WASM variants.");
+    Require(actualNative.SetEquals(expectedNative), "The native assets must match the requested RIDs, including all four emsdk/thread WASM variants.");
     Require(!names.Any(name => name.StartsWith("lib/", StringComparison.Ordinal)
         || name.StartsWith("ref/", StringComparison.Ordinal)
         || (!expectedNative.Contains(name) && name.EndsWith(".a", StringComparison.OrdinalIgnoreCase))
@@ -114,7 +114,9 @@ static void CheckPackage(string packagePath, string[] rids)
         var info = archive.GetEntry($"build-info/{rid}.txt")
             ?? throw new InvalidDataException($"Missing build provenance for {rid}.");
         using var reader = new StreamReader(info.Open());
-        Require(HasBuildRid(reader, rid), $"Incorrect build RID for {rid}.");
+        string buildRid = rid.StartsWith("browser-wasm-", StringComparison.Ordinal)
+            ? rid[..rid.LastIndexOf("-em", StringComparison.Ordinal)] : rid;
+        Require(HasBuildRid(reader, buildRid), $"Incorrect build RID for {rid}.");
         var native = archive.GetEntry(NativePackagePath(rid))!;
         using var nativeStream = native.Open();
         using var bytes = new MemoryStream();
@@ -128,8 +130,10 @@ static void CheckPackage(string packagePath, string[] rids)
 
 static string NativePackagePath(string rid) => rid switch
 {
-    "browser-wasm" => "static/wasm/libvec0.a",
-    "browser-wasm-mt" => "static/wasm-mt/libvec0.a",
+    "browser-wasm-em3" => "static/wasm-em3/libvec0.a",
+    "browser-wasm-mt-em3" => "static/wasm-mt-em3/libvec0.a",
+    "browser-wasm-em6" => "static/wasm-em6/libvec0.a",
+    "browser-wasm-mt-em6" => "static/wasm-mt-em6/libvec0.a",
     _ => $"runtimes/{rid}/native/{NativeName(rid)}"
 };
 

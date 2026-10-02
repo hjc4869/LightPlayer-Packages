@@ -34,6 +34,12 @@ case "$variant" in
     ;;
 esac
 
+emsdk_version="$(emcc -dumpversion)"
+case "$emsdk_version" in
+  3.*|6.*) artifact_name+="-em${emsdk_version%%.*}" ;;
+  *) echo "Unsupported Emscripten version: $emsdk_version. Use SDK 3.x or 6.x." >&2; exit 1 ;;
+esac
+
 build_dir="${FFMPEG_BUILD_DIR:-$repo_root/artifacts/build/$artifact_name}"
 artifacts_dir="${FFMPEG_ARTIFACTS_DIR:-$repo_root/artifacts/$artifact_name}"
 

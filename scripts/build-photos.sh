@@ -4,9 +4,17 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 target="${1:-linux-x64}"
-build_root="$repo_root/artifacts/build/photos-$target"
+artifact_name="photos-$target"
+if [[ "$target" == browser-wasm || "$target" == browser-wasm-mt ]]; then
+  emsdk_version="$(emcc -dumpversion)"
+  case "$emsdk_version" in
+    3.*|6.*) artifact_name+="-em${emsdk_version%%.*}" ;;
+    *) echo "Unsupported Emscripten version: $emsdk_version. Use SDK 3.x or 6.x." >&2; exit 1 ;;
+  esac
+fi
+build_root="$repo_root/artifacts/build/$artifact_name"
 prefix="$build_root/install"
-output="$repo_root/artifacts/photos-$target"
+output="$repo_root/artifacts/$artifact_name"
 build_jobs="${PHOTOS_BUILD_JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)}"
 
 if [[ $# -gt 1 ]]; then

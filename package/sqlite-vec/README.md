@@ -14,8 +14,8 @@ SQLite amalgamation, or managed SQLite binding is shipped.
 | `win-x64`, `win-arm64` | `vec0.dll` | Windows 10/11, matching process architecture |
 | `osx-x64`, `osx-arm64` | `vec0.dylib` | macOS 11 |
 | `android-x64`, `android-arm64` | `libvec0.so` | Android API 27, 16 KB page compatible |
-| `browser-wasm`, single-threaded | `static/wasm/libvec0.a` | .NET browser WASM with native linking |
-| `browser-wasm`, multithreaded | `static/wasm-mt/libvec0.a` | Thread-enabled .NET browser WASM with native linking |
+| `browser-wasm`, single-threaded | `static/wasm-em3/libvec0.a`, `static/wasm-em6/libvec0.a` | .NET browser WASM with native linking |
+| `browser-wasm`, multithreaded | `static/wasm-mt-em3/libvec0.a`, `static/wasm-mt-em6/libvec0.a` | Thread-enabled .NET browser WASM with native linking |
 
 Shared assets live in `runtimes/<rid>/native/`. The .NET SDK selects and deploys them.
 The Android filename has the `lib` prefix required for APK native libraries.
@@ -93,13 +93,15 @@ For `RuntimeIdentifier=browser-wasm` or `TargetPlatformIdentifier=browser`,
 the package adds a `NativeFileReference` automatically, following the FFmpeg
 package's variant selection:
 
-| `WasmEnableThreads` | Selected archive |
-| --- | --- |
-| unset or `false` | `static/wasm/libvec0.a` |
-| `true` | `static/wasm-mt/libvec0.a` |
+| `WasmEnableThreads` | .NET <= 10 | .NET >= 11 |
+| --- | --- | --- |
+| unset or `false` | `static/wasm-em3/libvec0.a` | `static/wasm-em6/libvec0.a` |
+| `true` | `static/wasm-mt-em3/libvec0.a` | `static/wasm-mt-em6/libvec0.a` |
 
 Use the .NET WASM native-build workload matching your SDK. CI uses Emscripten
-3.1.69, as does FFmpeg; rebuild with your SDK's Emscripten version if required.
+3.1.69 for `em3` and 6.0.2 for `em6`, as do FFmpeg and Photos. Framework-major
+selection is best-effort, not a guarantee for every workload/toolchain version.
+Rebuild with your SDK's Emscripten version if required.
 Enable multithreading in the consuming app with:
 
 ```xml
@@ -126,7 +128,9 @@ Thread-enabled browser hosting also requires cross-origin isolation
 
 Sources and the MIT license are SHA-256-pinned. The SQLite amalgamation archive
 is downloaded for its headers only; `sqlite3.c` is not compiled into vec0.
-Build outputs are staged under `artifacts/sqlite-vec-<rid>/`.
+Native build outputs are staged under `artifacts/sqlite-vec-<rid>/`; WASM
+outputs use `artifacts/sqlite-vec-browser-wasm[-mt]-em<major>/`, derived from
+the active `emcc` version.
 The generated source copy includes compatibility fixes: the upstream MSVC
 ARM64 Hamming-distance fallback accepts a 64-bit argument instead of truncating
 it to 32 bits, and WASM32 uses the 64-bit popcount builtin rather than the
@@ -146,9 +150,11 @@ bash scripts/test-sqlite-vec-package.sh browser-wasm 0.1.9-local.1
 dotnet pack package/sqlite-vec/LightStudio.sqlite-vec.csproj -c Release -o artifacts/packages
 ```
 
-The final command requires eight shared-library outputs and both WASM outputs.
+Run the WASM builds and smoke tests once with Emscripten 3.1.69 activated and
+once with 6.0.2, then run the WASM package test after all four outputs exist.
+The final command requires eight shared-library outputs and all four WASM outputs.
 `browser-wasm-mt` is a build variant, not a NuGet RID; selecting `browser-wasm`
-always packs both archives. Local subset packs require
+always packs both threading modes for both SDK majors. Local subset packs require
 both `SqliteVecAllowPartialPackage=true` and a prerelease `PackageVersion`;
 select RIDs with `SqliteVecRuntimeIdentifiers`. For multiple RIDs, pass the
 semicolon-separated list as an environment property. `SqliteVecArtifactsPath`

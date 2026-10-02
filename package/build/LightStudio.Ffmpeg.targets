@@ -4,8 +4,10 @@
     <_LightStudioFfmpegTargetsWasm>false</_LightStudioFfmpegTargetsWasm>
     <_LightStudioFfmpegTargetsWasm Condition="'$(RuntimeIdentifier)' == 'browser-wasm' or '$(TargetPlatformIdentifier)' == 'browser'">true</_LightStudioFfmpegTargetsWasm>
 
-    <_LightStudioFfmpegWasmFlavor>wasm</_LightStudioFfmpegWasmFlavor>
-    <_LightStudioFfmpegWasmFlavor Condition="'$(WasmEnableThreads)' == 'true'">wasm-mt</_LightStudioFfmpegWasmFlavor>
+    <_LightStudioFfmpegWasmEmsdk>em3</_LightStudioFfmpegWasmEmsdk>
+    <_LightStudioFfmpegWasmEmsdk Condition="'$(TargetFrameworkVersion)' != '' and $([MSBuild]::VersionGreaterThanOrEquals('$(TargetFrameworkVersion)', '11.0'))">em6</_LightStudioFfmpegWasmEmsdk>
+    <_LightStudioFfmpegWasmFlavor>wasm-$(_LightStudioFfmpegWasmEmsdk)</_LightStudioFfmpegWasmFlavor>
+    <_LightStudioFfmpegWasmFlavor Condition="'$(WasmEnableThreads)' == 'true'">wasm-mt-$(_LightStudioFfmpegWasmEmsdk)</_LightStudioFfmpegWasmFlavor>
 
     <!-- Only runtimes that ship static archives and support native AOT can be linked statically. -->
     <_LightStudioFfmpegStaticRid Condition="'$(RuntimeIdentifier)' == 'osx-arm64'">osx-arm64</_LightStudioFfmpegStaticRid>

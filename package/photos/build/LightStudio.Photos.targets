@@ -2,8 +2,10 @@
   <PropertyGroup>
     <_LightStudioPhotosTargetsWasm>false</_LightStudioPhotosTargetsWasm>
     <_LightStudioPhotosTargetsWasm Condition="'$(RuntimeIdentifier)' == 'browser-wasm' or '$(TargetPlatformIdentifier)' == 'browser'">true</_LightStudioPhotosTargetsWasm>
-    <_LightStudioPhotosWasmFlavor>wasm</_LightStudioPhotosWasmFlavor>
-    <_LightStudioPhotosWasmFlavor Condition="'$(WasmEnableThreads)' == 'true'">wasm-mt</_LightStudioPhotosWasmFlavor>
+    <_LightStudioPhotosWasmEmsdk>em3</_LightStudioPhotosWasmEmsdk>
+    <_LightStudioPhotosWasmEmsdk Condition="'$(TargetFrameworkVersion)' != '' and $([MSBuild]::VersionGreaterThanOrEquals('$(TargetFrameworkVersion)', '11.0'))">em6</_LightStudioPhotosWasmEmsdk>
+    <_LightStudioPhotosWasmFlavor>wasm-$(_LightStudioPhotosWasmEmsdk)</_LightStudioPhotosWasmFlavor>
+    <_LightStudioPhotosWasmFlavor Condition="'$(WasmEnableThreads)' == 'true'">wasm-mt-$(_LightStudioPhotosWasmEmsdk)</_LightStudioPhotosWasmFlavor>
     <_LightStudioPhotosStaticRid />
     <_LightStudioPhotosStaticRid Condition="'$(RuntimeIdentifier)' == 'osx-arm64' or '$(RuntimeIdentifier)' == 'osx-x64'">$(RuntimeIdentifier)</_LightStudioPhotosStaticRid>
     <_LightStudioPhotosUseStatic>false</_LightStudioPhotosUseStatic>

@@ -121,9 +121,17 @@ jobs:
           if-no-files-found: error
 
   build-browser-wasm:
-    name: Build sqlite-vec WASM variants
+    name: Build sqlite-vec WASM variants (${{ matrix.emsdk.flavor }})
     runs-on: ubuntu-24.04
     needs: lint
+    strategy:
+      fail-fast: false
+      matrix:
+        emsdk:
+          - version: '3.1.69'
+            flavor: em3
+          - version: '6.0.2'
+            flavor: em6
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -131,7 +139,7 @@ jobs:
           dotnet-version: 8.0.x
       - uses: mymindstorm/setup-emsdk@v14
         with:
-          version: '3.1.69'
+          version: ${{ matrix.emsdk.version }}
           actions-cache-folder: artifacts/emsdk-cache
       - name: Install build tools
         run: |
@@ -143,17 +151,15 @@ jobs:
             bash scripts/build-sqlite-vec.sh "$variant"
             bash scripts/test-sqlite-vec-wasm.sh "$variant"
           done
-      - name: Verify package and NativeFileReference selection
-        run: bash scripts/test-sqlite-vec-package.sh browser-wasm "0.1.9-ci.${{ github.run_id }}.${{ github.run_attempt }}"
       - uses: actions/upload-artifact@v4
         with:
-          name: sqlite-vec-browser-wasm
-          path: artifacts/sqlite-vec-browser-wasm
+          name: sqlite-vec-browser-wasm-${{ matrix.emsdk.flavor }}
+          path: artifacts/sqlite-vec-browser-wasm-${{ matrix.emsdk.flavor }}
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
-          name: sqlite-vec-browser-wasm-mt
-          path: artifacts/sqlite-vec-browser-wasm-mt
+          name: sqlite-vec-browser-wasm-mt-${{ matrix.emsdk.flavor }}
+          path: artifacts/sqlite-vec-browser-wasm-mt-${{ matrix.emsdk.flavor }}
           if-no-files-found: error
 
   pack-and-publish:
@@ -193,6 +199,8 @@ jobs:
             --check-package "artifacts/packages/LightStudio.sqlite-vec.$PACKAGE_VERSION.nupkg" \
             'linux-x64;linux-arm64;win-x64;win-arm64;osx-x64;osx-arm64;android-x64;android-arm64;browser-wasm'
           dotnet run --project tests/sqlite-vec/consumer/SqliteVecConsumer.csproj -c Release --no-restore -p:SqliteVecPackageVersion="$PACKAGE_VERSION" -- --smoke
+      - name: Verify WASM package and NativeFileReference selection
+        run: bash scripts/test-sqlite-vec-package.sh browser-wasm "0.1.9-ci.${{ github.run_id }}.${{ github.run_attempt }}"
       - uses: actions/upload-artifact@v4
         with:
           name: LightStudio.sqlite-vec-nuget

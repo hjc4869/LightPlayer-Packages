@@ -3,8 +3,10 @@
     <_LightStudioSqliteVecSupportedRids>;linux-x64;linux-arm64;win-x64;win-arm64;osx-x64;osx-arm64;android-x64;android-arm64;browser-wasm;</_LightStudioSqliteVecSupportedRids>
     <_LightStudioSqliteVecTargetsWasm>false</_LightStudioSqliteVecTargetsWasm>
     <_LightStudioSqliteVecTargetsWasm Condition="'$(RuntimeIdentifier)' == 'browser-wasm' or '$(TargetPlatformIdentifier)' == 'browser'">true</_LightStudioSqliteVecTargetsWasm>
-    <_LightStudioSqliteVecWasmFlavor>wasm</_LightStudioSqliteVecWasmFlavor>
-    <_LightStudioSqliteVecWasmFlavor Condition="'$(WasmEnableThreads)' == 'true'">wasm-mt</_LightStudioSqliteVecWasmFlavor>
+    <_LightStudioSqliteVecWasmEmsdk>em3</_LightStudioSqliteVecWasmEmsdk>
+    <_LightStudioSqliteVecWasmEmsdk Condition="'$(TargetFrameworkVersion)' != '' and $([MSBuild]::VersionGreaterThanOrEquals('$(TargetFrameworkVersion)', '11.0'))">em6</_LightStudioSqliteVecWasmEmsdk>
+    <_LightStudioSqliteVecWasmFlavor>wasm-$(_LightStudioSqliteVecWasmEmsdk)</_LightStudioSqliteVecWasmFlavor>
+    <_LightStudioSqliteVecWasmFlavor Condition="'$(WasmEnableThreads)' == 'true'">wasm-mt-$(_LightStudioSqliteVecWasmEmsdk)</_LightStudioSqliteVecWasmFlavor>
     <_LightStudioSqliteVecWasmArchive>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../static/$(_LightStudioSqliteVecWasmFlavor)/libvec0.a'))</_LightStudioSqliteVecWasmArchive>
   </PropertyGroup>
   <ItemGroup Condition="'$(_LightStudioSqliteVecTargetsWasm)' == 'true'">

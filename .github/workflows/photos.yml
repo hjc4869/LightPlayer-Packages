@@ -159,12 +159,17 @@ jobs:
           if-no-files-found: error
 
   build-browser-wasm:
-    name: Build photos-${{ matrix.target }}
+    name: Build photos-${{ matrix.target }}-${{ matrix.emsdk.flavor }}
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
         target: [browser-wasm, browser-wasm-mt]
+        emsdk:
+          - version: '3.1.69'
+            flavor: em3
+          - version: '6.0.2'
+            flavor: em6
     steps:
       - uses: actions/checkout@v4
       - name: Fetch photo dependencies
@@ -176,14 +181,14 @@ jobs:
       - name: Set up Emscripten
         uses: mymindstorm/setup-emsdk@v14
         with:
-          version: 3.1.69
+          version: ${{ matrix.emsdk.version }}
           actions-cache-folder: artifacts/emsdk-cache
       - name: Build and smoke-test wasm libraries
         run: ./scripts/build-photos.sh "${{ matrix.target }}"
       - uses: actions/upload-artifact@v4
         with:
-          name: photos-${{ matrix.target }}
-          path: artifacts/photos-${{ matrix.target }}
+          name: photos-${{ matrix.target }}-${{ matrix.emsdk.flavor }}
+          path: artifacts/photos-${{ matrix.target }}-${{ matrix.emsdk.flavor }}
           if-no-files-found: error
 
   build-macos:

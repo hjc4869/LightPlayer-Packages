@@ -3,8 +3,16 @@ set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 rid="${1:?Usage: build-sqlite-vec.sh <linux-x64|linux-arm64|win-x64|win-arm64|osx-x64|osx-arm64|android-x64|android-arm64|browser-wasm|browser-wasm-mt>}"
-build_dir="${SQLITE_VEC_BUILD_DIR:-$root/artifacts/build/sqlite-vec-$rid}"
-prefix="${SQLITE_VEC_ARTIFACTS_DIR:-$root/artifacts}/sqlite-vec-$rid"
+artifact_name="sqlite-vec-$rid"
+if [[ "$rid" == browser-wasm || "$rid" == browser-wasm-mt ]]; then
+  emsdk_version="$(emcc -dumpversion)"
+  case "$emsdk_version" in
+    3.*|6.*) artifact_name+="-em${emsdk_version%%.*}" ;;
+    *) echo "Unsupported Emscripten version: $emsdk_version. Use SDK 3.x or 6.x." >&2; exit 1 ;;
+  esac
+fi
+build_dir="${SQLITE_VEC_BUILD_DIR:-$root/artifacts/build/$artifact_name}"
+prefix="${SQLITE_VEC_ARTIFACTS_DIR:-$root/artifacts}/$artifact_name"
 cmake_args=(-G Ninja -DCMAKE_BUILD_TYPE=Release "-DSQLITE_VEC_RID=$rid")
 cmake_command=(cmake)
 

@@ -23,7 +23,8 @@
 
   <ItemGroup>
     <_SqliteVecRid Include="$(SqliteVecRuntimeIdentifiers)" />
-    <_SqliteVecRequiredLicense Include="@(_SqliteVecRid->'$(SqliteVecArtifactsPath)/sqlite-vec-%(Identity)/licenses/sqlite-vec/LICENSE-MIT')" />
+    <_SqliteVecNativeRid Include="@(_SqliteVecRid)" Exclude="browser-wasm" />
+    <_SqliteVecRequiredLicense Include="@(_SqliteVecNativeRid->'$(SqliteVecArtifactsPath)/sqlite-vec-%(Identity)/licenses/sqlite-vec/LICENSE-MIT')" />
     <None Include="build/LightStudio.sqlite-vec.targets" Pack="true" PackagePath="build/;buildTransitive/" />
     <None Include="README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
@@ -72,17 +73,24 @@
   </ItemGroup>
 
   <ItemGroup Condition="$(_SqliteVecSelectedRids.Contains(';browser-wasm;'))">
-    <_SqliteVecRequiredLicense Include="$(SqliteVecArtifactsPath)/sqlite-vec-browser-wasm-mt/licenses/sqlite-vec/LICENSE-MIT" />
-    <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-browser-wasm/libvec0.a" Pack="true" SqliteVecRequired="true" PackagePath="static/wasm/" />
-    <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-browser-wasm-mt/libvec0.a" Pack="true" SqliteVecRequired="true" PackagePath="static/wasm-mt/" />
-    <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-browser-wasm/build-info.txt" Pack="true" SqliteVecRequired="true" PackagePath="build-info/browser-wasm.txt" />
-    <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-browser-wasm-mt/build-info.txt" Pack="true" SqliteVecRequired="true" PackagePath="build-info/browser-wasm-mt.txt" />
-    <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-browser-wasm/licenses/**/*" Pack="true" PackagePath="licenses/browser-wasm/" />
-    <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-browser-wasm-mt/licenses/**/*" Pack="true" PackagePath="licenses/browser-wasm-mt/" />
+    <_SqliteVecWasmFlavor Include="wasm-em3;wasm-mt-em3;wasm-em6;wasm-mt-em6" />
+    <_SqliteVecRequiredLicense Include="@(_SqliteVecWasmFlavor->'$(SqliteVecArtifactsPath)/sqlite-vec-browser-%(Identity)/licenses/sqlite-vec/LICENSE-MIT')" />
+    <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-browser-wasm-em3/libvec0.a" Pack="true" SqliteVecRequired="true" PackagePath="static/wasm-em3/" />
+    <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-browser-wasm-mt-em3/libvec0.a" Pack="true" SqliteVecRequired="true" PackagePath="static/wasm-mt-em3/" />
+    <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-browser-wasm-em6/libvec0.a" Pack="true" SqliteVecRequired="true" PackagePath="static/wasm-em6/" />
+    <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-browser-wasm-mt-em6/libvec0.a" Pack="true" SqliteVecRequired="true" PackagePath="static/wasm-mt-em6/" />
+    <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-browser-wasm-em3/build-info.txt" Pack="true" SqliteVecRequired="true" PackagePath="build-info/browser-wasm-em3.txt" />
+    <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-browser-wasm-mt-em3/build-info.txt" Pack="true" SqliteVecRequired="true" PackagePath="build-info/browser-wasm-mt-em3.txt" />
+    <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-browser-wasm-em6/build-info.txt" Pack="true" SqliteVecRequired="true" PackagePath="build-info/browser-wasm-em6.txt" />
+    <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-browser-wasm-mt-em6/build-info.txt" Pack="true" SqliteVecRequired="true" PackagePath="build-info/browser-wasm-mt-em6.txt" />
+    <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-browser-wasm-em3/licenses/**/*" Pack="true" PackagePath="licenses/browser-wasm-em3/" />
+    <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-browser-wasm-mt-em3/licenses/**/*" Pack="true" PackagePath="licenses/browser-wasm-mt-em3/" />
+    <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-browser-wasm-em6/licenses/**/*" Pack="true" PackagePath="licenses/browser-wasm-em6/" />
+    <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-browser-wasm-mt-em6/licenses/**/*" Pack="true" PackagePath="licenses/browser-wasm-mt-em6/" />
   </ItemGroup>
 
   <Target Name="ValidateSqliteVecArtifacts" BeforeTargets="GenerateNuspec">
-    <Error Condition="'$(SqliteVecRuntimeIdentifiers)' != '$(_SqliteVecAllRids)' and '$(SqliteVecAllowPartialPackage)' != 'true'" Text="Release packages must contain all nine sqlite-vec RIDs, including both browser-wasm variants. For local testing only, set SqliteVecAllowPartialPackage=true and use a prerelease version." />
+    <Error Condition="'$(SqliteVecRuntimeIdentifiers)' != '$(_SqliteVecAllRids)' and '$(SqliteVecAllowPartialPackage)' != 'true'" Text="Release packages must contain all nine sqlite-vec RIDs, including all four browser-wasm variants (both threading modes for em3 and em6). For local testing only, set SqliteVecAllowPartialPackage=true and use a prerelease version." />
     <Error Condition="'$(SqliteVecAllowPartialPackage)' == 'true' and !$([System.String]::Copy('$(PackageVersion)').Contains('-'))" Text="Partial sqlite-vec packages require a prerelease version." />
     <ItemGroup>
       <_SqliteVecRequiredArtifact Include="@(None)" Condition="'%(None.SqliteVecRequired)' == 'true'" />

@@ -50,12 +50,16 @@ if [[ "$rid" == browser-wasm ]]; then
   for platform in rid class-library; do
     platform_args=(-p:RuntimeIdentifier=browser-wasm)
     [[ "$platform" != class-library ]] || platform_args=(-p:TargetPlatformIdentifier=browser)
-    for threads in false true; do
-      flavor=wasm
-      [[ "$threads" != true ]] || flavor=wasm-mt
-      references="$(dotnet msbuild "$consumer" -nologo -t:ValidateLightStudioSqliteVecPlatform \
-        "${restore_args[@]}" "${platform_args[@]}" "-p:WasmEnableThreads=$threads" -getItem:NativeFileReference)"
-      REFERENCE_JSON="$references" EXPECTED_ARCHIVE="$test_root/restore/lightstudio.sqlite-vec/$version/static/$flavor/libvec0.a" node -e '
+    for framework in v8.0 v10.0 v11.0 v12.0; do
+      emsdk=em3
+      [[ "$framework" != v11.0 && "$framework" != v12.0 ]] || emsdk=em6
+      for threads in false true; do
+        flavor=wasm
+        [[ "$threads" != true ]] || flavor=wasm-mt
+        references="$(dotnet msbuild "$consumer" -nologo -t:ValidateLightStudioSqliteVecPlatform \
+          "${restore_args[@]}" "${platform_args[@]}" "-p:TargetFrameworkVersion=$framework" \
+          "-p:WasmEnableThreads=$threads" -getItem:NativeFileReference)"
+        REFERENCE_JSON="$references" EXPECTED_ARCHIVE="$test_root/restore/lightstudio.sqlite-vec/$version/static/$flavor-$emsdk/libvec0.a" node -e '
         const assert = require("node:assert/strict");
         const fs = require("node:fs");
         const path = require("node:path");
@@ -65,6 +69,7 @@ if [[ "$rid" == browser-wasm ]]; then
         assert.equal(path.resolve(items[0].FullPath), path.resolve(process.env.EXPECTED_ARCHIVE));
         assert.ok(fs.statSync(items[0].FullPath).size > 4096);
       '
+      done
     done
   done
   references="$(dotnet msbuild "$consumer" -nologo "${restore_args[@]}" \

@@ -26,13 +26,19 @@ env:
 
 jobs:
   build-browser-wasm:
-    name: Build ${{ matrix.artifact }}
+    name: Build ${{ matrix.artifact }}-${{ matrix.emsdk.flavor }}
     runs-on: ubuntu-24.04
     env:
-      EMSCRIPTEN_VERSION: 3.1.69
+      EMSCRIPTEN_VERSION: ${{ matrix.emsdk.version }}
     strategy:
       fail-fast: false
       matrix:
+        variant: [single-threaded, multi-threaded]
+        emsdk:
+          - version: '3.1.69'
+            flavor: em3
+          - version: '6.0.2'
+            flavor: em6
         include:
           - variant: single-threaded
             artifact: ffmpeg-browser-wasm
@@ -74,18 +80,18 @@ jobs:
             thread_options=(-pthread -sPROXY_TO_PTHREAD=1)
           fi
           em++ -O2 "${thread_options[@]}" \
-            -I ffmpeg -I "artifacts/build/${{ matrix.artifact }}" \
+            -I ffmpeg -I "artifacts/build/${{ matrix.artifact }}-${{ matrix.emsdk.flavor }}" \
             tests/ffmpeg/pgs-support.cc \
-            artifacts/${{ matrix.artifact }}/*.a \
+            artifacts/${{ matrix.artifact }}-${{ matrix.emsdk.flavor }}/*.a \
             -sALLOW_MEMORY_GROWTH=1 -sEXIT_RUNTIME=1 \
-            -o "artifacts/build/${{ matrix.artifact }}/pgs-support.js"
-          node "artifacts/build/${{ matrix.artifact }}/pgs-support.js"
+            -o "artifacts/build/${{ matrix.artifact }}-${{ matrix.emsdk.flavor }}/pgs-support.js"
+          node "artifacts/build/${{ matrix.artifact }}-${{ matrix.emsdk.flavor }}/pgs-support.js"
 
       - name: Upload native artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact }}
-          path: artifacts/${{ matrix.artifact }}
+          name: ${{ matrix.artifact }}-${{ matrix.emsdk.flavor }}
+          path: artifacts/${{ matrix.artifact }}-${{ matrix.emsdk.flavor }}
           if-no-files-found: error
 
   build-osx-arm64:

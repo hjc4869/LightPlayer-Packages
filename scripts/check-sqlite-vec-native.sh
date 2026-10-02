@@ -5,6 +5,10 @@ export LC_ALL=C
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 rid="${1:?Usage: check-sqlite-vec-native.sh <rid> [artifact-directory]}"
 prefix="${2:-${SQLITE_VEC_ARTIFACTS_DIR:-$root/artifacts}/sqlite-vec-$rid}"
+if [[ "$rid" == browser-wasm* && $# -lt 2 ]]; then
+  emsdk_version="$(emcc -dumpversion)"
+  prefix+="-em${emsdk_version%%.*}"
+fi
 native_name=vec0.so
 case "$rid" in
   linux-x64|linux-arm64) ;;

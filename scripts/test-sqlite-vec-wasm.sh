@@ -9,8 +9,10 @@ case "$rid" in
   browser-wasm-mt) flags+=(-pthread -sPTHREAD_POOL_SIZE=1 -DSQLITE_THREADSAFE=1) ;;
   *) printf 'Unsupported WASM variant: %s\n' "$rid" >&2; exit 1 ;;
 esac
-build_dir="${SQLITE_VEC_BUILD_DIR:-$root/artifacts/build/sqlite-vec-$rid}"
-prefix="${SQLITE_VEC_ARTIFACTS_DIR:-$root/artifacts}/sqlite-vec-$rid"
+emsdk_version="$(emcc -dumpversion)"
+artifact_name="sqlite-vec-$rid-em${emsdk_version%%.*}"
+build_dir="${SQLITE_VEC_BUILD_DIR:-$root/artifacts/build/$artifact_name}"
+prefix="${SQLITE_VEC_ARTIFACTS_DIR:-$root/artifacts}/$artifact_name"
 sqlite_source="$build_dir/_deps/sqlite_headers-src"
 test_dir="$build_dir/smoke"
 mkdir -p "$test_dir"

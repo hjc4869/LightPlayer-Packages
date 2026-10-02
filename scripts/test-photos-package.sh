@@ -16,7 +16,7 @@ done
 rm -rf -- "$test_root"
 mkdir -p "$test_root/artifacts"
 
-for target in linux-x64 linux-arm64 win-x64 win-arm64 android-arm64 android-x64 osx-arm64 osx-x64 browser-wasm browser-wasm-mt; do
+for target in linux-x64 linux-arm64 win-x64 win-arm64 android-arm64 android-x64 osx-arm64 osx-x64 browser-wasm-em3 browser-wasm-mt-em3 browser-wasm-em6 browser-wasm-mt-em6; do
   relative="photos-$target"
   case "$target" in
     linux-*) extensions=(so) ;;
@@ -59,7 +59,7 @@ test -f "$test_root/extracted/runtimes/win-arm64/native/libraw.dll"
 test -f "$test_root/extracted/runtimes/win-arm64/native/liblcms2.dll"
 test -f "$test_root/extracted/licenses/LLVM-MinGW/LLVM-MinGW-LICENSE.txt"
 test -f "$test_root/extracted/licenses/LLVM-MinGW/COPYING.MinGW-w64-runtime.txt"
-for runtime in osx-arm64 osx-x64 wasm wasm-mt; do
+for runtime in osx-arm64 osx-x64 wasm-em3 wasm-mt-em3 wasm-em6 wasm-mt-em6; do
   test -f "$test_root/extracted/static/$runtime/libraw.a"
   test -f "$test_root/extracted/static/$runtime/liblcms2.a"
   if [[ "$runtime" == osx-* ]]; then
