@@ -23,7 +23,7 @@ Use native library names `libraw` and `liblcms2` in P/Invoke declarations. The .
 
 For WebAssembly, `WasmEnableThreads=true` selects the pthread-enabled archives; otherwise the single-threaded archives are selected. `NativeFileReference` items are added automatically, including through transitive references. Wasm exception handling must remain enabled (`WasmEnableExceptionHandling=true`, the SDK default). Use independent LibRaw handles for concurrent work; the multi-threaded build is pthread-compatible, not an OpenMP worker pool.
 
-Target frameworks through .NET 10 select the `em3` archives built with Emscripten 3.1.69; .NET 11 and newer select `em6` built with 6.0.2. This is a best-effort compatibility rule, not a guarantee for every workload/toolchain version. Both SDK variants are supplied for each threading mode.
+Target frameworks through .NET 10 select the `em3` archives built with Emscripten 3.1.69 and legacy wasm exceptions; .NET 11 and newer select `em6` built with 6.0.2 and standardized wasm exceptions (`-sWASM_LEGACY_EXCEPTIONS=0`). Compilation, linking, and native smoke tests use the same exception mode. This is a best-effort compatibility rule, not a guarantee for every workload/toolchain version. Both SDK variants are supplied for each threading mode.
 
 Each wasm variant supplies `libraw.a`, `liblcms2.a` and `libz.a`. JPEG is embedded into `libraw.a` with `lightstudio_photos_`-prefixed symbols, including internal helpers and data, and LibRaw uses those private names. Its JPEG ABI 80 does not compete for the ordinary JPEG symbols used by other dependencies. There is no standalone wasm `libjpeg.a` to reference manually. zlib and LCMS remain separate and are not namespaced.
 

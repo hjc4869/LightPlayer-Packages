@@ -133,10 +133,14 @@ case "$target" in
     compression_cmake=(emcmake cmake)
     CC=emcc CXX=em++ AR=emar RANLIB=emranlib NM=emnm STRIP=emstrip
     configure_args=(--disable-shared --enable-static --host=wasm32-unknown-emscripten)
-    CFLAGS+=' -msimd128'
-    CXXFLAGS+=' -msimd128 -fwasm-exceptions'
-    LDFLAGS='-msimd128'
-    smoke_flags=(-msimd128 -fwasm-exceptions -sALLOW_MEMORY_GROWTH=1 -sEXIT_RUNTIME=1 -sENVIRONMENT=node)
+    wasm_exception_flags=(-fwasm-exceptions)
+    if [[ "$emsdk_version" == 6.* ]]; then
+      wasm_exception_flags+=(-sWASM_LEGACY_EXCEPTIONS=0)
+    fi
+    CFLAGS+=" -msimd128 ${wasm_exception_flags[*]}"
+    CXXFLAGS+=" -msimd128 ${wasm_exception_flags[*]}"
+    LDFLAGS="-msimd128 ${wasm_exception_flags[*]}"
+    smoke_flags=(-msimd128 "${wasm_exception_flags[@]}" -sALLOW_MEMORY_GROWTH=1 -sEXIT_RUNTIME=1 -sENVIRONMENT=node)
     if [[ "$target" == browser-wasm-mt ]]; then
       CFLAGS+=' -pthread'
       CXXFLAGS+=' -pthread'
