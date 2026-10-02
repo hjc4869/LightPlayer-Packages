@@ -23,7 +23,7 @@ test -s "$library"
 test -s "$prefix/licenses/sqlite-vec/LICENSE-MIT"
 grep -Fx "RID: $rid" "$prefix/build-info.txt"
 if [[ "$rid" == browser-wasm* ]]; then
-  grep -Fx 'SQLite linking: static calls to application-provided SQLite; no SQLite engine' "$prefix/build-info.txt"
+  grep -Fx 'SQLite linking: static calls to bundled SQLite 3.50.4 (libsqlite3.a)' "$prefix/build-info.txt"
 else
   grep -Fx 'SQLite linking: extension API table only; no SQLite engine' "$prefix/build-info.txt"
 fi
@@ -43,6 +43,19 @@ case "$rid" in
     threads=OFF
     [[ "$rid" != browser-wasm-mt ]] || threads=ON
     grep -Fx "WASM threads: $threads" "$prefix/build-info.txt"
+    sqlite_library="$prefix/libsqlite3.a"
+    test -s "$sqlite_library"
+    test -s "$prefix/include/sqlite3.h"
+    test -s "$prefix/include/sqlite3ext.h"
+    test -s "$prefix/licenses/sqlite3/SQLite-PUBLIC-DOMAIN.txt"
+    grep -Fx 'SQLite engine: 3.50.4' "$prefix/build-info.txt"
+    [[ "$(emar t "$sqlite_library")" == sqlite3.c.o ]]
+    magic="$(emar p "$sqlite_library" sqlite3.c.o | od -An -tx1 -w8 | sed -n '1p')"
+    [[ "$magic" == ' 00 61 73 6d 01 00 00 00' ]]
+    symbols="$("${LLVM_NM:-emnm}" --defined-only "$sqlite_library")"
+    for symbol in sqlite3_open sqlite3_prepare_v2 sqlite3_step sqlite3_exec sqlite3_close sqlite3_table_column_metadata; do
+      grep -Eq "[[:space:]]$symbol\$" <<< "$symbols"
+    done
     ;;
   linux-*|android-*)
     header="$(readelf -h "$library")"
@@ -114,4 +127,4 @@ case "$rid" in
     codesign --verify "$library"
     ;;
 esac
-printf 'PASS: %s architecture, entry point, extension-only dependencies, and notices.\n' "$rid"
+printf 'PASS: %s architecture, entry points, SQLite linkage, and notices.\n' "$rid"

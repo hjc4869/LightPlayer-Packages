@@ -48,10 +48,23 @@ if(EMSCRIPTEN)
   option(SQLITE_VEC_WASM_THREADS "Build for a pthread-enabled WebAssembly runtime" OFF)
   set_target_properties(vec0 PROPERTIES PREFIX "lib")
   target_compile_definitions(vec0 PRIVATE SQLITE_CORE)
+  add_library(sqlite3 STATIC "${sqlite_headers_SOURCE_DIR}/sqlite3.c")
+  target_include_directories(sqlite3 PUBLIC "${sqlite_headers_SOURCE_DIR}")
+  set_target_properties(sqlite3 PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED YES)
+  target_compile_definitions(sqlite3 PRIVATE
+    SQLITE_OMIT_LOAD_EXTENSION
+    SQLITE_ENABLE_COLUMN_METADATA
+    SQLITE_ENABLE_FTS5
+    SQLITE_ENABLE_RTREE
+  )
   if(SQLITE_VEC_WASM_THREADS)
     target_compile_options(vec0 PRIVATE -pthread)
+    target_compile_options(sqlite3 PRIVATE -pthread)
+    target_compile_definitions(sqlite3 PRIVATE SQLITE_THREADSAFE=1)
+  else()
+    target_compile_definitions(sqlite3 PRIVATE SQLITE_THREADSAFE=0)
   endif()
-  set(sqlite_linking "static calls to application-provided SQLite; no SQLite engine")
+  set(sqlite_linking "static calls to bundled SQLite 3.50.4 (libsqlite3.a)")
 elseif(MSVC)
   target_compile_definitions(vec0 PRIVATE _CRT_SECURE_NO_WARNINGS)
 elseif(APPLE)
@@ -81,7 +94,12 @@ file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/build-info.txt"
 )
 if(EMSCRIPTEN)
   file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/build-info.txt"
-    "WASM threads: ${SQLITE_VEC_WASM_THREADS}\nLocal fix: WASM32 64-bit popcount builtin\n")
+    "WASM threads: ${SQLITE_VEC_WASM_THREADS}\nLocal fix: WASM32 64-bit popcount builtin\nSQLite engine: 3.50.4\nSQLite amalgamation SHA256: 1d3049dd0f830a025a53105fc79fd2ab9431aea99e137809d064d8ee8356b032\nSQLite options: SQLITE_OMIT_LOAD_EXTENSION;SQLITE_ENABLE_COLUMN_METADATA;SQLITE_ENABLE_FTS5;SQLITE_ENABLE_RTREE\n")
+  file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/SQLite-PUBLIC-DOMAIN.txt"
+    "SQLite is in the public domain.\nhttps://www.sqlite.org/copyright.html\n")
+  install(FILES "$<TARGET_FILE:sqlite3>" DESTINATION .)
+  install(FILES "${sqlite_headers_SOURCE_DIR}/sqlite3.h" "${sqlite_headers_SOURCE_DIR}/sqlite3ext.h" DESTINATION include)
+  install(FILES "${CMAKE_CURRENT_BINARY_DIR}/SQLite-PUBLIC-DOMAIN.txt" DESTINATION licenses/sqlite3)
 endif()
 install(FILES "$<TARGET_FILE:vec0>" "${CMAKE_CURRENT_BINARY_DIR}/build-info.txt" DESTINATION .)
 install(FILES "${CMAKE_CURRENT_BINARY_DIR}/LICENSE-MIT" DESTINATION licenses/sqlite-vec)

@@ -5,7 +5,7 @@ This repository builds native and managed NuGet packages for .NET:
 - [`LightStudio.Ffmpeg`](https://www.nuget.org/packages/LightStudio.Ffmpeg/): FFmpeg 9.0.1 and its decoding dependencies.
 - [LightStudio.Photos](package/photos/README.md): LibRaw 0.22.2 and Little CMS 2.19.1 for RAW photos and ICC color management. See [Photos builds](#photos-builds) for its platform matrix and workflow.
 - [LightStudio.Onnx](package/onnx/README.md): ONNX Runtime 1.30.0 with its complete .NET managed API for four native RIDs, embedded Dawn/WebGPU on Linux, and CoreML on macOS. See [ONNX validation](tests/onnx/README.md) for package checks and platform limitations.
-- [LightStudio.sqlite-vec](package/sqlite-vec/README.md): sqlite-vec 0.1.9 loadable native extensions for eight native RIDs and single-threaded/multithreaded browser-WASM static libraries, with no ONNX dependency and no bundled SQLite engine. Windows can use the system WinSQLite engine.
+- [LightStudio.sqlite-vec](package/sqlite-vec/README.md): sqlite-vec 0.1.9 loadable native extensions for eight native RIDs and single-threaded/multithreaded browser-WASM static libraries with bundled SQLite for WASM and no ONNX dependency. Windows can use the system WinSQLite engine.
 
 ## FFmpeg Runtimes
 
@@ -158,12 +158,13 @@ dotnet pack package/LightStudio.Ffmpeg.csproj --output artifacts/packages
 [The sqlite-vec workflow](.github/workflows/sqlite-vec.yml) independently builds
 `linux-x64`, `linux-arm64`, `win-x64`, `win-arm64`, `osx-x64`, `osx-arm64`,
 `android-x64`, `android-arm64`, and both `browser-wasm` threading variants.
-Native RIDs contain only the vec0 shared library; WASM has vec0 static archives
-for Emscripten 3.1.69 and 6.0.2, selected through `NativeFileReference` according
+Native RIDs contain only the vec0 shared library; WASM has vec0 and our own
+SQLite 3.50.4 static archives for Emscripten 3.1.69 and 6.0.2, selected through `NativeFileReference` according
 to `WasmEnableThreads` and the target framework (.NET <= 10: `em3`, >= 11: `em6`).
 All outputs include licenses and build metadata. The package does not depend
-on LightStudio.Onnx, ship managed bindings, or embed a SQLite engine. Consumers
-supply their own SQLite provider and register `sqlite3_vec_init`.
+on LightStudio.Onnx or ship managed bindings. Desktop/Android consumers supply
+their own SQLite engine; WASM consumers use the bundled engine. All consumers
+supply their own managed provider and register `sqlite3_vec_init`.
 
 The standard SQLite extension API also works with Windows WinSQLite; no
 `winsqlite3.lib` link or separate Windows variant is necessary. Windows CI probes
@@ -180,9 +181,9 @@ dotnet pack package/sqlite-vec/LightStudio.sqlite-vec.csproj -c Release -o artif
 
 Release Linux builds use the pinned
 [Ubuntu 24.04 build image](scripts/sqlite-vec-linux.Dockerfile), not the host
-toolchain. The final pack requires all eight native artifacts and both WASM
+toolchain. The final pack requires all eight native artifacts and all four WASM
 variants. Build these with `bash scripts/build-sqlite-vec.sh browser-wasm` and
-`bash scripts/build-sqlite-vec.sh browser-wasm-mt`. Partial local packages
+`bash scripts/build-sqlite-vec.sh browser-wasm-mt` under each supported SDK. Partial local packages
 require explicit opt-in and a prerelease version. Tags `sqlite-vec-v<version>`
 build/upload only; manual dispatch with `publish=true` publishes to NuGet.org
 using `NUGET_API_KEY` after all build and validation jobs pass.

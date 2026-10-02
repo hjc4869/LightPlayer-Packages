@@ -8,9 +8,11 @@
     <_LightStudioSqliteVecWasmFlavor>wasm-$(_LightStudioSqliteVecWasmEmsdk)</_LightStudioSqliteVecWasmFlavor>
     <_LightStudioSqliteVecWasmFlavor Condition="'$(WasmEnableThreads)' == 'true'">wasm-mt-$(_LightStudioSqliteVecWasmEmsdk)</_LightStudioSqliteVecWasmFlavor>
     <_LightStudioSqliteVecWasmArchive>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../static/$(_LightStudioSqliteVecWasmFlavor)/libvec0.a'))</_LightStudioSqliteVecWasmArchive>
+    <_LightStudioSqliteWasmArchive>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../static/$(_LightStudioSqliteVecWasmFlavor)/libsqlite3.a'))</_LightStudioSqliteWasmArchive>
   </PropertyGroup>
   <ItemGroup Condition="'$(_LightStudioSqliteVecTargetsWasm)' == 'true'">
     <NativeFileReference Include="$(_LightStudioSqliteVecWasmArchive)" Exclude="@(NativeFileReference)" />
+    <NativeFileReference Include="$(_LightStudioSqliteWasmArchive)" Exclude="@(NativeFileReference)" />
   </ItemGroup>
   <Target Name="ValidateLightStudioSqliteVecPlatform" BeforeTargets="PrepareForBuild">
     <Error Condition="'$(RuntimeIdentifier)' != '' and !$([System.String]::Copy('$(_LightStudioSqliteVecSupportedRids)').Contains(';$(RuntimeIdentifier);'))" Text="LightStudio.sqlite-vec does not support RuntimeIdentifier '$(RuntimeIdentifier)'. Supported RIDs: $(_LightStudioSqliteVecSupportedRids)" />

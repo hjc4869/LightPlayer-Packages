@@ -7,7 +7,7 @@
     <PackageId>LightStudio.sqlite-vec</PackageId>
     <Version>0.1.9</Version>
     <Authors>LightStudio</Authors>
-    <Description>sqlite-vec loadable native extensions for Linux, Windows, macOS, and Android on x64 and ARM64, plus single-threaded and multithreaded browser-wasm static libraries. Only vec0 is included; bring your own SQLite engine and managed bindings.</Description>
+    <Description>sqlite-vec loadable native extensions for Linux, Windows, macOS, and Android on x64 and ARM64, plus single-threaded and multithreaded browser-wasm static libraries with bundled SQLite. Native platforms require your own SQLite engine; bring your own managed bindings on all platforms.</Description>
     <PackageTags>sqlite;sqlite-vec;vec0;vector;search;android;linux;macos;windows;wasm</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -75,10 +75,15 @@
   <ItemGroup Condition="$(_SqliteVecSelectedRids.Contains(';browser-wasm;'))">
     <_SqliteVecWasmFlavor Include="wasm-em3;wasm-mt-em3;wasm-em6;wasm-mt-em6" />
     <_SqliteVecRequiredLicense Include="@(_SqliteVecWasmFlavor->'$(SqliteVecArtifactsPath)/sqlite-vec-browser-%(Identity)/licenses/sqlite-vec/LICENSE-MIT')" />
+    <_SqliteVecRequiredLicense Include="@(_SqliteVecWasmFlavor->'$(SqliteVecArtifactsPath)/sqlite-vec-browser-%(Identity)/licenses/sqlite3/SQLite-PUBLIC-DOMAIN.txt')" />
     <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-browser-wasm-em3/libvec0.a" Pack="true" SqliteVecRequired="true" PackagePath="static/wasm-em3/" />
     <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-browser-wasm-mt-em3/libvec0.a" Pack="true" SqliteVecRequired="true" PackagePath="static/wasm-mt-em3/" />
     <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-browser-wasm-em6/libvec0.a" Pack="true" SqliteVecRequired="true" PackagePath="static/wasm-em6/" />
     <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-browser-wasm-mt-em6/libvec0.a" Pack="true" SqliteVecRequired="true" PackagePath="static/wasm-mt-em6/" />
+    <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-browser-wasm-em3/libsqlite3.a" Pack="true" SqliteVecRequired="true" PackagePath="static/wasm-em3/" />
+    <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-browser-wasm-mt-em3/libsqlite3.a" Pack="true" SqliteVecRequired="true" PackagePath="static/wasm-mt-em3/" />
+    <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-browser-wasm-em6/libsqlite3.a" Pack="true" SqliteVecRequired="true" PackagePath="static/wasm-em6/" />
+    <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-browser-wasm-mt-em6/libsqlite3.a" Pack="true" SqliteVecRequired="true" PackagePath="static/wasm-mt-em6/" />
     <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-browser-wasm-em3/build-info.txt" Pack="true" SqliteVecRequired="true" PackagePath="build-info/browser-wasm-em3.txt" />
     <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-browser-wasm-mt-em3/build-info.txt" Pack="true" SqliteVecRequired="true" PackagePath="build-info/browser-wasm-mt-em3.txt" />
     <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-browser-wasm-em6/build-info.txt" Pack="true" SqliteVecRequired="true" PackagePath="build-info/browser-wasm-em6.txt" />

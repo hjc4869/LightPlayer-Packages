@@ -47,6 +47,22 @@ expected_failure 'requires Android API 27' dotnet msbuild "$consumer" -nologo -t
   "${restore_args[@]}" -p:TargetPlatformIdentifier=android -p:SupportedOSPlatformVersion=26.0
 
 if [[ "$rid" == browser-wasm ]]; then
+  mkdir -p "$test_root/incomplete"
+  for flavor in wasm-em3 wasm-mt-em3 wasm-em6 wasm-mt-em6; do
+    cp -a "$root/artifacts/sqlite-vec-browser-$flavor" "$test_root/incomplete/"
+  done
+  for flavor in wasm-em3 wasm-mt-em3 wasm-em6 wasm-mt-em6; do
+    fixture="$test_root/incomplete/sqlite-vec-browser-$flavor"
+    mv "$fixture/libsqlite3.a" "$fixture/libsqlite3.disabled"
+    expected_failure 'libsqlite3.a' dotnet msbuild "$project" -nologo -t:ValidateSqliteVecArtifacts \
+      "${pack_args[@]}" "-p:SqliteVecArtifactsPath=$test_root/incomplete"
+    mv "$fixture/libsqlite3.disabled" "$fixture/libsqlite3.a"
+    notice="$fixture/licenses/sqlite3/SQLite-PUBLIC-DOMAIN.txt"
+    mv "$notice" "$notice.disabled"
+    expected_failure 'SQLite-PUBLIC-DOMAIN.txt' dotnet msbuild "$project" -nologo -t:ValidateSqliteVecArtifacts \
+      "${pack_args[@]}" "-p:SqliteVecArtifactsPath=$test_root/incomplete"
+    mv "$notice.disabled" "$notice"
+  done
   for platform in rid class-library; do
     platform_args=(-p:RuntimeIdentifier=browser-wasm)
     [[ "$platform" != class-library ]] || platform_args=(-p:TargetPlatformIdentifier=browser)
@@ -64,10 +80,15 @@ if [[ "$rid" == browser-wasm ]]; then
         const fs = require("node:fs");
         const path = require("node:path");
         const items = JSON.parse(process.env.REFERENCE_JSON).Items.NativeFileReference
-          .filter(item => item.Filename === "libvec0");
-        assert.equal(items.length, 1);
-        assert.equal(path.resolve(items[0].FullPath), path.resolve(process.env.EXPECTED_ARCHIVE));
-        assert.ok(fs.statSync(items[0].FullPath).size > 4096);
+          .filter(item => ["libvec0", "libsqlite3"].includes(item.Filename));
+        assert.equal(items.length, 2);
+        for (const filename of ["libvec0", "libsqlite3"]) {
+          const matching = items.filter(item => item.Filename === filename);
+          assert.equal(matching.length, 1);
+          const expected = path.join(path.dirname(process.env.EXPECTED_ARCHIVE), filename + ".a");
+          assert.equal(path.resolve(matching[0].FullPath), path.resolve(expected));
+          assert.ok(fs.statSync(matching[0].FullPath).size > 4096);
+        }
       '
       done
     done

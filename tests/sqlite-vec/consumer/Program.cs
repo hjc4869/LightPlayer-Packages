@@ -92,7 +92,7 @@ static void CheckPackage(string packagePath, string[] rids)
         "Incorrect package ID.");
     string[] artifactRids = rids.SelectMany(rid => rid == "browser-wasm"
         ? new[] { "browser-wasm-em3", "browser-wasm-mt-em3", "browser-wasm-em6", "browser-wasm-mt-em6" } : new[] { rid }).ToArray();
-    var expectedNative = artifactRids.Select(NativePackagePath).ToHashSet();
+    var expectedNative = artifactRids.SelectMany(NativePackagePaths).ToHashSet();
     var actualNative = names.Where(name => name.StartsWith("runtimes/", StringComparison.Ordinal)
         || name.StartsWith("static/", StringComparison.Ordinal)).ToHashSet();
     Require(actualNative.SetEquals(expectedNative), "The native assets must match the requested RIDs, including all four emsdk/thread WASM variants.");
@@ -105,7 +105,7 @@ static void CheckPackage(string packagePath, string[] rids)
         || (!expectedNative.Contains(name) && (name.EndsWith(".dll", StringComparison.OrdinalIgnoreCase)
             || name.EndsWith(".so", StringComparison.OrdinalIgnoreCase)
             || name.EndsWith(".dylib", StringComparison.OrdinalIgnoreCase)))),
-        "Unexpected managed library, SQLite engine, source, or static archive.");
+        "Unexpected managed library, native SQLite engine, source, or static archive.");
     foreach (string rid in artifactRids)
     {
         Require(names.Contains($"licenses/{rid}/sqlite-vec/LICENSE-MIT"), $"Missing license for {rid}.");
@@ -117,16 +117,36 @@ static void CheckPackage(string packagePath, string[] rids)
         string buildRid = rid.StartsWith("browser-wasm-", StringComparison.Ordinal)
             ? rid[..rid.LastIndexOf("-em", StringComparison.Ordinal)] : rid;
         Require(HasBuildRid(reader, buildRid), $"Incorrect build RID for {rid}.");
-        var native = archive.GetEntry(NativePackagePath(rid))!;
-        using var nativeStream = native.Open();
-        using var bytes = new MemoryStream();
-        nativeStream.CopyTo(bytes);
-        CheckArchitecture(bytes.ToArray(), rid);
+        if (rid.StartsWith("browser-wasm-", StringComparison.Ordinal))
+        {
+            Require(names.Contains($"licenses/{rid}/sqlite3/SQLite-PUBLIC-DOMAIN.txt"), $"Missing SQLite notice for {rid}.");
+            using var sqliteInfo = new StreamReader(info.Open());
+            var lines = new HashSet<string>(StringComparer.Ordinal);
+            while (sqliteInfo.ReadLine() is { } line)
+                lines.Add(line);
+            Require(lines.Contains("SQLite engine: 3.50.4"), $"Missing SQLite engine version for {rid}.");
+            Require(lines.Contains("SQLite linking: static calls to bundled SQLite 3.50.4 (libsqlite3.a)"),
+                $"Incorrect SQLite linkage for {rid}.");
+            Require(lines.Contains($"WASM threads: {(buildRid == "browser-wasm-mt" ? "ON" : "OFF")}"),
+                $"Incorrect SQLite threading mode for {rid}.");
+        }
+        foreach (string nativePath in NativePackagePaths(rid))
+        {
+            var native = archive.GetEntry(nativePath)!;
+            using var nativeStream = native.Open();
+            using var bytes = new MemoryStream();
+            nativeStream.CopyTo(bytes);
+            CheckArchitecture(bytes.ToArray(), rid);
+        }
     }
     Require(names.Contains("build/LightStudio.sqlite-vec.targets")
         && names.Contains("buildTransitive/LightStudio.sqlite-vec.targets"), "Missing platform checks.");
-    Console.WriteLine($"PASS: {packagePath}, {artifactRids.Length} native assets, no SQLite engine or NuGet dependencies.");
+    Console.WriteLine($"PASS: {packagePath}, {expectedNative.Count} native assets, SQLite bundled only for WASM, no NuGet dependencies.");
 }
+
+static string[] NativePackagePaths(string rid) => rid.StartsWith("browser-wasm-", StringComparison.Ordinal)
+    ? new[] { NativePackagePath(rid), NativePackagePath(rid).Replace("/libvec0.a", "/libsqlite3.a", StringComparison.Ordinal) }
+    : new[] { NativePackagePath(rid) };
 
 static string NativePackagePath(string rid) => rid switch
 {
