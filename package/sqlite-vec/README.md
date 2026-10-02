@@ -162,10 +162,14 @@ can select a different artifact root.
 
 Linux releases build in `scripts/sqlite-vec-linux.Dockerfile`, which pins
 Ubuntu 24.04 and is independent of the ONNX build. Run Linux builds on the
-matching host architecture; use Visual Studio 2022 C++ tools on Windows,
+matching host architecture; use MSVC C++ tools, CMake, and Ninja on Windows,
 Xcode command-line tools on macOS, and Android NDK r28c for Android. Set
 `ANDROID_NDK_HOME` for Android builds. `SQLITE_VEC_BUILD_DIR` isolates a build
 tree; `SQLITE_VEC_ARTIFACTS_DIR` changes the staging root.
+Windows builds use Ninja with `cl` from an MSVC developer environment initialized
+for the requested x64 or ARM64 target before starting Bash. The workflow sets
+this up automatically. If a local build tree used a Visual Studio generator,
+select a fresh tree with `SQLITE_VEC_BUILD_DIR` before retrying with Ninja.
 For WASM, activate Emscripten so `emcmake`, `emcc`, `emar`, and `emnm` are
 available. The MT archive is compiled with `-pthread`; the ST archive is not.
 `LLVM_NM` can select the matching LLVM symbol tool when `emnm` is unavailable.

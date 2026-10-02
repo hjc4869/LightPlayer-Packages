@@ -34,12 +34,17 @@ case "$rid" in
     ;;
   win-x64|win-arm64)
     if [[ "${OS:-}" != Windows_NT ]]; then
-      printf 'Build %s on Windows with Visual Studio 2022 C++ tools installed.\n' "$rid" >&2
+      printf 'Build %s on Windows with MSVC C++ tools installed.\n' "$rid" >&2
       exit 1
     fi
     arch=x64
-    [[ "$rid" != win-arm64 ]] || arch=ARM64
-    cmake_args=(-G 'Visual Studio 17 2022' -A "$arch" "-DSQLITE_VEC_RID=$rid")
+    [[ "$rid" != win-arm64 ]] || arch=arm64
+    target_arch="${VSCMD_ARG_TGT_ARCH:-}"
+    if [[ "${target_arch,,}" != "$arch" ]] || ! command -v cl >/dev/null 2>&1; then
+      printf 'Initialize an MSVC developer environment for %s (vcvarsall.bat %s) before building %s.\n' "$arch" "$arch" "$rid" >&2
+      exit 1
+    fi
+    cmake_args+=(-DCMAKE_C_COMPILER=cl)
     ;;
   osx-x64|osx-arm64)
     if [[ "$(uname -s)" != Darwin ]]; then
