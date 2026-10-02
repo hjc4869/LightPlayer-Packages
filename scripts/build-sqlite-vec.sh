@@ -21,7 +21,7 @@ case "$rid" in
     cmake_command=(emcmake cmake)
     threads=OFF
     [[ "$rid" != browser-wasm-mt ]] || threads=ON
-    cmake_args+=("-DSQLITE_VEC_WASM_THREADS=$threads")
+    cmake_args+=(-DCMAKE_C_FLAGS=-msimd128 "-DSQLITE_VEC_WASM_THREADS=$threads")
     ;;
   linux-x64|linux-arm64)
     arch=x86_64

@@ -3,7 +3,7 @@ set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 rid="${1:?Usage: test-sqlite-vec-wasm.sh <browser-wasm|browser-wasm-mt>}"
-flags=()
+flags=(-msimd128)
 case "$rid" in
   browser-wasm) flags+=(-DSQLITE_THREADSAFE=0) ;;
   browser-wasm-mt) flags+=(-pthread -sPTHREAD_POOL_SIZE=1 -DSQLITE_THREADSAFE=1) ;;

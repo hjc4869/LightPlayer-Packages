@@ -12,7 +12,7 @@ target="$1"
 prefix="$2"
 build_dir="$3"
 skcms_dir="$repo_root/libjxl/third_party/skcms"
-compile_flags=(-O2 -DSKCMS_DISABLE_HSW -DSKCMS_DISABLE_SKX)
+compile_flags=(-O2 -msimd128 -DSKCMS_DISABLE_HSW -DSKCMS_DISABLE_SKX)
 link_flags=(-sENVIRONMENT=node -sALLOW_MEMORY_GROWTH=1 -sASSERTIONS=1 -sEXIT_RUNTIME=1)
 case "$target" in
   browser-wasm-st) ;;

@@ -102,6 +102,12 @@ ar = '$(command -v emar)'
 ranlib = '$(command -v emranlib)'
 pkg-config = 'pkg-config'
 
+[built-in options]
+c_args = ['-msimd128']
+cpp_args = ['-msimd128']
+c_link_args = ['-msimd128']
+cpp_link_args = ['-msimd128']
+
 [host_machine]
 system = 'emscripten'
 cpu_family = 'wasm32'

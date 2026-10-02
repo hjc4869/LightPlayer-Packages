@@ -100,6 +100,8 @@ case "$target" in
     done
 
     configure=(emcmake cmake)
+    cmake_args+=(-DCMAKE_C_FLAGS=-msimd128 -DCMAKE_CXX_FLAGS=-msimd128
+      -DCMAKE_EXE_LINKER_FLAGS=-msimd128)
 
     if [[ "$target" == browser-wasm-st ]]; then
       # JPEGXL_ENABLE_WASM_THREADS adds -pthread, which marks the objects as

@@ -81,9 +81,9 @@ cd "$build_dir"
 zlib_flag="-sUSE_ZLIB=1"
 
 emconfigure "$ffmpeg_dir/configure" \
-  --extra-cflags="$zlib_flag" \
-  --extra-cxxflags="$zlib_flag" \
-  --extra-ldflags="$zlib_flag" \
+  --extra-cflags="-msimd128 $zlib_flag" \
+  --extra-cxxflags="-msimd128 $zlib_flag" \
+  --extra-ldflags="-msimd128 $zlib_flag" \
   --cc=emcc \
   --cxx=em++ \
   --ar=emar \
@@ -282,6 +282,11 @@ emconfigure "$ffmpeg_dir/configure" \
 
 if ! grep -q "^#define HAVE_PTHREADS $expected_pthreads$" config.h; then
   echo "FFmpeg configured an unexpected pthread state for '$variant'." >&2
+  exit 1
+fi
+
+if ! grep -q '^#define HAVE_SIMD128 1$' config.h; then
+  echo "FFmpeg did not enable WebAssembly SIMD128 for '$variant'." >&2
   exit 1
 fi
 
