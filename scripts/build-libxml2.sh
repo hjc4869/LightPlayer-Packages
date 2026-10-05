@@ -148,6 +148,7 @@ case "$target" in
       -DCMAKE_C_COMPILER=clang-cl
       -DCMAKE_C_COMPILER_TARGET="$triple"
       -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+      -DCMAKE_NINJA_CMCLDEPS_RC=OFF
       -DLIBXML2_WITH_THREADS=ON
     )
     ;;
