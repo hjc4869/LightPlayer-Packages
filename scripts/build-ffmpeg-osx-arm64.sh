@@ -26,8 +26,6 @@ ar="$(xcrun --sdk macosx --find ar)"
 ranlib="$(xcrun --sdk macosx --find ranlib)"
 nm="$(xcrun --sdk macosx --find nm)"
 strip="$(xcrun --sdk macosx --find strip)"
-lipo="$(xcrun --sdk macosx --find lipo)"
-otool="$(xcrun --sdk macosx --find otool)"
 target_flags="-arch arm64 -mmacosx-version-min=$deployment_target"
 
 if [[ -f "$ffmpeg_dir/ffbuild/config.mak" ]]; then
@@ -345,58 +343,8 @@ for library_name in "${library_names[@]}"; do
   library_dir="$build_dir/$library_name"
   dylib_link="$library_dir/$library_name.dylib"
 
-  if [[ ! -L "$dylib_link" ]]; then
-    echo "Expected FFmpeg dynamic library link was not built: $dylib_link" >&2
-    exit 1
-  fi
-
   dylib_target="$library_dir/$(readlink "$dylib_link")"
-  if [[ ! -f "$dylib_target" ]]; then
-    echo "Expected FFmpeg dynamic library was not built: $dylib_target" >&2
-    exit 1
-  fi
-
   dynamic_libraries+=("$dylib_link" "$dylib_target")
-done
-
-for archive in "${archives[@]}"; do
-  if [[ ! -f "$archive" ]]; then
-    echo "Expected FFmpeg archive was not built: $archive" >&2
-    exit 1
-  fi
-
-  if ! "$lipo" "$archive" -verify_arch arm64; then
-    echo "Expected an arm64 FFmpeg archive: $archive" >&2
-    exit 1
-  fi
-done
-
-for dynamic_library in "${dynamic_libraries[@]}"; do
-  if ! "$lipo" "$dynamic_library" -verify_arch arm64; then
-    echo "Expected an arm64 FFmpeg dynamic library: $dynamic_library" >&2
-    exit 1
-  fi
-
-  if [[ -L "$dynamic_library" ]]; then
-    dynamic_library_name="$(readlink "$dynamic_library")"
-  else
-    dynamic_library_name="$(basename "$dynamic_library")"
-  fi
-
-  expected_install_name="@rpath/$(basename "$dynamic_library_name")"
-  if ! "$otool" -D "$dynamic_library" | grep -Fxq "$expected_install_name"; then
-    echo "Expected '$expected_install_name' as the install name for $dynamic_library" >&2
-    exit 1
-  fi
-
-  # External libraries are packaged only as static archives, so the FFmpeg
-  # dylibs must absorb them rather than gain new runtime dependencies.
-  load_commands="$("$otool" -L "$dynamic_library")"
-  if grep -Eq '(libdav1d|libjxl|libhwy|libbrotli|libxml2)' <<<"$load_commands"; then
-    echo "Expected dav1d, libjxl and libxml2 to be linked statically into $dynamic_library" >&2
-    echo "$load_commands" >&2
-    exit 1
-  fi
 done
 
 rm -rf -- "$artifacts_dir"

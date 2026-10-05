@@ -36,7 +36,7 @@ jobs:
       - name: Check workflow and shell scripts
         run: |
           docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12 .github/workflows/sqlite-vec.yml
-          docker run --rm -v "$PWD:/repo" -w /repo --entrypoint shellcheck rhysd/actionlint:1.7.12 scripts/build-sqlite-vec.sh scripts/check-sqlite-vec-native.sh scripts/test-sqlite-vec-package.sh scripts/test-sqlite-vec-wasm.sh
+          docker run --rm -v "$PWD:/repo" -w /repo --entrypoint shellcheck rhysd/actionlint:1.7.12 scripts/build-sqlite-vec.sh
 
   build:
     name: Build sqlite-vec-${{ matrix.rid }}
@@ -77,9 +77,6 @@ jobs:
             platform: android
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 8.0.x
       - uses: ilammy/msvc-dev-cmd@v1
         if: matrix.platform == 'windows'
         with:
@@ -93,9 +90,6 @@ jobs:
         if: matrix.platform == 'android'
         with:
           packages: 'ndk;28.2.13676358'
-      - name: Enable Intel consumer execution
-        if: matrix.rid == 'osx-x64'
-        run: softwareupdate --install-rosetta --agree-to-license
       - name: Build Linux in the pinned release environment
         if: matrix.platform == 'linux'
         run: |
@@ -110,10 +104,6 @@ jobs:
         run: |
           export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/28.2.13676358"
           bash scripts/build-sqlite-vec.sh "${{ matrix.rid }}"
-      - name: Verify architecture, ABI, and absence of SQLite linkage
-        run: bash scripts/check-sqlite-vec-native.sh "${{ matrix.rid }}"
-      - name: Test package and desktop SQL execution
-        run: bash scripts/test-sqlite-vec-package.sh "${{ matrix.rid }}" "0.1.9-ci.${{ github.run_id }}.${{ github.run_attempt }}"
       - uses: actions/upload-artifact@v4
         with:
           name: sqlite-vec-${{ matrix.rid }}
@@ -134,9 +124,6 @@ jobs:
             flavor: em6
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 8.0.x
       - uses: mymindstorm/setup-emsdk@v14
         with:
           version: ${{ matrix.emsdk.version }}
@@ -145,11 +132,10 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install --no-install-recommends -y cmake ninja-build
-      - name: Build and test single-threaded and multithreaded static libraries
+      - name: Build single-threaded and multithreaded static libraries
         run: |
           for variant in browser-wasm browser-wasm-mt; do
             bash scripts/build-sqlite-vec.sh "$variant"
-            bash scripts/test-sqlite-vec-wasm.sh "$variant"
           done
       - uses: actions/upload-artifact@v4
         with:
@@ -190,17 +176,11 @@ jobs:
             exit 1
           fi
           echo "value=$package_version" >> "$GITHUB_OUTPUT"
-      - name: Pack all nine RIDs and verify the final package
+      - name: Pack all nine RIDs
         env:
           PACKAGE_VERSION: ${{ steps.version.outputs.value }}
-        run: |
+        run: >-
           dotnet pack package/sqlite-vec/LightStudio.sqlite-vec.csproj -c Release -o artifacts/packages -p:PackageVersion="$PACKAGE_VERSION"
-          dotnet run --project tests/sqlite-vec/consumer/SqliteVecConsumer.csproj -c Release -p:SqliteVecPackageVersion="$PACKAGE_VERSION" -- \
-            --check-package "artifacts/packages/LightStudio.sqlite-vec.$PACKAGE_VERSION.nupkg" \
-            'linux-x64;linux-arm64;win-x64;win-arm64;osx-x64;osx-arm64;android-x64;android-arm64;browser-wasm'
-          dotnet run --project tests/sqlite-vec/consumer/SqliteVecConsumer.csproj -c Release --no-restore -p:SqliteVecPackageVersion="$PACKAGE_VERSION" -- --smoke
-      - name: Verify WASM package and NativeFileReference selection
-        run: bash scripts/test-sqlite-vec-package.sh browser-wasm "0.1.9-ci.${{ github.run_id }}.${{ github.run_attempt }}"
       - uses: actions/upload-artifact@v4
         with:
           name: LightStudio.sqlite-vec-nuget

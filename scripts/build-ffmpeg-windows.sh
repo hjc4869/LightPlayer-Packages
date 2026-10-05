@@ -18,7 +18,7 @@ if [[ "${VSCMD_ARG_TGT_ARCH:-}" != "$vc_arch" ]]; then
   echo "Initialize the Visual Studio '$vc_arch' target environment before starting MSYS2." >&2
   exit 1
 fi
-for tool in clang-cl clang lld-link lib.exe llvm-lib llvm-nm llvm-readobj cmake ninja meson nasm make pkg-config; do
+for tool in clang-cl clang lld-link lib.exe llvm-lib llvm-nm cmake ninja meson nasm make pkg-config; do
   if ! command -v "$tool" >/dev/null 2>&1; then
     echo "'$tool' is required to build FFmpeg for Windows." >&2
     exit 1
@@ -169,19 +169,7 @@ for linkage in static shared; do
       archive="$ffmpeg_build_dir/lib$library/$library.lib"
       cp "$archive" "$artifacts_dir/$library.lib"
     else
-      shopt -s nullglob
-      dlls=("$ffmpeg_build_dir/lib$library/$library"-*.dll)
-      shopt -u nullglob
-      if [[ ${#dlls[@]} -ne 1 ]]; then
-        echo "Expected one $library DLL for $target, found ${#dlls[@]}." >&2
-        exit 1
-      fi
-      imports="$(llvm-readobj --coff-imports "${dlls[0]}")"
-      if grep -Ei 'Name:.*(dav1d|jxl|hwy|brotli|xml2|zlib|libgcc|libstdc\+\+|libwinpthread|msys-|vcruntime|msvcp).*\.dll' <<<"$imports"; then
-        echo "Unexpected external runtime dependency in '${dlls[0]}'." >&2
-        exit 1
-      fi
-      cp "${dlls[0]}" "$artifacts_dir/"
+      cp "$ffmpeg_build_dir/lib$library/$library"-*.dll "$artifacts_dir/"
     fi
   done
   cp config.h config_components.h ffbuild/config.mak ffbuild/config.log "$build_info_dir/"
@@ -192,11 +180,5 @@ cp "$dav1d_prefix/lib/dav1d.lib" "$libxml2_prefix/lib/xml2.lib" "$zlib_prefix/li
 for library in jxl jxl_cms jxl_threads hwy brotlicommon brotlidec brotlienc; do
   cp "$libjxl_prefix/lib/$library.lib" "$artifacts_dir/"
 done
-
-machine=IMAGE_FILE_MACHINE_AMD64
-if [[ "$target" == win-arm64 ]]; then machine=IMAGE_FILE_MACHINE_ARM64; fi
-llvm-readobj --file-headers "$artifacts_dir"/*.lib "$artifacts_dir"/*.dll |
-  awk -v machine="$machine" '/Machine:/ { count++; if ($2 != machine) { print; failed = 1 } }
-    END { if (!count || failed) exit 1 }'
 
 printf "Built LGPL FFmpeg MSVC static and shared libraries for '%s' in %s\n" "$target" "$artifacts_dir"

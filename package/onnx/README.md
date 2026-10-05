@@ -83,12 +83,12 @@ four native outputs are present:
 dotnet pack package/onnx/LightStudio.Onnx.csproj -c Release -o artifacts/packages
 ```
 
-For local testing only, a deliberately partial prerelease can be built with
-`-p:OnnxRuntimeIdentifiers=linux-x64 -p:OnnxAllowPartialPackage=true
--p:PackageVersion=1.30.0-local.1`. Such a package is not the all-platform release.
+For a local subset, use `-p:OnnxRuntimeIdentifiers=linux-x64` and a prerelease
+version such as `-p:PackageVersion=1.30.0-local.1`. Such a package is not the
+all-platform release.
 
 Use the pinned Linux Dockerfile for release builds; compiling directly on a newer
 distribution can raise the glibc requirement. The GitHub Actions workflow builds
-all four RIDs on `onnx-v*` tags or manual dispatch, validates native dependencies
-and .NET consumers, and uploads the complete package. Only manual dispatch with
+all four RIDs on `onnx-v*` tags or manual dispatch, then packs and uploads the
+complete package without post-build validation. Only manual dispatch with
 `publish=true` pushes to NuGet.org using `NUGET_API_KEY`.

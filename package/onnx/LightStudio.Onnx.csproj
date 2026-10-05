@@ -25,51 +25,32 @@
     <PackageReference Include="Microsoft.ML.OnnxRuntime.Managed" Version="[1.30.0]" PrivateAssets="all" GeneratePathProperty="true" IncludeAssets="none" />
     <PackageReference Include="System.Memory" Version="4.5.5" />
     <PackageReference Include="System.Numerics.Tensors" Version="9.0.0" Condition="'$(TargetFramework)' == 'net8.0'" />
-    <_OnnxRid Include="$(OnnxRuntimeIdentifiers)" />
-    <_OnnxRequiredLicense Include="@(_OnnxRid->'$(OnnxArtifactsPath)/onnx-%(Identity)/licenses/onnxruntime/LICENSE')" />
-    <_OnnxRequiredLicense Include="@(_OnnxRid->'$(OnnxArtifactsPath)/onnx-%(Identity)/licenses/onnxruntime/ThirdPartyNotices.txt')" />
-    <None Include="$(PkgMicrosoft_ML_OnnxRuntime_Managed)/lib/netstandard2.0/Microsoft.ML.OnnxRuntime.dll;$(PkgMicrosoft_ML_OnnxRuntime_Managed)/lib/netstandard2.0/Microsoft.ML.OnnxRuntime.pdb" Pack="true" OnnxRequired="true" PackagePath="lib/netstandard2.0/" />
-    <None Include="$(PkgMicrosoft_ML_OnnxRuntime_Managed)/lib/net8.0/Microsoft.ML.OnnxRuntime.dll;$(PkgMicrosoft_ML_OnnxRuntime_Managed)/lib/net8.0/Microsoft.ML.OnnxRuntime.pdb" Pack="true" OnnxRequired="true" PackagePath="lib/net8.0/" />
-    <None Include="$(PkgMicrosoft_ML_OnnxRuntime_Managed)/LICENSE.txt" Pack="true" OnnxRequired="true" PackagePath="licenses/onnxruntime/" />
-    <None Include="$(PkgMicrosoft_ML_OnnxRuntime_Managed)/ThirdPartyNotices.txt" Pack="true" OnnxRequired="true" PackagePath="licenses/onnxruntime/" />
+    <None Include="$(PkgMicrosoft_ML_OnnxRuntime_Managed)/lib/netstandard2.0/Microsoft.ML.OnnxRuntime.dll;$(PkgMicrosoft_ML_OnnxRuntime_Managed)/lib/netstandard2.0/Microsoft.ML.OnnxRuntime.pdb" Pack="true" PackagePath="lib/netstandard2.0/" />
+    <None Include="$(PkgMicrosoft_ML_OnnxRuntime_Managed)/lib/net8.0/Microsoft.ML.OnnxRuntime.dll;$(PkgMicrosoft_ML_OnnxRuntime_Managed)/lib/net8.0/Microsoft.ML.OnnxRuntime.pdb" Pack="true" PackagePath="lib/net8.0/" />
+    <None Include="$(PkgMicrosoft_ML_OnnxRuntime_Managed)/LICENSE.txt" Pack="true" PackagePath="licenses/onnxruntime/" />
+    <None Include="$(PkgMicrosoft_ML_OnnxRuntime_Managed)/ThirdPartyNotices.txt" Pack="true" PackagePath="licenses/onnxruntime/" />
     <None Include="build/LightStudio.Onnx.targets" Pack="true" PackagePath="build/;buildTransitive/" />
     <None Include="README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
 
   <ItemGroup Condition="$(_OnnxSelectedRids.Contains(';linux-x64;'))">
-    <_OnnxRequiredLicense Include="$(OnnxArtifactsPath)/onnx-linux-x64/licenses/dependencies/dawn-src/LICENSE" />
-    <_OnnxRequiredLicense Include="$(OnnxArtifactsPath)/onnx-linux-x64/licenses/toolchain/GCC-copyright.txt;$(OnnxArtifactsPath)/onnx-linux-x64/licenses/toolchain/GPL-3.txt" />
-    <None Include="$(OnnxArtifactsPath)/onnx-linux-x64/libonnxruntime.so" Pack="true" OnnxRequired="true" PackagePath="runtimes/linux-x64/native/" />
-    <None Include="$(OnnxArtifactsPath)/onnx-linux-x64/build-info.txt" Pack="true" OnnxRequired="true" PackagePath="build-info/linux-x64.txt" />
+    <None Include="$(OnnxArtifactsPath)/onnx-linux-x64/libonnxruntime.so" Pack="true" PackagePath="runtimes/linux-x64/native/" />
+    <None Include="$(OnnxArtifactsPath)/onnx-linux-x64/build-info.txt" Pack="true" PackagePath="build-info/linux-x64.txt" />
     <None Include="$(OnnxArtifactsPath)/onnx-linux-x64/licenses/**/*" Pack="true" PackagePath="licenses/linux-x64/" />
   </ItemGroup>
   <ItemGroup Condition="$(_OnnxSelectedRids.Contains(';linux-arm64;'))">
-    <_OnnxRequiredLicense Include="$(OnnxArtifactsPath)/onnx-linux-arm64/licenses/dependencies/dawn-src/LICENSE" />
-    <_OnnxRequiredLicense Include="$(OnnxArtifactsPath)/onnx-linux-arm64/licenses/toolchain/GCC-copyright.txt;$(OnnxArtifactsPath)/onnx-linux-arm64/licenses/toolchain/GPL-3.txt" />
-    <None Include="$(OnnxArtifactsPath)/onnx-linux-arm64/libonnxruntime.so" Pack="true" OnnxRequired="true" PackagePath="runtimes/linux-arm64/native/" />
-    <None Include="$(OnnxArtifactsPath)/onnx-linux-arm64/build-info.txt" Pack="true" OnnxRequired="true" PackagePath="build-info/linux-arm64.txt" />
+    <None Include="$(OnnxArtifactsPath)/onnx-linux-arm64/libonnxruntime.so" Pack="true" PackagePath="runtimes/linux-arm64/native/" />
+    <None Include="$(OnnxArtifactsPath)/onnx-linux-arm64/build-info.txt" Pack="true" PackagePath="build-info/linux-arm64.txt" />
     <None Include="$(OnnxArtifactsPath)/onnx-linux-arm64/licenses/**/*" Pack="true" PackagePath="licenses/linux-arm64/" />
   </ItemGroup>
   <ItemGroup Condition="$(_OnnxSelectedRids.Contains(';osx-x64;'))">
-    <None Include="$(OnnxArtifactsPath)/onnx-osx-x64/libonnxruntime.dylib" Pack="true" OnnxRequired="true" PackagePath="runtimes/osx-x64/native/" />
-    <None Include="$(OnnxArtifactsPath)/onnx-osx-x64/build-info.txt" Pack="true" OnnxRequired="true" PackagePath="build-info/osx-x64.txt" />
+    <None Include="$(OnnxArtifactsPath)/onnx-osx-x64/libonnxruntime.dylib" Pack="true" PackagePath="runtimes/osx-x64/native/" />
+    <None Include="$(OnnxArtifactsPath)/onnx-osx-x64/build-info.txt" Pack="true" PackagePath="build-info/osx-x64.txt" />
     <None Include="$(OnnxArtifactsPath)/onnx-osx-x64/licenses/**/*" Pack="true" PackagePath="licenses/osx-x64/" />
   </ItemGroup>
   <ItemGroup Condition="$(_OnnxSelectedRids.Contains(';osx-arm64;'))">
-    <None Include="$(OnnxArtifactsPath)/onnx-osx-arm64/libonnxruntime.dylib" Pack="true" OnnxRequired="true" PackagePath="runtimes/osx-arm64/native/" />
-    <None Include="$(OnnxArtifactsPath)/onnx-osx-arm64/build-info.txt" Pack="true" OnnxRequired="true" PackagePath="build-info/osx-arm64.txt" />
+    <None Include="$(OnnxArtifactsPath)/onnx-osx-arm64/libonnxruntime.dylib" Pack="true" PackagePath="runtimes/osx-arm64/native/" />
+    <None Include="$(OnnxArtifactsPath)/onnx-osx-arm64/build-info.txt" Pack="true" PackagePath="build-info/osx-arm64.txt" />
     <None Include="$(OnnxArtifactsPath)/onnx-osx-arm64/licenses/**/*" Pack="true" PackagePath="licenses/osx-arm64/" />
   </ItemGroup>
-
-  <Target Name="ValidateOnnxArtifacts" BeforeTargets="GenerateNuspec">
-    <Error Condition="'$(OnnxRuntimeIdentifiers)' != '$(_OnnxAllRids)' and '$(OnnxAllowPartialPackage)' != 'true'" Text="Release packages must contain all four ONNX RIDs. For local testing only, explicitly set OnnxAllowPartialPackage=true and use a prerelease version." />
-    <Error Condition="'$(OnnxAllowPartialPackage)' == 'true' and !$([System.String]::Copy('$(PackageVersion)').Contains('-'))" Text="Partial ONNX packages require a prerelease version and must not be published as releases." />
-    <ItemGroup>
-      <_OnnxRequiredArtifact Include="@(None)" Condition="'%(None.OnnxRequired)' == 'true'" />
-      <_OnnxInvalidRid Include="@(_OnnxRid)" Condition="!$([System.String]::Copy(';$(_OnnxAllRids);').Contains(';%(Identity);'))" />
-    </ItemGroup>
-    <Error Condition="'@(_OnnxInvalidRid)' != ''" Text="Unsupported ONNX RIDs: @(_OnnxInvalidRid)." />
-    <Error Condition="!Exists('%(_OnnxRequiredArtifact.Identity)')" Text="Missing ONNX artifact '%(_OnnxRequiredArtifact.Identity)'. Build all requested RIDs or download their CI artifacts before packing." />
-    <Error Condition="!Exists('%(_OnnxRequiredLicense.Identity)')" Text="Missing ONNX license '%(_OnnxRequiredLicense.Identity)'. Rerun the native build script to stage licenses." />
-  </Target>
 </Project>

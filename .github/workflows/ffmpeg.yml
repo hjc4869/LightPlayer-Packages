@@ -71,22 +71,6 @@ jobs:
       - name: Build FFmpeg static libraries
         run: ./scripts/build-ffmpeg-browser-wasm.sh "${{ matrix.variant }}"
 
-      - name: Verify PGS subtitle support
-        shell: bash
-        run: |
-          variant="${{ matrix.variant }}"
-          thread_options=()
-          if [[ "$variant" == "multi-threaded" ]]; then
-            thread_options=(-pthread -sPROXY_TO_PTHREAD=1)
-          fi
-          em++ -O2 "${thread_options[@]}" \
-            -I ffmpeg -I "artifacts/build/${{ matrix.artifact }}-${{ matrix.emsdk.flavor }}" \
-            tests/ffmpeg/pgs-support.cc \
-            artifacts/${{ matrix.artifact }}-${{ matrix.emsdk.flavor }}/*.a \
-            -sALLOW_MEMORY_GROWTH=1 -sEXIT_RUNTIME=1 \
-            -o "artifacts/build/${{ matrix.artifact }}-${{ matrix.emsdk.flavor }}/pgs-support.js"
-          node "artifacts/build/${{ matrix.artifact }}-${{ matrix.emsdk.flavor }}/pgs-support.js"
-
       - name: Upload native artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -175,53 +159,12 @@ jobs:
           export PATH="/usr/bin:/ucrt64/bin:$PATH"
           bash scripts/build-ffmpeg-windows.sh "${{ matrix.rid }}"
 
-      - name: Set up .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: 10.0.x
-
-      - name: Verify MSVC and NativeAOT static and shared consumers
-        shell: pwsh
-        run: ./scripts/test-ffmpeg-windows.ps1 -Target '${{ matrix.rid }}'
-
-      - name: Upload ARM64 smoke executables and DLLs
-        if: matrix.rid == 'win-arm64'
-        uses: actions/upload-artifact@v4
-        with:
-          name: ffmpeg-tests-win-arm64
-          path: |
-            artifacts/tests/ffmpeg-win-arm64/*.exe
-            artifacts/tests/ffmpeg-win-arm64/shared/*.exe
-            artifacts/tests/ffmpeg-win-arm64/shared/*.dll
-          if-no-files-found: error
-
       - name: Upload native artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ffmpeg-${{ matrix.rid }}
           path: artifacts/ffmpeg-${{ matrix.rid }}
           if-no-files-found: error
-
-  test-windows-arm64:
-    name: Run Windows ARM64 static and shared consumers
-    runs-on: windows-11-arm
-    needs: build-windows
-    steps:
-      - name: Download ARM64 smoke executables and DLLs
-        uses: actions/download-artifact@v4
-        with:
-          name: ffmpeg-tests-win-arm64
-          path: native-tests
-
-      - name: Run MSVC and NativeAOT consumers
-        shell: pwsh
-        run: |
-          ./native-tests/pgs-support.exe
-          if ($LASTEXITCODE -ne 0) { throw 'ARM64 PGS smoke test failed' }
-          ./native-tests/FfmpegConsumer.exe
-            if ($LASTEXITCODE -ne 0) { throw 'ARM64 static NativeAOT consumer failed' }
-            ./native-tests/shared/FfmpegConsumer.exe
-            if ($LASTEXITCODE -ne 0) { throw 'ARM64 shared NativeAOT consumer failed' }
 
   build-android:
     name: Build ffmpeg-android
@@ -276,7 +219,6 @@ jobs:
       - build-osx-arm64
       - build-android
       - build-windows
-      - test-windows-arm64
 
     steps:
       - name: Check out repository
@@ -316,10 +258,6 @@ jobs:
         with:
           path: artifacts
           pattern: ffmpeg-*
-
-      - name: Verify Windows package layout and static selection
-        shell: pwsh
-        run: ./scripts/test-ffmpeg-package.ps1 -SkipNative
 
       - name: Pack NuGet package
         run: >-

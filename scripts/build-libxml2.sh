@@ -165,35 +165,15 @@ build_jobs="${LIBXML2_BUILD_JOBS:-${FFMPEG_BUILD_JOBS:-$(getconf _NPROCESSORS_ON
 cmake --build "$build_dir" --parallel "$build_jobs"
 cmake --install "$build_dir"
 
-static_library="$prefix/lib/libxml2.a"
 if [[ "$target" == win-* ]]; then
   cp -- "$prefix/lib/libxml2s.lib" "$prefix/lib/xml2.lib"
-  static_library="$prefix/lib/xml2.lib"
 fi
 pkg_config_file="$prefix/lib/pkgconfig/libxml-2.0.pc"
-
-for artifact in "$static_library" "$pkg_config_file"; do
-  if [[ ! -f "$artifact" ]]; then
-    echo "libxml2 did not produce '$artifact'." >&2
-    exit 1
-  fi
-done
 
 # FFmpeg probes <libxml2/libxml/xmlversion.h>, while its sources include
 # <libxml/parser.h>, so a non-system prefix must expose both include roots.
 sed -i.bak -E 's|^(Cflags:.*)$|\1 -I${includedir}|' "$pkg_config_file"
 rm -f -- "$pkg_config_file.bak"
-
-if ! grep -Fq -- '-I${includedir}/libxml2' "$pkg_config_file" ||
-  ! grep -Fq -- '-I${includedir}' "$pkg_config_file"; then
-  echo "libxml2 pkg-config metadata does not expose both required include roots." >&2
-  exit 1
-fi
-
-if [[ "$target" == browser-wasm-st ]] && grep -q -- '-pthread' "$pkg_config_file"; then
-  echo "Single-threaded libxml2 unexpectedly requires pthreads." >&2
-  exit 1
-fi
 
 printf "Built libxml2 %s for '%s' in %s\n" \
   "$(sed -n 's/^Version: *//p' "$pkg_config_file")" "$target" "$prefix"

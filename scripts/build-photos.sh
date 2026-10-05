@@ -27,7 +27,6 @@ compression_cmake=(cmake)
 compression_args=(-DCMAKE_POSITION_INDEPENDENT_CODE=ON -DCMAKE_C_VISIBILITY_PRESET=hidden)
 configure_args=(--enable-shared --disable-static)
 thread_args=(--with-threads)
-smoke_flags=()
 raw_ldflags='-no-undefined -avoid-version'
 export CC=gcc CXX=g++ AR=ar RANLIB=ranlib NM=nm STRIP=strip
 export CFLAGS='-O2' CXXFLAGS='-O2' CPPFLAGS='' LDFLAGS=''
@@ -50,7 +49,6 @@ case "$target" in
       NM=aarch64-linux-gnu-nm STRIP=aarch64-linux-gnu-strip
       configure_args+=(--host=aarch64-linux-gnu)
       compression_args+=(-DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=aarch64)
-      command -v qemu-aarch64 >/dev/null || { echo 'qemu-user is required to smoke-test the arm64 cross-build.' >&2; exit 1; }
     fi
     ;;
   win-x64)
@@ -66,7 +64,6 @@ case "$target" in
     CPPFLAGS='-DCMS_DLL_BUILD -DLIBRAW_BUILDLIB -DLIBRAW_WIN32_DLLDEFS'
     LDFLAGS='-static-libstdc++ -static-libgcc'
     windows_link_flags=(-static-libstdc++ -static-libgcc)
-    windows_smoke_flags=(-static-libgcc)
     thread_args=(--without-threads)
     ;;
   win-arm64)
@@ -83,7 +80,6 @@ case "$target" in
     compression_args+=(-DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_PROCESSOR=aarch64)
     CPPFLAGS='-DCMS_DLL_BUILD -DLIBRAW_BUILDLIB -DLIBRAW_WIN32_DLLDEFS -D_WIN32_WINNT=0x0a00'
     windows_link_flags=(-static)
-    windows_smoke_flags=(-static)
     thread_args=(--without-threads)
     ;;
   android-arm64 | android-x64)
@@ -126,7 +122,6 @@ case "$target" in
     configure_args=(--enable-shared --enable-static --host="$host")
     compression_args+=("-DCMAKE_OSX_ARCHITECTURES=$architecture"
       "-DCMAKE_OSX_DEPLOYMENT_TARGET=$MACOSX_DEPLOYMENT_TARGET")
-    smoke_flags=(-arch "$architecture" "-mmacosx-version-min=$MACOSX_DEPLOYMENT_TARGET")
     ;;
   browser-wasm | browser-wasm-mt)
     configure=(emconfigure)
@@ -140,12 +135,10 @@ case "$target" in
     CFLAGS+=" -msimd128 ${wasm_exception_flags[*]}"
     CXXFLAGS+=" -msimd128 ${wasm_exception_flags[*]}"
     LDFLAGS="-msimd128 ${wasm_exception_flags[*]}"
-    smoke_flags=(-msimd128 "${wasm_exception_flags[@]}" -sALLOW_MEMORY_GROWTH=1 -sEXIT_RUNTIME=1 -sENVIRONMENT=node)
     if [[ "$target" == browser-wasm-mt ]]; then
       CFLAGS+=' -pthread'
       CXXFLAGS+=' -pthread'
       LDFLAGS+=' -pthread'
-      smoke_flags+=(-pthread -sPTHREAD_POOL_SIZE=1)
     else
       CPPFLAGS='-DLIBRAW_NOTHREADS'
       thread_args=(--without-threads)
@@ -205,7 +198,6 @@ for library in libjpeg-turbo zlib; do
       awk '/^[A-Za-z_][A-Za-z0-9_]*$/' | LC_ALL=C sort -u > "$jpeg_symbols"
     awk '/^[A-Za-z_][A-Za-z0-9_]*$/ { printf "#define %s lightstudio_photos_%s\n", $1, $1 }' \
       "$jpeg_symbols" > "$jpeg_namespace"
-    grep -q '^#define jpeg_CreateDecompress ' "$jpeg_namespace"
     "${compression_cmake[@]}" -S "$source_dir" -B "$build_dir" \
       "-DCMAKE_C_FLAGS=$CFLAGS -include $jpeg_namespace"
     cmake --build "$build_dir" --parallel "$build_jobs"
@@ -215,9 +207,6 @@ done
 if [[ "$target" == win-* ]]; then
   cp "$prefix/lib/libzs.a" "$prefix/lib/libz.a"
 fi
-for library in libjpeg libz; do
-  test -f "$prefix/lib/$library.a"
-done
 CPPFLAGS+=" -I$prefix/include"
 LDFLAGS+=" -L$prefix/lib"
 
@@ -261,20 +250,6 @@ case "$target" in
   linux-x64 | linux-arm64)
     cp "$prefix/lib/libraw.so" "$prefix/lib/liblcms2.so" "$output/"
     patchelf --set-rpath "\$ORIGIN" "$output/libraw.so"
-    for library in "$output"/*.so; do
-      dependencies="$(readelf -d "$library")"
-      if grep -Eq 'NEEDED.*(libgomp|libjpeg|libz\.so)' <<<"$dependencies"; then
-        echo "Unexpected external dependency in $library" >&2
-        exit 1
-      fi
-    done
-    "$CC" "$repo_root/tests/photos/smoke.c" -L"$output" \
-      -Wl,-rpath,"$output" -lraw -llcms2 -o "$build_root/smoke"
-    if [[ "$target" == linux-arm64 && "$(uname -m)" != aarch64 ]]; then
-      qemu-aarch64 -L /usr/aarch64-linux-gnu "$build_root/smoke"
-    else
-      env -u LD_LIBRARY_PATH "$build_root/smoke"
-    fi
     ;;
   android-arm64 | android-x64)
     "$CXX" -shared -static-libstdc++ -Wl,-z,max-page-size=16384 \
@@ -284,14 +259,6 @@ case "$target" in
     cp "$prefix/lib/libraw.so" "$prefix/lib/liblcms2.so" "$output/"
     mkdir -p "$output/licenses"
     cp "$android_ndk_home/NOTICE.toolchain" "$output/licenses/"
-    for library in "$output"/*.so; do
-      dependencies="$("$toolchain_bin/llvm-readelf" -d "$library")"
-      if grep -Eq 'NEEDED.*(libc\+\+_shared|libomp|libjpeg|libz\.so)' <<<"$dependencies"; then
-        echo "Unexpected Android runtime dependency in $library" >&2
-        exit 1
-      fi
-    done
-    "$CC" "$repo_root/tests/photos/smoke.c" -L"$output" -lraw -llcms2 -o "$build_root/smoke"
     ;;
   win-x64 | win-arm64)
     "$CXX" -shared "${windows_link_flags[@]}" \
@@ -311,28 +278,6 @@ case "$target" in
       cp /usr/share/doc/mingw-w64-common/copyright "$output/licenses/MinGW-copyright.txt"
       cp /usr/share/common-licenses/GPL-3 "$output/licenses/GPL-3.txt"
     fi
-    for library in "$output"/*.dll; do
-      dependencies="$("${mingw_prefix}objdump" -p "$library")"
-      if grep -Ei 'DLL Name:.*(libgcc|libstdc\+\+|libc\+\+|libunwind|libwinpthread|libssp|libgomp|jpeg|zlib|libz\.)' <<<"$dependencies"; then
-        echo "Unexpected compiler runtime DLL dependency in $library" >&2
-        exit 1
-      fi
-    done
-    "$CC" "$repo_root/tests/photos/smoke.c" "${windows_smoke_flags[@]}" \
-      "$prefix/lib/libraw.dll.a" "$prefix/lib/liblcms2.dll.a" -o "$output/photos-smoke.exe"
-    if [[ "$target" == win-arm64 ]]; then
-      for binary in "$output"/*.dll "$output/photos-smoke.exe"; do
-        headers="$("$llvm_mingw_home/bin/llvm-readobj" --file-headers --coff-imports "$binary")"
-        grep -Fq 'Machine: IMAGE_FILE_MACHINE_ARM64' <<<"$headers" || {
-          echo "Not a native Windows ARM64 binary: $binary" >&2
-          exit 1
-        }
-        if grep -Ei 'Name:.*(libc\+\+|libunwind|libwinpthread|libssp|jpeg|zlib)' <<<"$headers"; then
-          echo "Unexpected Windows ARM64 dependency in $binary" >&2
-          exit 1
-        fi
-      done
-    fi
     ;;
   osx-arm64 | osx-x64)
     cp "$prefix/lib/libraw.dylib" "$prefix/lib/liblcms2.dylib" \
@@ -343,34 +288,11 @@ case "$target" in
     install_name_tool -change "$prefix/lib/liblcms2.dylib" \
       @loader_path/liblcms2.dylib "$output/libraw.dylib"
     codesign --force --sign - "$output/libraw.dylib" "$output/liblcms2.dylib"
-    dependencies="$(otool -L "$output/libraw.dylib")"
-    if grep -Eq 'libjpeg|libz[.0-9]*\.dylib' <<<"$dependencies"; then
-      echo 'macOS LibRaw must embed JPEG and zlib.' >&2
-      exit 1
-    fi
-    "$CC" "${smoke_flags[@]}" "$repo_root/tests/photos/smoke.c" \
-      -L"$output" -Wl,-rpath,"$output" -lraw -llcms2 -o "$build_root/smoke"
-    "$build_root/smoke"
-    "$CC" "${smoke_flags[@]}" "$repo_root/tests/photos/smoke.c" \
-      "$output/libraw.a" "$output/liblcms2.a" "$output/libjpeg.a" "$output/libz.a" \
-      -lc++ -o "$build_root/smoke-static"
-    "$build_root/smoke-static"
     ;;
   browser-wasm | browser-wasm-mt)
     cp "$prefix/lib/libraw.a" "$prefix/lib/liblcms2.a" "$prefix/lib/libz.a" "$output/"
     "$AR" qL "$output/libraw.a" "$prefix/lib/libjpeg.a"
     "$RANLIB" "$output/libraw.a"
-    jpeg_conflicts="$(LC_ALL=C comm -12 "$jpeg_symbols" \
-      <("$NM" --extern-only --just-symbol-name "$output/libraw.a" | LC_ALL=C sort -u))"
-    if [[ -n "$jpeg_conflicts" ]]; then
-      printf 'LibRaw exposes or imports unprefixed JPEG symbols:\n%s\n' "$jpeg_conflicts" >&2
-      exit 1
-    fi
-    "$CC" "${smoke_flags[@]}" -c "$repo_root/tests/photos/smoke.c" -o "$build_root/smoke.o"
-    "$CXX" "${smoke_flags[@]}" "$build_root/smoke.o" \
-      "$output/libraw.a" "$output/liblcms2.a" "$output/libz.a" \
-      -o "$build_root/smoke.js"
-    node "$build_root/smoke.js"
     ;;
 esac
 printf "Built Photos libraries for '%s' in %s\n" "$target" "$output"

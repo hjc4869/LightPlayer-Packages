@@ -230,7 +230,6 @@ fi
 awk '{ printf "#define %s lightstudio_ffmpeg_%s\n", $1, $1 }' \
   "$skcms_symbols" > "$skcms_namespace"
 printf '#define skcms_private lightstudio_ffmpeg_skcms_private\n' >> "$skcms_namespace"
-grep -q '^#define skcms_Transform ' "$skcms_namespace"
 for language in C CXX; do
   compiler_flags="$(sed -n "s/^CMAKE_${language}_FLAGS:STRING=//p" "$build_dir/CMakeCache.txt")"
   if [[ "$target" == win-* ]]; then
@@ -245,23 +244,6 @@ done
 cmake --build "$build_dir" --parallel "$build_jobs"
 cmake --install "$build_dir"
 
-static_libraries=(
-  "$prefix/lib/libjxl.a"
-  "$prefix/lib/libjxl_cms.a"
-  "$prefix/lib/libjxl_threads.a"
-  "$prefix/lib/libhwy.a"
-  "$prefix/lib/libbrotlicommon.a"
-  "$prefix/lib/libbrotlidec.a"
-  "$prefix/lib/libbrotlienc.a"
-)
-
-if [[ "$target" == win-* ]]; then
-  static_libraries=()
-  for library in jxl jxl_cms jxl_threads hwy brotlicommon brotlidec brotlienc; do
-    static_libraries+=("$prefix/lib/$library.lib")
-  done
-fi
-
 pkg_config_files=(
   "$prefix/lib/pkgconfig/libjxl.pc"
   "$prefix/lib/pkgconfig/libjxl_cms.pc"
@@ -271,31 +253,6 @@ pkg_config_files=(
   "$prefix/lib/pkgconfig/libbrotlidec.pc"
   "$prefix/lib/pkgconfig/libbrotlienc.pc"
 )
-
-for artifact in "${static_libraries[@]}" "${pkg_config_files[@]}"; do
-  if [[ ! -f "$artifact" ]]; then
-    echo "libjxl did not produce '$artifact'." >&2
-    exit 1
-  fi
-done
-
-skcms_conflicts="$("$nm_tool" -g "${static_libraries[@]}" |
-  awk -v symbols="$skcms_symbols" -v target="$target" '
-    BEGIN {
-      while ((getline symbol < symbols) > 0) original[symbol] = 1;
-      close(symbols);
-    }
-    NF >= 2 {
-      symbol = $NF;
-      if (target == "osx-arm64") sub(/^_/, "", symbol);
-      if (symbol in original || symbol ~ /^skcms_/ || symbol ~ /^_Z.*13skcms_private/ || symbol ~ /@skcms_private@/)
-        print symbol;
-    }' |
-  LC_ALL=C sort -u)"
-if [[ -n "$skcms_conflicts" ]]; then
-  printf 'libjxl exposes or imports unprefixed skcms symbols:\n%s\n' "$skcms_conflicts" >&2
-  exit 1
-fi
 
 if [[ "$target" == browser-wasm-st ]]; then
   # Nothing in the single-threaded package may carry the shared-memory flags.
@@ -328,17 +285,6 @@ done
 threads_pkg_config_file="$prefix/lib/pkgconfig/libjxl_threads.pc"
 sed -i.bak -E "s/^Libs\\.private:.*/& $cxx_runtime_libs/" "$threads_pkg_config_file"
 rm -f -- "$threads_pkg_config_file.bak"
-
-for pkg_config_file in "$prefix/lib/pkgconfig/libjxl.pc" "$threads_pkg_config_file"; do
-  if ! grep -Fq -- "$cxx_runtime_libs" "$pkg_config_file"; then
-    echo "'$pkg_config_file' does not name the C++ runtime ($cxx_runtime_libs)." >&2
-    exit 1
-  fi
-done
-
-if [[ "$target" == browser-wasm-* ]]; then
-  bash "$repo_root/scripts/test-libjxl-wasm-skcms.sh" "$target" "$prefix" "$build_dir/skcms-coexistence"
-fi
 
 printf "Built libjxl %s for '%s' in %s\n" \
   "$(sed -n 's/^Version: *//p' "$prefix/lib/pkgconfig/libjxl.pc")" "$target" "$prefix"

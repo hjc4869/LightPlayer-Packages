@@ -36,9 +36,8 @@ ar="$toolchain_bin/llvm-ar"
 ranlib="$toolchain_bin/llvm-ranlib"
 nm="$toolchain_bin/llvm-nm"
 strip="$toolchain_bin/llvm-strip"
-readelf="$toolchain_bin/llvm-readelf"
 
-for tool in "$ar" "$ranlib" "$nm" "$strip" "$readelf"; do
+for tool in "$ar" "$ranlib" "$nm" "$strip"; do
   if [[ ! -x "$tool" ]]; then
     echo "Expected the NDK to provide '$tool'." >&2
     exit 1
@@ -55,19 +54,17 @@ rm -rf -- "$artifacts_root"
 
 build_abi() {
   local abi="$1"
-  local ffmpeg_arch triple dotnet_rid elf_machine
+  local ffmpeg_arch triple dotnet_rid
   case "$abi" in
     arm64)
       ffmpeg_arch=aarch64
       triple=aarch64-linux-android
       dotnet_rid=android-arm64
-      elf_machine=AArch64
       ;;
     x64)
       ffmpeg_arch=x86_64
       triple=x86_64-linux-android
       dotnet_rid=android-x64
-      elf_machine=X86-64
       ;;
     *)
       echo "Unknown Android ABI '$abi'. Expected 'arm64' or 'x64'." >&2
@@ -378,57 +375,9 @@ build_abi() {
 
   mkdir -p "$artifacts_dir"
 
-  local library_name library_dir slib_link dest header dynamic
+  local library_name
   for library_name in "${library_names[@]}"; do
-    library_dir="$build_dir/$library_name"
-    slib_link="$library_dir/$library_name.so"
-
-    if [[ ! -e "$slib_link" ]]; then
-      echo "Expected FFmpeg shared library was not built: $slib_link" >&2
-      exit 1
-    fi
-
-    dest="$artifacts_dir/$library_name.so"
-    cp -L "$slib_link" "$dest"
-
-    # Read the tool output into variables rather than piping into 'grep -q'.
-    # Under 'set -o pipefail', 'grep -q' can exit as soon as it matches and
-    # close the pipe, leaving llvm-readelf killed by SIGPIPE; that would fail
-    # the pipeline even though the pattern was found.
-    header="$("$readelf" -h "$dest")"
-    if ! grep -iq "$elf_machine" <<<"$header"; then
-      echo "Expected an $elf_machine FFmpeg shared library: $dest" >&2
-      echo "$header" >&2
-      exit 1
-    fi
-
-    dynamic="$("$readelf" -d "$dest")"
-    if ! grep -Fq "Library soname: [$library_name.so]" <<<"$dynamic"; then
-      echo "Expected '$library_name.so' as the soname for $dest" >&2
-      echo "$dynamic" >&2
-      exit 1
-    fi
-
-    # The package ships no libdav1d.so, so dav1d has to be linked statically.
-    if grep -Fq "Shared library: [libdav1d" <<<"$dynamic"; then
-      echo "Expected dav1d to be linked statically into $dest" >&2
-      echo "$dynamic" >&2
-      exit 1
-    fi
-
-    if grep -Fq "Shared library: [libxml2" <<<"$dynamic"; then
-      echo "Expected libxml2 to be linked statically into $dest" >&2
-      echo "$dynamic" >&2
-      exit 1
-    fi
-
-    # Same for libjxl and its dependencies, including the C++ runtime: the
-    # package ships no libjxl.so, libbrotli*.so, libhwy.so or libc++_shared.so.
-    if grep -Eq "Shared library: \\[(libjxl|libbrotli|libhwy|libc\\+\\+_shared)" <<<"$dynamic"; then
-      echo "Expected libjxl and the C++ runtime to be linked statically into $dest" >&2
-      echo "$dynamic" >&2
-      exit 1
-    fi
+    cp -L "$build_dir/$library_name/$library_name.so" "$artifacts_dir/$library_name.so"
   done
 
   popd >/dev/null

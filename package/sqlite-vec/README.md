@@ -33,12 +33,8 @@ embeds SQLite nor imports a particular SQLite DLL, so it can be used with an
 application's existing compatible engine, including `sqlite3` or `e_sqlite3`.
 
 **Windows can use the system `winsqlite3.dll`.** No different extension build
-or SQLite import library is needed. Microsoft's WinSQLite 3.51.1 was checked
-under Wine with a diagnostic Windows x64 extension: extension loading was
-enabled, and vec0 scalar, bit-vector, KNN, and DELETE checks passed. This is a
-host-ABI compatibility check, not validation of the MSVC release binaries on
-native Windows. Both Windows CI runners probe their actual system DLL and
-also run the mandatory normal-SQLite consumer tests.
+or SQLite import library is needed. The system engine must support extension
+loading and the SQLite features used by the application.
 
 For Microsoft.Data.Sqlite applications using the Windows system engine, select
 `Microsoft.Data.Sqlite.Core` plus `SQLitePCLRaw.bundle_winsqlite3` in the app,
@@ -150,25 +146,19 @@ it to 32 bits, and WASM32 uses the 64-bit popcount builtin rather than the
 
 ```sh
 bash scripts/build-sqlite-vec.sh linux-x64
-bash scripts/check-sqlite-vec-native.sh linux-x64
-bash scripts/test-sqlite-vec-package.sh linux-x64 0.1.9-local.1
 
 bash scripts/build-sqlite-vec.sh browser-wasm
 bash scripts/build-sqlite-vec.sh browser-wasm-mt
-bash scripts/test-sqlite-vec-wasm.sh browser-wasm
-bash scripts/test-sqlite-vec-wasm.sh browser-wasm-mt
-bash scripts/test-sqlite-vec-package.sh browser-wasm 0.1.9-local.1
 
 dotnet pack package/sqlite-vec/LightStudio.sqlite-vec.csproj -c Release -o artifacts/packages
 ```
 
-Run the WASM builds and smoke tests once with Emscripten 3.1.69 activated and
-once with 6.0.2, then run the WASM package test after all four outputs exist.
-The final command requires eight shared-library outputs and all four WASM outputs.
+Run the WASM builds once with Emscripten 3.1.69 activated and once with 6.0.2.
+A complete package includes eight shared-library outputs and all four WASM outputs.
 `browser-wasm-mt` is a build variant, not a NuGet RID; selecting `browser-wasm`
-always packs both threading modes for both SDK majors. Local subset packs require
-both `SqliteVecAllowPartialPackage=true` and a prerelease `PackageVersion`;
-select RIDs with `SqliteVecRuntimeIdentifiers`. For multiple RIDs, pass the
+always packs both threading modes for both SDK majors. For local subset packs,
+select RIDs with `SqliteVecRuntimeIdentifiers` and use a prerelease `PackageVersion`.
+For multiple RIDs, pass the
 semicolon-separated list as an environment property. `SqliteVecArtifactsPath`
 can select a different artifact root.
 
@@ -182,9 +172,8 @@ Windows builds use Ninja with `cl` from an MSVC developer environment initialize
 for the requested x64 or ARM64 target before starting Bash. The workflow sets
 this up automatically. If a local build tree used a Visual Studio generator,
 select a fresh tree with `SQLITE_VEC_BUILD_DIR` before retrying with Ninja.
-For WASM, activate Emscripten so `emcmake`, `emcc`, `emar`, and `emnm` are
+For WASM, activate Emscripten so `emcmake`, `emcc`, and `emar` are
 available. The MT archive is compiled with `-pthread`; the ST archive is not.
-`LLVM_NM` can select the matching LLVM symbol tool when `emnm` is unavailable.
 
 ```sh
 docker build -f scripts/sqlite-vec-linux.Dockerfile -t lightstudio-sqlite-vec-build scripts
@@ -194,21 +183,7 @@ docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
     bash scripts/build-sqlite-vec.sh linux-x64
 ```
 
-The consumer tests restore from a fresh local feed/cache, inspect the package
-and native architectures, exercise missing-input/release/platform guards, and
-compare RID-published native bytes against the staged library. Desktop jobs
-execute scalar, 64-bit Hamming, KNN, UPDATE, and long-metadata DELETE checks.
-Their Microsoft.Data.Sqlite reference provides a test-only SQLite engine and
-is never included in LightStudio.sqlite-vec. Android jobs check binaries and
-package contents; they do not execute a device test.
-WASM jobs inspect both archives for each SDK/threading variant, check MSBuild
-selection for browser apps and class libraries, reject missing SQLite archives
-and notices, and execute the SQL checks under Node with the bundled engine.
-The checks also verify SQLite's version, threading mode, FTS5, and RTree.
-The MT test executes SQL on a pthread worker.
-These tests do not publish or launch a .NET browser application.
-
 The independent `sqlite-vec.yml` workflow builds on tags `sqlite-vec-v<version>`
 or manual dispatch. Tags build and upload only. Manual dispatch with
 `publish=true` publishes the complete package to NuGet.org using
-`NUGET_API_KEY`, after all build and validation jobs pass.
+`NUGET_API_KEY`, after all build jobs pass. No post-build validation runs.

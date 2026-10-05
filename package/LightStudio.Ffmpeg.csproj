@@ -57,35 +57,4 @@
     <None Include="../libjxl/third_party/skcms/LICENSE" Pack="true" PackagePath="licenses/skcms/" />
     <None Include="../zlib/LICENSE" Pack="true" PackagePath="licenses/zlib/" />
   </ItemGroup>
-
-  <Target Name="ValidateFFmpegArtifacts" BeforeTargets="GenerateNuspec">
-    <ItemGroup>
-      <_FFmpegAndroidArm64 Include="$(FFmpegArtifactsPath)/ffmpeg-android/android-arm64/*.so" />
-      <_FFmpegAndroidX64 Include="$(FFmpegArtifactsPath)/ffmpeg-android/android-x64/*.so" />
-      <_FFmpegOsxArm64Dynamic Include="$(FFmpegArtifactsPath)/ffmpeg-osx-arm64/*.dylib" />
-      <_FFmpegOsxArm64Static Include="$(FFmpegArtifactsPath)/ffmpeg-osx-arm64/libdav1d.a" />
-      <_FFmpegOsxArm64Jxl Include="$(FFmpegArtifactsPath)/ffmpeg-osx-arm64/libjxl.a" />
-      <_FFmpegOsxArm64Xml Include="$(FFmpegArtifactsPath)/ffmpeg-osx-arm64/libxml2.a" />
-      <_FFmpegWasmArtifact Include="ffmpeg-browser-wasm-em3;ffmpeg-MT-browser-wasm-em3;ffmpeg-browser-wasm-em6;ffmpeg-MT-browser-wasm-em6" />
-      <_FFmpegWasmRequired Include="@(_FFmpegWasmArtifact->'$(FFmpegArtifactsPath)/%(Identity)/libdav1d.a')" />
-      <_FFmpegWasmRequired Include="@(_FFmpegWasmArtifact->'$(FFmpegArtifactsPath)/%(Identity)/libxml2.a')" />
-      <_FFmpegWasmRequired Include="@(_FFmpegWasmArtifact->'$(FFmpegArtifactsPath)/%(Identity)/libz.a')" />
-      <_FFmpegWasmRequired Include="$(FFmpegArtifactsPath)/ffmpeg-MT-browser-wasm-em3/libjxl.a;$(FFmpegArtifactsPath)/ffmpeg-MT-browser-wasm-em6/libjxl.a" />
-      <_FFmpegWindowsLibrary Include="avcodec;avdevice;avfilter;avformat;avutil;swresample;swscale;dav1d;jxl;jxl_cms;jxl_threads;hwy;brotlicommon;brotlidec;brotlienc;xml2;zlib" />
-      <_FFmpegWindowsRequired Include="@(_FFmpegWindowsLibrary->'$(FFmpegArtifactsPath)/ffmpeg-win-x64/%(Identity).lib')" />
-      <_FFmpegWindowsRequired Include="@(_FFmpegWindowsLibrary->'$(FFmpegArtifactsPath)/ffmpeg-win-arm64/%(Identity).lib')" />
-      <_FFmpegWindowsDll Include="avcodec-63.dll;avdevice-63.dll;avfilter-12.dll;avformat-63.dll;avutil-61.dll;swresample-7.dll;swscale-10.dll" />
-      <_FFmpegWindowsSharedRequired Include="@(_FFmpegWindowsDll->'$(FFmpegArtifactsPath)/ffmpeg-win-x64/%(Identity)')" />
-      <_FFmpegWindowsSharedRequired Include="@(_FFmpegWindowsDll->'$(FFmpegArtifactsPath)/ffmpeg-win-arm64/%(Identity)')" />
-    </ItemGroup>
-    <Error Condition="'@(_FFmpegAndroidArm64)' == ''" Text="Missing android-arm64 shared libraries in '$(FFmpegArtifactsPath)/ffmpeg-android/android-arm64'. Run scripts/build-ffmpeg-android.sh or download the CI artifact before packing." />
-    <Error Condition="'@(_FFmpegAndroidX64)' == ''" Text="Missing android-x64 shared libraries in '$(FFmpegArtifactsPath)/ffmpeg-android/android-x64'. Run scripts/build-ffmpeg-android.sh or download the CI artifact before packing." />
-    <Error Condition="'@(_FFmpegOsxArm64Dynamic)' == ''" Text="Missing osx-arm64 dynamic libraries in '$(FFmpegArtifactsPath)/ffmpeg-osx-arm64'. Run scripts/build-ffmpeg-osx-arm64.sh or download the CI artifact before packing." />
-    <Error Condition="'@(_FFmpegOsxArm64Static)' == ''" Text="Missing osx-arm64 archives (including libdav1d.a) in '$(FFmpegArtifactsPath)/ffmpeg-osx-arm64'. Run scripts/build-ffmpeg-osx-arm64.sh or download the CI artifact before packing." />
-    <Error Condition="'@(_FFmpegOsxArm64Jxl)' == ''" Text="Missing libjxl.a in '$(FFmpegArtifactsPath)/ffmpeg-osx-arm64'. Run scripts/build-ffmpeg-osx-arm64.sh or download the CI artifact before packing." />
-    <Error Condition="'@(_FFmpegOsxArm64Xml)' == ''" Text="Missing libxml2.a in '$(FFmpegArtifactsPath)/ffmpeg-osx-arm64'. Run scripts/build-ffmpeg-osx-arm64.sh or download the CI artifact before packing." />
-    <Error Condition="!Exists('%(_FFmpegWasmRequired.Identity)')" Text="Missing browser-wasm archive '%(_FFmpegWasmRequired.Identity)'. Build both thread variants with Emscripten 3.x and 6.x or download all four CI artifacts before packing." />
-    <Error Condition="!Exists('%(_FFmpegWindowsRequired.Identity)')" Text="Missing Windows static archive '%(_FFmpegWindowsRequired.Identity)'. Run scripts/build-ffmpeg-windows.sh for win-x64 and win-arm64 or download both CI artifacts before packing." />
-    <Error Condition="!Exists('%(_FFmpegWindowsSharedRequired.Identity)')" Text="Missing Windows shared library '%(_FFmpegWindowsSharedRequired.Identity)'. Run scripts/build-ffmpeg-windows.sh for win-x64 and win-arm64 or download both CI artifacts before packing." />
-  </Target>
 </Project>

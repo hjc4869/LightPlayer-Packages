@@ -4,8 +4,10 @@ This repository builds native and managed NuGet packages for .NET:
 
 - [`LightStudio.Ffmpeg`](https://www.nuget.org/packages/LightStudio.Ffmpeg/): FFmpeg 9.0.2 and its decoding dependencies.
 - [LightStudio.Photos](package/photos/README.md): LibRaw 0.22.2 and Little CMS 2.19.1 for RAW photos and ICC color management. See [Photos builds](#photos-builds) for its platform matrix and workflow.
-- [LightStudio.Onnx](package/onnx/README.md): ONNX Runtime 1.30.0 with its complete .NET managed API for four native RIDs, embedded Dawn/WebGPU on Linux, and CoreML on macOS. See [ONNX validation](tests/onnx/README.md) for package checks and platform limitations.
+- [LightStudio.Onnx](package/onnx/README.md): ONNX Runtime 1.30.0 with its complete .NET managed API for four native RIDs, embedded Dawn/WebGPU on Linux, and CoreML on macOS. See [ONNX build notes](tests/onnx/README.md) for release build instructions and platform limitations.
 - [LightStudio.sqlite-vec](package/sqlite-vec/README.md): sqlite-vec 0.1.9 loadable native extensions for eight native RIDs and single-threaded/multithreaded browser-WASM static libraries with bundled SQLite for WASM and no ONNX dependency. Windows can use the system WinSQLite engine.
+
+The workflows build, stage, pack, and upload artifacts without post-build tests or validation. Pre-build lint and toolchain/configuration checks remain enabled.
 
 ## FFmpeg Runtimes
 
@@ -25,7 +27,7 @@ Every runtime bundles dav1d 1.5.4 as the AV1 decoder. The static sets ship `libd
 
 The HLS and DASH demuxers and file protocol are enabled on every runtime for applications that provide manifests, playlists, and segment resources through `AVFormatContext.io_open`. FFmpeg networking remains disabled; HTTP transport belongs to the consuming application. DASH manifest parsing is provided by libxml2 2.15.3, which is linked statically into shared builds and shipped as `libxml2.a` (`xml2.lib` on Windows) with static builds.
 
-PGS (Blu-ray bitmap) subtitles are enabled on every runtime through the `pgssub` decoder, including embedded PGS tracks in Matroska and MPEG-TS. The `sup` demuxer also supports standalone `.sup` subtitle files. CI checks the configured components and runs linked-library PGS smoke tests for browser-wasm and both Windows architectures.
+PGS (Blu-ray bitmap) subtitles are enabled on every runtime through the `pgssub` decoder, including embedded PGS tracks in Matroska and MPEG-TS. The `sup` demuxer also supports standalone `.sup` subtitle files.
 
 ## Photo formats
 
@@ -55,12 +57,6 @@ objects, then rebuilds libjxl with a forced prefix header. This covers internal
 data and helpers such as `powf_`, not just `skcms_*`; the C++ `skcms_private`
 namespace is renamed too. No pinned submodule sources or public `Jxl*` APIs
 change. skcms is already inside `libjxl_cms.a` (`jxl_cms.lib` on Windows), so no archive merge is needed.
-
-Each wasm libjxl build runs [the skcms coexistence test](scripts/test-libjxl-wasm-skcms.sh).
-It whole-archive links an independent, unprefixed skcms alongside libjxl in both
-orders and compares Display-P3 to sRGB conversions through both APIs. The MT
-test runs on a pthread. This tests native symbol isolation, not a full managed
-SkiaSharp application; FFmpeg's single-threaded JPEG XL restriction still applies.
 
 zlib is required by the PNG decoder. Android and macOS use the platform copy;
 browser-wasm uses the Emscripten `zlib` port and ships the resulting `libz.a`
@@ -96,7 +92,7 @@ risk, not proof that a particular application's final link currently fails.
 
 ## Publish
 
-Push a tag named `ffmpeg-v<package-version>`. The workflow builds and validates each platform, then a final job merges the artifacts and uploads the `LightStudio.Ffmpeg` NuGet package. The NuGet.org push step is disabled. For version 9.0.2.1:
+Push a tag named `ffmpeg-v<package-version>`. The workflow builds each platform, then a final job merges the artifacts and uploads the `LightStudio.Ffmpeg` NuGet package. The NuGet.org push step is disabled. For version 9.0.2.1:
 
 ```bash
 git tag ffmpeg-v9.0.2.1
@@ -140,7 +136,7 @@ Publish for `win-x64`, `win-arm64`, or `osx-arm64`, and initialize `StaticallyLi
 
 All variants build dav1d, libjxl, and libxml2 from their submodules first, so cmake, meson and ninja are required. libjxl has ten nested submodules, including a multi-gigabyte test corpus, so `--recursive` is deliberately avoided; `scripts/fetch-libjxl-dependencies.sh` initializes only brotli, highway and skcms.
 
-Each script stages its output under `artifacts/<artifact-name>`; packing requires all of them, which normally means collecting the artifacts from CI.
+Each script stages its output under `artifacts/<artifact-name>`. Collect all platform outputs, normally from CI, before packing a complete package.
 
 ```bash
 git submodule update --init
@@ -163,7 +159,7 @@ dotnet pack package/LightStudio.Ffmpeg.csproj --output artifacts/packages
 ### Windows FFmpeg builds
 
 Use Visual Studio 2022 or later with MSVC x64/ARM64 tools and a recent Windows SDK,
-MSYS2, and .NET 10 for the consumer tests. Start a fresh x64 Native Tools Command
+and MSYS2. Start a fresh x64 Native Tools Command
 Prompt for `win-x64`, or an x64_arm64 Cross Tools Command Prompt for `win-arm64`.
 Launch MSYS2 from that prompt so it inherits the matching SDK environment:
 
@@ -201,27 +197,8 @@ Media Foundation encoding. FFmpeg's available assembly paths, runtime CPU
 detection, and JPEG XL's AVX-512 variants are enabled. Configure checks reject
 missing hardware APIs, key formats, assembly support, or a non-LGPL configuration.
 
-From the matching Visual Studio developer PowerShell, run:
-
-```powershell
-./scripts/test-ffmpeg-windows.ps1 -Target win-x64
-./scripts/test-ffmpeg-windows.ps1 -Target win-x64 -Hardware
-./scripts/test-ffmpeg-package.ps1
-```
-
-The Windows smoke test links with MSVC, publishes static and shared AutoGen
-NativeAOT consumers, checks PE architecture/imports and DLL deployment, and runs
-decoding on matching hosts. Static publish output must contain no FFmpeg DLLs.
-`-Hardware` requires a usable Media Foundation H.264 hardware encoder and D3D11VA
-decoder; it rejects software fallback in both linkage modes. Package tests
-require both real Windows artifact sets, check runtime/static layout and all
-required libraries, and execute both NuGet-restored x64 consumers. They use empty
-non-Windows fixtures in a disposable test package, which must not be published.
-
-CI cross-builds both architectures on `windows-2022`, executes x64 tests there,
-and runs both static and DLL-backed ARM64 consumers on `windows-11-arm` before packing.
-GPU-dependent tests remain opt-in; a successful cross-link alone does not verify
-execution on an ARM64 machine or its graphics drivers.
+CI cross-builds both architectures on `windows-2022` and uploads their artifacts
+for packing. Runtime execution and hardware compatibility are not checked after building.
 
 The sibling desktop project's local experiment is selected at publish time:
 
@@ -246,26 +223,24 @@ their own SQLite engine; WASM consumers use the bundled engine. All consumers
 supply their own managed provider and register `sqlite3_vec_init`.
 
 The standard SQLite extension API also works with Windows WinSQLite; no
-`winsqlite3.lib` link or separate Windows variant is necessary. Windows CI probes
-the system engine and tests normal application-supplied SQLite as well. See
+`winsqlite3.lib` link or separate Windows variant is necessary. See
 [the package README](package/sqlite-vec/README.md) for provider selection,
-native filenames, local validation, and platform requirements.
+native filenames, local builds, and platform requirements.
 
 ```sh
 bash scripts/build-sqlite-vec.sh linux-x64
-bash scripts/check-sqlite-vec-native.sh linux-x64
-bash scripts/test-sqlite-vec-package.sh linux-x64 0.1.9-local.1
 dotnet pack package/sqlite-vec/LightStudio.sqlite-vec.csproj -c Release -o artifacts/packages
 ```
 
 Release Linux builds use the pinned
 [Ubuntu 24.04 build image](scripts/sqlite-vec-linux.Dockerfile), not the host
-toolchain. The final pack requires all eight native artifacts and all four WASM
+toolchain. A complete package includes all eight native artifacts and all four WASM
 variants. Build these with `bash scripts/build-sqlite-vec.sh browser-wasm` and
-`bash scripts/build-sqlite-vec.sh browser-wasm-mt` under each supported SDK. Partial local packages
-require explicit opt-in and a prerelease version. Tags `sqlite-vec-v<version>`
+`bash scripts/build-sqlite-vec.sh browser-wasm-mt` under each supported SDK. Select
+local subsets with `SqliteVecRuntimeIdentifiers` and use a prerelease version.
+Tags `sqlite-vec-v<version>`
 build/upload only; manual dispatch with `publish=true` publishes to NuGet.org
-using `NUGET_API_KEY` after all build and validation jobs pass.
+using `NUGET_API_KEY` after all build jobs pass.
 
 ## ONNX Builds
 
@@ -281,28 +256,24 @@ NuGet references. WebGPU selection on Linux uses the standard
 
 Sources are downloaded at a verified upstream commit into `artifacts/build`.
 Linux release builds use the pinned
-[Ubuntu 24.04 image](scripts/onnx-linux.Dockerfile) and enforce a glibc 2.39 ceiling.
+[Ubuntu 24.04 image](scripts/onnx-linux.Dockerfile) and target glibc 2.39.
 macOS targets 15.0.
 
 ```sh
 bash scripts/build-onnx.sh linux-x64
-bash scripts/check-onnx-native.sh linux-x64
-ONNX_TEST_GPU=1 bash scripts/test-onnx-package.sh linux-x64
 dotnet pack package/onnx/LightStudio.Onnx.csproj -c Release -o artifacts/packages
 ```
 
-The final command requires all four native outputs. Use the Linux Docker build
-documented in [the validation record](tests/onnx/README.md) for release-compatible
-binaries. Local subset packages require explicit opt-in and a prerelease version;
-they are not full releases. Tags named `onnx-v<version>` build/upload only. Manual
-dispatch with `publish=true` publishes using `NUGET_API_KEY` after all build/test
+Collect all four native outputs for a complete package. Use the Linux Docker build
+documented in [the build notes](tests/onnx/README.md) for release-compatible
+binaries. Select local subsets with `OnnxRuntimeIdentifiers` and use a prerelease
+version; they are not full releases. Tags named `onnx-v<version>` build/upload only. Manual
+dispatch with `publish=true` publishes using `NUGET_API_KEY` after all build
 jobs succeed.
 
 Browser WASM is intentionally omitted: upstream's asynchronous browser WebGPU
 bridge does not supply a supported threaded integration for the full synchronous
-.NET API. No browser performance evaluation was performed. Package checks and
-remaining hosted/device validation are
-recorded in [tests/onnx/README.md](tests/onnx/README.md).
+.NET API. See [the build notes](tests/onnx/README.md) for the platform rationale.
 
 ## Photos Builds
 
@@ -310,13 +281,13 @@ recorded in [tests/onnx/README.md](tests/onnx/README.md).
 
 Wasm retains JPEG ABI 80 internally. The build derives a `lightstudio_photos_` symbol prefix map from the complete JPEG archive, recompiles JPEG and LibRaw with it, then merges their archive members with `emar`. Merging alone or hidden visibility does not isolate symbols in a static wasm link. Emscripten 3.1.69 and 6.0.5's `llvm-objcopy` do not support wasm symbol localization/renaming; `--localize-hidden` leaves the global JPEG symbols unchanged. No JPEG ABI downgrade or pinned source changes are needed.
 
-The [Photos workflow](.github/workflows/photos.yml) uses `ubuntu-22.04`, the oldest supported hosted Ubuntu image, for Linux x64, Windows cross-builds, Android, wasm and packing. Linux arm64 builds natively on `ubuntu-22.04-arm`. Both Linux architectures compile and run smoke tests inside pinned architecture-specific manylinux2014 (CentOS 7, glibc 2.17) containers; the host runner does not set the binary's glibc baseline. CI rejects newer glibc/C++ ABI requirements. The baseline containers are build environments, not a recommendation to deploy an end-of-life OS.
+The [Photos workflow](.github/workflows/photos.yml) uses `ubuntu-22.04`, the oldest supported hosted Ubuntu image, for Linux x64, Windows cross-builds, Android, wasm and packing. Linux arm64 builds natively on `ubuntu-22.04-arm`. Both Linux architectures compile inside pinned architecture-specific manylinux2014 (CentOS 7, glibc 2.17) containers; the host runner does not set the binary's glibc baseline. The baseline containers are build environments, not a recommendation to deploy an end-of-life OS.
 
-macOS uses `macos-14`, as the existing FFmpeg macOS job does, and explicitly targets macOS 11.0. That runner is deprecated upstream and will need replacement when retired; the deployment target can remain 11.0. Intel binaries are cross-built on Apple silicon and both shared/static smoke tests run through Rosetta. Windows x64 uses the MinGW Win32-thread toolchain on Linux and a Wine smoke test, with no Windows build runner required.
+macOS uses `macos-14`, as the existing FFmpeg macOS job does, and explicitly targets macOS 11.0. That runner is deprecated upstream and will need replacement when retired; the deployment target can remain 11.0. Intel binaries are cross-built on Apple silicon. Windows x64 uses the MinGW Win32-thread toolchain on Linux, with no Windows build runner required.
 
-Windows ARM64 uses [LLVM-MinGW](https://github.com/mstorsjo/llvm-mingw), because GCC MinGW does not target Windows on ARM. Compilation stays on `ubuntu-22.04`, using the SHA-256-pinned 20260908 UCRT toolchain. A separate `windows-11-arm` job downloads the result and executes the native compressed-DNG/LCMS smoke test; packing depends on that test succeeding. All four libraries are built with the same LLVM-MinGW toolchain, avoiding incompatible GCC/LLVM static objects. The C++ runtime, JPEG and zlib are embedded in LibRaw, and the package includes the required toolchain notices.
+Windows ARM64 uses [LLVM-MinGW](https://github.com/mstorsjo/llvm-mingw), because GCC MinGW does not target Windows on ARM. Compilation stays on `ubuntu-22.04`, using the SHA-256-pinned 20260908 UCRT toolchain. All four libraries are built with the same LLVM-MinGW toolchain, avoiding incompatible GCC/LLVM static objects. The C++ runtime, JPEG and zlib are embedded in LibRaw, and the package includes the required toolchain notices.
 
-Android follows FFmpeg's SDK setup and combined artifact pattern, using NDK r28c (`28.2.13676358`), API 21, and both 64-bit ABIs. Local tests use `/usr/lib/android-ndk` by default. Artifacts have 16 KB page alignment and do not require `libc++_shared.so`.
+Android follows FFmpeg's SDK setup and combined artifact pattern, using NDK r28c (`28.2.13676358`), API 21, and both 64-bit ABIs. Local builds use `/usr/lib/android-ndk` by default. Artifacts have 16 KB page alignment and do not require `libc++_shared.so`.
 
 Initialize only the required sources, then run the targets available on your host:
 
@@ -326,8 +297,8 @@ git submodule update --init libraw lcms2 libjpeg-turbo zlib
 # Requires Autotools, CMake, make, pkg-config, GCC/G++, and patchelf.
 ./scripts/build-photos.sh linux-x64
 
-# Cross-build on x64 with crossbuild-essential-arm64, qemu-user, and patchelf.
-# Also works natively on arm64; cross-build smoke tests execute through QEMU.
+# Cross-build on x64 with crossbuild-essential-arm64 and patchelf.
+# Also works natively on arm64.
 ./scripts/build-photos.sh linux-arm64
 
 # Reproduce the CI glibc compatibility build; Docker image contains the tools.
@@ -335,7 +306,6 @@ docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
   -v "$PWD:/work" -w /work \
   quay.io/pypa/manylinux2014_x86_64@sha256:493d2032114d757aaa761a9385ad8497f391503bf71acef9abeeb66682ca5d90 \
   ./scripts/build-photos.sh linux-x64
-./scripts/check-photos-linux-abi.sh
 
 # Debian/Ubuntu MinGW packages: gcc/g++-mingw-w64-x86-64-win32.
 ./scripts/build-photos.sh win-x64
@@ -354,31 +324,14 @@ ANDROID_NDK_HOME=/usr/lib/android-ndk ./scripts/build-photos-android.sh
 ./scripts/build-photos.sh osx-arm64
 ./scripts/build-photos.sh osx-x64
 
-./scripts/test-photos-targets.sh
-
-# Requires Linux, Android and Windows outputs (including runtime notices).
-# Uses isolated placeholder files for unavailable platforms, never for release.
-./scripts/test-photos-package.sh
-
 # Requires every real platform artifact, normally downloaded from CI.
 dotnet pack package/photos/LightStudio.Photos.csproj --output artifacts/packages
 ```
 
-`PHOTOS_BUILD_JOBS` controls parallelism. Each target rebuilds its own directory under `artifacts/build/photos-*` without modifying the pinned submodule sources. Shared C API smoke tests run for Linux/macOS; wasm tests execute in Node; Android smoke executables are cross-linked but require a device/emulator to execute. Windows ARM64 builds validate PE architecture and DLL imports locally, but execution requires Windows ARM64 (x64 Wine cannot run this executable). Tests check LibRaw capabilities and decode synthetic 32x32 JPEG/float-deflate DNGs, including on a wasm pthread. Each wasm build also runs [test-photos-wasm-jpeg.sh](scripts/test-photos-wasm-jpeg.sh): it builds a separate, unprefixed ABI 62 JPEG library and force-links both archives in both orders, exercising ABI 62 initialization alongside LibRaw's ABI 80 DNG decoding. This verifies native ABI coexistence, not a full managed SkiaSharp application. The workflow also checks JPEG/zlib capabilities from a .NET P/Invoke consumer loading the final NuGet's Linux assets.
+`PHOTOS_BUILD_JOBS` controls parallelism. Each target rebuilds its own directory under `artifacts/build/photos-*` without modifying the pinned submodule sources.
 
-The Windows ARM64 cross-build was verified locally and in an Ubuntu 22.04 container; native Windows ARM64 execution is a CI gate and has not been verified on the Linux development host. `LLVM_MINGW_HOME` can point to another LLVM-MinGW installation; the default is the pinned toolchain under `artifacts/toolchains`. To run the smoke test on Windows ARM64, keep the two generated DLLs beside `photos-smoke.exe` and execute it. The Linux package test also cross-publishes the .NET consumer for `win-arm64` and checks that the correct DLLs are selected.
+`LLVM_MINGW_HOME` can point to another LLVM-MinGW installation; the default is the pinned toolchain under `artifacts/toolchains`.
 
-The installed `crossbuild-essential-arm64` toolchain was verified locally by compiling all four libraries and running the resulting arm64 smoke executable with `qemu-aarch64 -L /usr/aarch64-linux-gnu`. Local cross-builds inherit that toolchain's glibc/C++ sysroot baseline; use CI's native manylinux build for release compatibility. JPEG/zlib are built from the pinned sources rather than taken from the host or NDK.
+Local arm64 cross-builds inherit the installed toolchain's glibc/C++ sysroot baseline; use CI's native manylinux build for release compatibility. JPEG/zlib are built from the pinned sources rather than taken from the host or NDK.
 
-The committed DNG fixture header is generated by [generate-dng-fixtures.c](tests/photos/generate-dng-fixtures.c), which links against the built JPEG and zlib archives. To regenerate after a Linux x64 build:
-
-```bash
-gcc tests/photos/generate-dng-fixtures.c \
-  -Iartifacts/build/photos-linux-x64/install/include \
-  artifacts/build/photos-linux-x64/install/lib/libjpeg.a \
-  artifacts/build/photos-linux-x64/install/lib/libz.a \
-  -o artifacts/build/photos-dng-fixtures-generator
-artifacts/build/photos-dng-fixtures-generator > tests/photos/dng-fixtures.h
-```
-
-Push a `photos-v<package-version>` tag (initial version `photos-v0.22.2`) or dispatch the workflow manually to build a complete `.nupkg`. Like the current FFmpeg workflow, tag builds produce an artifact without automatically publishing. To publish Photos, use workflow dispatch with `publish=true` and configure the repository's `NUGET_API_KEY` secret. No package is published by local tests.
+Push a `photos-v<package-version>` tag (initial version `photos-v0.22.2`) or dispatch the workflow manually to build a complete `.nupkg`. Like the current FFmpeg workflow, tag builds produce an artifact without automatically publishing. To publish Photos, use workflow dispatch with `publish=true` and configure the repository's `NUGET_API_KEY` secret.

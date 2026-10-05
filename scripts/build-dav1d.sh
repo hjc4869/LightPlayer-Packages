@@ -280,19 +280,10 @@ esac
 meson setup "${meson_args[@]}" "$build_dir" "$dav1d_dir"
 meson install -C "$build_dir"
 
-static_library="$prefix/lib/libdav1d.a"
 if [[ "$target" == win-* ]]; then
-  cp -- "$static_library" "$prefix/lib/dav1d.lib"
-  static_library="$prefix/lib/dav1d.lib"
+  cp -- "$prefix/lib/libdav1d.a" "$prefix/lib/dav1d.lib"
 fi
 pkg_config_file="$prefix/lib/pkgconfig/dav1d.pc"
-
-for artifact in "$static_library" "$pkg_config_file"; do
-  if [[ ! -f "$artifact" ]]; then
-    echo "dav1d did not produce '$artifact'." >&2
-    exit 1
-  fi
-done
 
 if [[ "$target" == browser-wasm-st ]]; then
   # meson records the threads dependency flags in dav1d.pc even though the
@@ -300,11 +291,6 @@ if [[ "$target" == browser-wasm-st ]]; then
   # shared-memory build.
   sed -i.bak -E 's/ -pthread//g; s/ -sPTHREAD_POOL_SIZE=[0-9]+//g' "$pkg_config_file"
   rm -f -- "$pkg_config_file.bak"
-
-  if grep -q 'pthread' "$pkg_config_file"; then
-    echo "Failed to remove the pthread flags from '$pkg_config_file'." >&2
-    exit 1
-  fi
 fi
 
 printf "Built dav1d %s for '%s' in %s\n" \

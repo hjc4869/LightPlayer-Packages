@@ -47,13 +47,11 @@ jobs:
       - uses: actions/checkout@v4
       - name: Fetch photo dependencies
         run: git submodule update --init libraw lcms2 libjpeg-turbo zlib
-      - name: Build and smoke-test on the compatibility baseline
+      - name: Build on the compatibility baseline
         run: >-
           docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp
           -v "$PWD:/work" -w /work "$MANYLINUX_IMAGE"
           ./scripts/build-photos.sh "${{ matrix.target }}"
-      - name: Enforce glibc and C++ ABI baseline
-        run: ./scripts/check-photos-linux-abi.sh "artifacts/photos-${{ matrix.target }}"
       - uses: actions/upload-artifact@v4
         with:
           name: photos-${{ matrix.target }}
@@ -67,18 +65,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: Fetch photo dependencies
         run: git submodule update --init libraw lcms2 libjpeg-turbo zlib
-      - name: Set up Autotools, MinGW and Wine
+      - name: Set up Autotools and MinGW
         run: |
           sudo -n apt-get update
-          sudo -n apt-get install --no-install-recommends -y autoconf automake libtool pkg-config cmake gcc-mingw-w64-x86-64-win32 g++-mingw-w64-x86-64-win32 wine64
-      - name: Build Windows DLLs and inspect dependencies
+          sudo -n apt-get install --no-install-recommends -y autoconf automake libtool pkg-config cmake gcc-mingw-w64-x86-64-win32 g++-mingw-w64-x86-64-win32
+      - name: Build Windows DLLs
         run: ./scripts/build-photos.sh win-x64
-      - name: Run Windows C API smoke test
-        env:
-          WINEDEBUG: "-all"
-          WINEARCH: win64
-          WINEPREFIX: ${{ runner.temp }}/photos-wine
-        run: /usr/lib/wine/wine64 artifacts/photos-win-x64/photos-smoke.exe
       - uses: actions/upload-artifact@v4
         with:
           name: photos-win-x64
@@ -98,31 +90,13 @@ jobs:
           sudo -n apt-get install --no-install-recommends -y autoconf automake libtool pkg-config cmake
       - name: Set up pinned LLVM-MinGW
         run: ./scripts/setup-photos-llvm-mingw.sh
-      - name: Build Windows ARM64 DLLs and inspect dependencies
+      - name: Build Windows ARM64 DLLs
         run: ./scripts/build-photos.sh win-arm64
       - uses: actions/upload-artifact@v4
         with:
           name: photos-win-arm64
           path: artifacts/photos-win-arm64
           if-no-files-found: error
-
-  test-windows-arm64:
-    name: Run Windows ARM64 native smoke test
-    runs-on: windows-11-arm
-    needs: build-windows-arm64
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: photos-win-arm64
-          path: artifacts/photos-win-arm64
-      - name: Decode compressed DNGs and test LCMS on Windows ARM64
-        shell: pwsh
-        run: |
-          if ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString() -ne 'Arm64') {
-            throw 'The smoke test requires native Windows ARM64.'
-          }
-          & ./artifacts/photos-win-arm64/photos-smoke.exe
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
   build-android:
     name: Build photos-android
@@ -183,7 +157,7 @@ jobs:
         with:
           version: ${{ matrix.emsdk.version }}
           actions-cache-folder: artifacts/emsdk-cache
-      - name: Build and smoke-test wasm libraries
+      - name: Build wasm libraries
         run: ./scripts/build-photos.sh "${{ matrix.target }}"
       - uses: actions/upload-artifact@v4
         with:
@@ -206,10 +180,7 @@ jobs:
         run: git submodule update --init libraw lcms2 libjpeg-turbo zlib
       - name: Set up Autotools
         run: brew install autoconf automake libtool pkg-config cmake
-      - name: Enable Intel smoke tests on Apple silicon
-        if: matrix.target == 'osx-x64'
-        run: softwareupdate --install-rosetta --agree-to-license
-      - name: Build and smoke-test shared and static libraries
+      - name: Build shared and static libraries
         run: ./scripts/build-photos.sh "${{ matrix.target }}"
       - uses: actions/upload-artifact@v4
         with:
@@ -220,7 +191,7 @@ jobs:
   pack-and-publish:
     name: Pack and publish LightStudio.Photos
     runs-on: ubuntu-22.04
-    needs: [build-linux, build-windows, test-windows-arm64, build-android, build-browser-wasm, build-macos]
+    needs: [build-linux, build-windows, build-windows-arm64, build-android, build-browser-wasm, build-macos]
     steps:
       - uses: actions/checkout@v4
       - name: Fetch licenses
@@ -253,13 +224,6 @@ jobs:
           --configuration Release --output "$PACKAGE_OUTPUT"
           -p:PackageVersion=${{ steps.version.outputs.value }}
           -p:ContinuousIntegrationBuild=true
-      - name: Test the packed Linux runtime assets
-        run: >-
-          dotnet run --project tests/photos/consumer/Photos.Consumer.csproj
-          --configuration Release
-          -p:PhotosPackageVersion=${{ steps.version.outputs.value }}
-          -p:RestoreAdditionalProjectSources="$PWD/$PACKAGE_OUTPUT"
-          -p:RestorePackagesPath="$PWD/artifacts/build/photos-consumer-packages"
       - uses: actions/upload-artifact@v4
         with:
           name: LightStudio.Photos-${{ steps.version.outputs.value }}

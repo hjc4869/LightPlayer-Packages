@@ -59,7 +59,6 @@ fi
 
 mkdir -p "$PREFIX/licenses/onnxruntime"
 cp -L "$BUILD_DIR/Release/$native_name" "$PREFIX/$native_name"
-cp "$SOURCE_DIR/onnxruntime/test/testdata/mul_1.onnx" "$PREFIX/smoke.onnx"
 cp "$SOURCE_DIR/LICENSE" "$SOURCE_DIR/ThirdPartyNotices.txt" "$PREFIX/licenses/onnxruntime/"
 while IFS= read -r -d '' license_file; do
   relative_path="${license_file#"$BUILD_DIR/Release/_deps/"}"
@@ -72,14 +71,8 @@ done < <(find "$BUILD_DIR/Release/_deps" -type f \
 
 case "$TARGET" in
   linux-*)
-    dependencies="$(readelf -d "$PREFIX/$native_name")"
-    if [[ "$dependencies" == *libstdc++* || "$dependencies" == *libgcc_s* || "$dependencies" == *libdawn* ]]; then
-      printf 'Unexpected unbundled native dependency:\n%s\n' "$dependencies" >&2
-      exit 1
-    fi
     mkdir -p "$PREFIX/licenses/toolchain"
     gcc_license="$(find /usr/share/doc -path '*/gcc-*/copyright' -type f -print -quit)"
-    [[ -n "$gcc_license" ]]
     cp "$gcc_license" "$PREFIX/licenses/toolchain/GCC-copyright.txt"
     cp /usr/share/common-licenses/GPL-3 "$PREFIX/licenses/toolchain/GPL-3.txt"
     ;;

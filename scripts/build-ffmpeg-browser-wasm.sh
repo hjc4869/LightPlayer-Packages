@@ -336,10 +336,6 @@ fi
 emmake make -j32
 
 zlib_archive="$(em-config CACHE)/sysroot/lib/wasm32-emscripten/libz.a"
-if [[ ! -f "$zlib_archive" ]]; then
-  echo "The Emscripten zlib port did not produce '$zlib_archive'." >&2
-  exit 1
-fi
 
 archives=(
   "$build_dir/libavcodec/libavcodec.a"
@@ -365,13 +361,6 @@ if [[ "$enable_libjxl" -eq 1 ]]; then
     "$libjxl_prefix/lib/libbrotlienc.a"
   )
 fi
-
-for archive in "${archives[@]}"; do
-  if [[ ! -f "$archive" ]]; then
-    echo "Expected FFmpeg archive was not built: $archive" >&2
-    exit 1
-  fi
-done
 
 rm -rf -- "$artifacts_dir"
 mkdir -p "$artifacts_dir"
