@@ -13,3 +13,5 @@ package/sqlite-vec/bin/
 package/sqlite-vec/obj/
 tests/sqlite-vec/consumer/bin/
 tests/sqlite-vec/consumer/obj/
+tests/ffmpeg/consumer/bin/
+tests/ffmpeg/consumer/obj/

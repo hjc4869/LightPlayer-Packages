@@ -15,6 +15,8 @@ Targets:
   android-arm64    Android NDK, aarch64
   android-x64      Android NDK, x86_64
   osx-arm64        macOS, Apple silicon
+  win-x64          Windows, clang-cl/MSVC ABI, x86_64
+  win-arm64        Windows, clang-cl/MSVC ABI, aarch64
 EOF
   exit 2
 fi
@@ -22,6 +24,13 @@ fi
 target="$1"
 prefix="$2"
 build_dir="$3"
+
+if [[ "$target" == win-* ]]; then
+  export MSYS2_ARG_CONV_EXCL='*'
+  prefix="$(cygpath -m "$prefix")"
+  build_dir="$(cygpath -m "$build_dir")"
+  libxml2_dir="$(cygpath -m "$libxml2_dir")"
+fi
 
 if [[ ! -f "$libxml2_dir/CMakeLists.txt" ]]; then
   echo "libxml2 is not initialized at '$libxml2_dir'. Run 'git submodule update --init'." >&2
@@ -124,6 +133,25 @@ case "$target" in
     export MACOSX_DEPLOYMENT_TARGET="$deployment_target"
     ;;
 
+  win-x64 | win-arm64)
+    if [[ "$target" == win-x64 ]]; then
+      triple=x86_64-pc-windows-msvc
+      processor=AMD64
+    else
+      triple=aarch64-pc-windows-msvc
+      processor=ARM64
+    fi
+
+    cmake_args+=(
+      -DCMAKE_SYSTEM_NAME=Windows
+      -DCMAKE_SYSTEM_PROCESSOR="$processor"
+      -DCMAKE_C_COMPILER=clang-cl
+      -DCMAKE_C_COMPILER_TARGET="$triple"
+      -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+      -DLIBXML2_WITH_THREADS=ON
+    )
+    ;;
+
   *)
     echo "Unknown libxml2 target '$target'." >&2
     exit 2
@@ -137,6 +165,10 @@ cmake --build "$build_dir" --parallel "$build_jobs"
 cmake --install "$build_dir"
 
 static_library="$prefix/lib/libxml2.a"
+if [[ "$target" == win-* ]]; then
+  cp -- "$prefix/lib/libxml2s.lib" "$prefix/lib/xml2.lib"
+  static_library="$prefix/lib/xml2.lib"
+fi
 pkg_config_file="$prefix/lib/pkgconfig/libxml-2.0.pc"
 
 for artifact in "$static_library" "$pkg_config_file"; do

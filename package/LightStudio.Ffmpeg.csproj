@@ -4,10 +4,10 @@
     <EnableDefaultItems>false</EnableDefaultItems>
 
     <PackageId>LightStudio.Ffmpeg</PackageId>
-    <Version>9.0.1.3</Version>
+    <Version>9.0.2.1</Version>
     <Authors>LightStudio</Authors>
-    <Description>FFmpeg 9.0.1 native libraries for .NET, with HLS and DASH custom I/O support, dav1d (AV1), libjxl (JPEG XL), and common photo formats. Shared libraries for android-arm64, android-x64 and osx-arm64, plus static archives for browser-wasm and osx-arm64 native AOT static linking.</Description>
-    <PackageTags>ffmpeg;native;hls;dash;android;osx-arm64;browser-wasm;webassembly;wasm;dav1d;libjxl;jpegxl;avif;heic</PackageTags>
+    <Description>FFmpeg 9.0.2 LGPL native libraries for .NET, with HLS and DASH custom I/O support, dav1d (AV1), libjxl (JPEG XL), and common photo formats. Shared libraries for Android, osx-arm64, win-x64 and win-arm64, static archives for browser-wasm, and NativeAOT static libraries for osx-arm64, win-x64 and win-arm64. Windows includes D3D11VA and Media Foundation support.</Description>
+    <PackageTags>ffmpeg;native;nativeaot;lgpl;hls;dash;android;osx-arm64;win-x64;win-arm64;d3d11va;mediafoundation;browser-wasm;webassembly;wasm;dav1d;libjxl;jpegxl;avif;heic</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>LGPL-2.1-or-later AND BSD-2-Clause AND BSD-3-Clause AND Apache-2.0 AND MIT AND Zlib</PackageLicenseExpression>
     <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
@@ -22,6 +22,8 @@
   </PropertyGroup>
 
   <ItemGroup Label="Dynamically linked runtime assets">
+    <None Include="$(FFmpegArtifactsPath)/ffmpeg-win-x64/*.dll" Pack="true" PackagePath="runtimes/win-x64/native/" />
+    <None Include="$(FFmpegArtifactsPath)/ffmpeg-win-arm64/*.dll" Pack="true" PackagePath="runtimes/win-arm64/native/" />
     <None Include="$(FFmpegArtifactsPath)/ffmpeg-android/android-arm64/*.so" Pack="true" PackagePath="runtimes/android-arm64/native/" />
     <None Include="$(FFmpegArtifactsPath)/ffmpeg-android/android-x64/*.so" Pack="true" PackagePath="runtimes/android-x64/native/" />
     <None Include="$(FFmpegArtifactsPath)/ffmpeg-osx-arm64/*.dylib" Pack="true" PackagePath="runtimes/osx-arm64/native/" />
@@ -29,6 +31,8 @@
 
   <!-- Static archives live outside runtimes/ so NuGet never treats them as deployable runtime assets. -->
   <ItemGroup Label="Statically linked assets">
+    <None Include="$(FFmpegArtifactsPath)/ffmpeg-win-x64/*.lib" Pack="true" PackagePath="static/win-x64/" />
+    <None Include="$(FFmpegArtifactsPath)/ffmpeg-win-arm64/*.lib" Pack="true" PackagePath="static/win-arm64/" />
     <None Include="$(FFmpegArtifactsPath)/ffmpeg-osx-arm64/*.a" Pack="true" PackagePath="static/osx-arm64/" />
     <None Include="$(FFmpegArtifactsPath)/ffmpeg-browser-wasm-em3/*.a" Pack="true" PackagePath="static/wasm-em3/" />
     <None Include="$(FFmpegArtifactsPath)/ffmpeg-MT-browser-wasm-em3/*.a" Pack="true" PackagePath="static/wasm-mt-em3/" />
@@ -51,6 +55,7 @@
     <None Include="../libjxl/third_party/brotli/LICENSE" Pack="true" PackagePath="licenses/brotli/" />
     <None Include="../libjxl/third_party/highway/LICENSE" Pack="true" PackagePath="licenses/highway/" />
     <None Include="../libjxl/third_party/skcms/LICENSE" Pack="true" PackagePath="licenses/skcms/" />
+    <None Include="../zlib/LICENSE" Pack="true" PackagePath="licenses/zlib/" />
   </ItemGroup>
 
   <Target Name="ValidateFFmpegArtifacts" BeforeTargets="GenerateNuspec">
@@ -66,6 +71,12 @@
       <_FFmpegWasmRequired Include="@(_FFmpegWasmArtifact->'$(FFmpegArtifactsPath)/%(Identity)/libxml2.a')" />
       <_FFmpegWasmRequired Include="@(_FFmpegWasmArtifact->'$(FFmpegArtifactsPath)/%(Identity)/libz.a')" />
       <_FFmpegWasmRequired Include="$(FFmpegArtifactsPath)/ffmpeg-MT-browser-wasm-em3/libjxl.a;$(FFmpegArtifactsPath)/ffmpeg-MT-browser-wasm-em6/libjxl.a" />
+      <_FFmpegWindowsLibrary Include="avcodec;avdevice;avfilter;avformat;avutil;swresample;swscale;dav1d;jxl;jxl_cms;jxl_threads;hwy;brotlicommon;brotlidec;brotlienc;xml2;zlib" />
+      <_FFmpegWindowsRequired Include="@(_FFmpegWindowsLibrary->'$(FFmpegArtifactsPath)/ffmpeg-win-x64/%(Identity).lib')" />
+      <_FFmpegWindowsRequired Include="@(_FFmpegWindowsLibrary->'$(FFmpegArtifactsPath)/ffmpeg-win-arm64/%(Identity).lib')" />
+      <_FFmpegWindowsDll Include="avcodec-63.dll;avdevice-63.dll;avfilter-12.dll;avformat-63.dll;avutil-61.dll;swresample-7.dll;swscale-10.dll" />
+      <_FFmpegWindowsSharedRequired Include="@(_FFmpegWindowsDll->'$(FFmpegArtifactsPath)/ffmpeg-win-x64/%(Identity)')" />
+      <_FFmpegWindowsSharedRequired Include="@(_FFmpegWindowsDll->'$(FFmpegArtifactsPath)/ffmpeg-win-arm64/%(Identity)')" />
     </ItemGroup>
     <Error Condition="'@(_FFmpegAndroidArm64)' == ''" Text="Missing android-arm64 shared libraries in '$(FFmpegArtifactsPath)/ffmpeg-android/android-arm64'. Run scripts/build-ffmpeg-android.sh or download the CI artifact before packing." />
     <Error Condition="'@(_FFmpegAndroidX64)' == ''" Text="Missing android-x64 shared libraries in '$(FFmpegArtifactsPath)/ffmpeg-android/android-x64'. Run scripts/build-ffmpeg-android.sh or download the CI artifact before packing." />
@@ -74,5 +85,7 @@
     <Error Condition="'@(_FFmpegOsxArm64Jxl)' == ''" Text="Missing libjxl.a in '$(FFmpegArtifactsPath)/ffmpeg-osx-arm64'. Run scripts/build-ffmpeg-osx-arm64.sh or download the CI artifact before packing." />
     <Error Condition="'@(_FFmpegOsxArm64Xml)' == ''" Text="Missing libxml2.a in '$(FFmpegArtifactsPath)/ffmpeg-osx-arm64'. Run scripts/build-ffmpeg-osx-arm64.sh or download the CI artifact before packing." />
     <Error Condition="!Exists('%(_FFmpegWasmRequired.Identity)')" Text="Missing browser-wasm archive '%(_FFmpegWasmRequired.Identity)'. Build both thread variants with Emscripten 3.x and 6.x or download all four CI artifacts before packing." />
+    <Error Condition="!Exists('%(_FFmpegWindowsRequired.Identity)')" Text="Missing Windows static archive '%(_FFmpegWindowsRequired.Identity)'. Run scripts/build-ffmpeg-windows.sh for win-x64 and win-arm64 or download both CI artifacts before packing." />
+    <Error Condition="!Exists('%(_FFmpegWindowsSharedRequired.Identity)')" Text="Missing Windows shared library '%(_FFmpegWindowsSharedRequired.Identity)'. Run scripts/build-ffmpeg-windows.sh for win-x64 and win-arm64 or download both CI artifacts before packing." />
   </Target>
 </Project>

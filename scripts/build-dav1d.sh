@@ -15,6 +15,8 @@ Targets:
   android-arm64    Android NDK, aarch64
   android-x64      Android NDK, x86_64
   osx-arm64        macOS, Apple silicon
+  win-x64          Windows, clang-cl/MSVC ABI, x86_64
+  win-arm64        Windows, clang-cl/MSVC ABI, aarch64
 EOF
   exit 2
 fi
@@ -230,6 +232,45 @@ EOF
     meson_args+=(--cross-file "$cross_file" -Denable_asm=true -Db_staticpic=true)
     ;;
 
+  win-x64 | win-arm64)
+    for tool in clang-cl llvm-lib nasm cygpath; do
+      if ! command -v "$tool" >/dev/null 2>&1; then
+        echo "'$tool' is required to build dav1d for Windows." >&2
+        exit 1
+      fi
+    done
+
+    if [[ "$target" == win-x64 ]]; then
+      triple=x86_64-pc-windows-msvc
+      meson_cpu_family=x86_64
+    else
+      triple=aarch64-pc-windows-msvc
+      meson_cpu_family=aarch64
+    fi
+
+    cat >"$cross_file" <<EOF
+[binaries]
+c = ['$(cygpath -m "$(command -v clang-cl)")', '--target=$triple']
+cpp = ['$(cygpath -m "$(command -v clang-cl)")', '--target=$triple']
+ar = '$(cygpath -m "$(command -v llvm-lib)")'
+nasm = '$(cygpath -m "$(command -v nasm)")'
+
+[built-in options]
+b_vscrt = 'mt'
+
+[host_machine]
+system = 'windows'
+cpu_family = '$meson_cpu_family'
+cpu = '$meson_cpu_family'
+endian = 'little'
+EOF
+
+    meson_args+=(--cross-file "$(cygpath -m "$cross_file")" -Denable_asm=true)
+    meson_args+=(--prefix "$(cygpath -m "$prefix")")
+    build_dir="$(cygpath -m "$build_dir")"
+    dav1d_dir="$(cygpath -m "$dav1d_dir")"
+    ;;
+
   *)
     echo "Unknown dav1d target '$target'." >&2
     exit 2
@@ -240,6 +281,10 @@ meson setup "${meson_args[@]}" "$build_dir" "$dav1d_dir"
 meson install -C "$build_dir"
 
 static_library="$prefix/lib/libdav1d.a"
+if [[ "$target" == win-* ]]; then
+  cp -- "$static_library" "$prefix/lib/dav1d.lib"
+  static_library="$prefix/lib/dav1d.lib"
+fi
 pkg_config_file="$prefix/lib/pkgconfig/dav1d.pc"
 
 for artifact in "$static_library" "$pkg_config_file"; do

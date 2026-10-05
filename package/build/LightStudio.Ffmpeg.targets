@@ -11,6 +11,8 @@
 
     <!-- Only runtimes that ship static archives and support native AOT can be linked statically. -->
     <_LightStudioFfmpegStaticRid Condition="'$(RuntimeIdentifier)' == 'osx-arm64'">osx-arm64</_LightStudioFfmpegStaticRid>
+    <_LightStudioFfmpegStaticRid Condition="'$(RuntimeIdentifier)' == 'win-x64' or '$(RuntimeIdentifier)' == 'win-arm64'">$(RuntimeIdentifier)</_LightStudioFfmpegStaticRid>
+    <LightStudioFfmpegStaticLibraryDir Condition="'$(LightStudioFfmpegStaticLibraryDir)' == ''">$(LightStudioFfmpegPackageRoot)static/$(_LightStudioFfmpegStaticRid)</LightStudioFfmpegStaticLibraryDir>
 
     <_LightStudioFfmpegUseStatic>false</_LightStudioFfmpegUseStatic>
     <_LightStudioFfmpegUseStatic Condition="'$(EnableStaticFfmpeg)' == 'true' and '$(PublishAot)' == 'true' and '$(_LightStudioFfmpegStaticRid)' != ''">true</_LightStudioFfmpegUseStatic>
@@ -20,9 +22,22 @@
     <NativeFileReference Include="$(LightStudioFfmpegPackageRoot)static/$(_LightStudioFfmpegWasmFlavor)/*.a" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(_LightStudioFfmpegUseStatic)' == 'true'">
-    <NativeLibrary Include="$(LightStudioFfmpegPackageRoot)static/$(_LightStudioFfmpegStaticRid)/*.a" />
+  <ItemGroup Condition="'$(_LightStudioFfmpegUseStatic)' == 'true' and '$(_LightStudioFfmpegStaticRid)' == 'osx-arm64'">
+    <NativeLibrary Include="$(LightStudioFfmpegStaticLibraryDir)/*.a" />
   </ItemGroup>
+
+  <ItemGroup Condition="'$(_LightStudioFfmpegUseStatic)' == 'true' and ('$(_LightStudioFfmpegStaticRid)' == 'win-x64' or '$(_LightStudioFfmpegStaticRid)' == 'win-arm64')">
+    <_LightStudioFfmpegWindowsLibrary Include="avcodec;avdevice;avfilter;avformat;avutil;swresample;swscale;dav1d;jxl;jxl_cms;jxl_threads;hwy;brotlicommon;brotlidec;brotlienc;xml2;zlib" />
+    <_LightStudioFfmpegWindowsArchive Include="@(_LightStudioFfmpegWindowsLibrary->'$(LightStudioFfmpegStaticLibraryDir)/%(Identity).lib')" />
+    <NativeLibrary Include="@(_LightStudioFfmpegWindowsArchive)" />
+    <NativeLibrary Include="mfuuid.lib;ole32.lib;strmiids.lib;user32.lib;bcrypt.lib" />
+  </ItemGroup>
+
+  <Target Name="ValidateLightStudioFfmpegWindowsStaticLibraries" BeforeTargets="PrepareForBuild;IlcCompile"
+          Condition="'@(_LightStudioFfmpegWindowsArchive)' != ''">
+    <Error Condition="!Exists('%(_LightStudioFfmpegWindowsArchive.Identity)')"
+           Text="Missing FFmpeg static library '%(_LightStudioFfmpegWindowsArchive.Identity)'. Restore a complete LightStudio.Ffmpeg package or build the matching Windows artifacts." />
+  </Target>
 
   <ItemGroup Condition="'$(_LightStudioFfmpegUseStatic)' == 'true' and '$(_LightStudioFfmpegStaticRid)' == 'osx-arm64'">
     <!-- libjxl and its dependencies are C++, and the PNG/TIFF decoders need zlib. -->

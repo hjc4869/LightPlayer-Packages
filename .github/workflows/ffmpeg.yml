@@ -9,7 +9,7 @@ on:
       package_version:
         description: NuGet package version
         required: true
-        default: "9.0.1"
+        default: "9.0.2.1"
         type: string
 
 permissions:
@@ -126,6 +126,103 @@ jobs:
           path: artifacts/ffmpeg-osx-arm64
           if-no-files-found: error
 
+  build-windows:
+    name: Build ffmpeg-${{ matrix.rid }}
+    runs-on: windows-2022
+    env:
+      FFMPEG_BUILD_JOBS: "4"
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: win-x64
+            vc_arch: x64
+          - rid: win-arm64
+            vc_arch: amd64_arm64
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Set up MSVC and Windows SDK
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: ${{ matrix.vc_arch }}
+
+      - name: Set up MSYS2 and LLVM
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MSYS
+          path-type: inherit
+          update: true
+          install: >-
+            make diffutils pkgconf nasm perl
+            mingw-w64-ucrt-x86_64-clang
+            mingw-w64-ucrt-x86_64-lld
+            mingw-w64-ucrt-x86_64-llvm
+            mingw-w64-ucrt-x86_64-cmake
+            mingw-w64-ucrt-x86_64-meson
+
+      - name: Fetch libjxl dependencies
+        shell: msys2 {0}
+        run: bash scripts/fetch-libjxl-dependencies.sh
+
+      - name: Build LGPL FFmpeg static and shared libraries
+        shell: msys2 {0}
+        run: |
+          export PATH="/usr/bin:/ucrt64/bin:$PATH"
+          bash scripts/build-ffmpeg-windows.sh "${{ matrix.rid }}"
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Verify MSVC and NativeAOT static and shared consumers
+        shell: pwsh
+        run: ./scripts/test-ffmpeg-windows.ps1 -Target '${{ matrix.rid }}'
+
+      - name: Upload ARM64 smoke executables and DLLs
+        if: matrix.rid == 'win-arm64'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-tests-win-arm64
+          path: |
+            artifacts/tests/ffmpeg-win-arm64/*.exe
+            artifacts/tests/ffmpeg-win-arm64/shared/*.exe
+            artifacts/tests/ffmpeg-win-arm64/shared/*.dll
+          if-no-files-found: error
+
+      - name: Upload native artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-${{ matrix.rid }}
+          path: artifacts/ffmpeg-${{ matrix.rid }}
+          if-no-files-found: error
+
+  test-windows-arm64:
+    name: Run Windows ARM64 static and shared consumers
+    runs-on: windows-11-arm
+    needs: build-windows
+    steps:
+      - name: Download ARM64 smoke executables and DLLs
+        uses: actions/download-artifact@v4
+        with:
+          name: ffmpeg-tests-win-arm64
+          path: native-tests
+
+      - name: Run MSVC and NativeAOT consumers
+        shell: pwsh
+        run: |
+          ./native-tests/pgs-support.exe
+          if ($LASTEXITCODE -ne 0) { throw 'ARM64 PGS smoke test failed' }
+          ./native-tests/FfmpegConsumer.exe
+            if ($LASTEXITCODE -ne 0) { throw 'ARM64 static NativeAOT consumer failed' }
+            ./native-tests/shared/FfmpegConsumer.exe
+            if ($LASTEXITCODE -ne 0) { throw 'ARM64 shared NativeAOT consumer failed' }
+
   build-android:
     name: Build ffmpeg-android
     runs-on: macos-15
@@ -178,6 +275,8 @@ jobs:
       - build-browser-wasm
       - build-osx-arm64
       - build-android
+      - build-windows
+      - test-windows-arm64
 
     steps:
       - name: Check out repository
@@ -217,6 +316,10 @@ jobs:
         with:
           path: artifacts
           pattern: ffmpeg-*
+
+      - name: Verify Windows package layout and static selection
+        shell: pwsh
+        run: ./scripts/test-ffmpeg-package.ps1 -SkipNative
 
       - name: Pack NuGet package
         run: >-

@@ -15,6 +15,8 @@ Targets:
   android-arm64    Android NDK, aarch64
   android-x64      Android NDK, x86_64
   osx-arm64        macOS, Apple silicon
+  win-x64          Windows, clang-cl/MSVC ABI, x86_64
+  win-arm64        Windows, clang-cl/MSVC ABI, aarch64
 EOF
   exit 2
 fi
@@ -22,6 +24,13 @@ fi
 target="$1"
 prefix="$2"
 build_dir="$3"
+
+if [[ "$target" == win-* ]]; then
+  export MSYS2_ARG_CONV_EXCL='*'
+  prefix="$(cygpath -m "$prefix")"
+  build_dir="$(cygpath -m "$build_dir")"
+  libjxl_dir="$(cygpath -m "$libjxl_dir")"
+fi
 
 if [[ ! -f "$libjxl_dir/CMakeLists.txt" ]]; then
   echo "libjxl is not initialized at '$libjxl_dir'. Run 'git submodule update --init'." >&2
@@ -159,6 +168,30 @@ case "$target" in
     export MACOSX_DEPLOYMENT_TARGET="$deployment_target"
     ;;
 
+  win-x64 | win-arm64)
+    if [[ "$target" == win-x64 ]]; then
+      triple=x86_64-pc-windows-msvc
+      processor=AMD64
+    else
+      triple=aarch64-pc-windows-msvc
+      processor=ARM64
+    fi
+
+    cmake_args+=(
+      -DCMAKE_SYSTEM_NAME=Windows
+      -DCMAKE_SYSTEM_PROCESSOR="$processor"
+      -DCMAKE_C_COMPILER=clang-cl
+      -DCMAKE_CXX_COMPILER=clang-cl
+      -DCMAKE_C_COMPILER_TARGET="$triple"
+      -DCMAKE_CXX_COMPILER_TARGET="$triple"
+      -DCMAKE_NM="$(cygpath -m "$(command -v llvm-nm)")"
+      -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+      -DJPEGXL_ENABLE_AVX512=ON
+      -DJPEGXL_ENABLE_AVX512_SPR=ON
+      -DJPEGXL_ENABLE_AVX512_ZEN4=ON
+    )
+    ;;
+
   *)
     echo "Unknown libjxl target '$target'." >&2
     exit 2
@@ -180,7 +213,15 @@ fi
 skcms_symbols="$build_dir/skcms-symbols.txt"
 skcms_namespace="$build_dir/skcms-namespace.h"
 skcms_objects="$build_dir/lib/CMakeFiles/jxl_cms.dir/__/third_party/skcms"
-"$nm_tool" -g "$skcms_objects"/*.o "$skcms_objects"/src/*.o |
+shopt -s nullglob
+skcms_inputs=("$skcms_objects"/*.o "$skcms_objects"/src/*.o
+  "$skcms_objects"/*.obj "$skcms_objects"/src/*.obj)
+shopt -u nullglob
+if [[ ${#skcms_inputs[@]} -eq 0 ]]; then
+  echo "No skcms objects found in '$skcms_objects'." >&2
+  exit 1
+fi
+"$nm_tool" -g "${skcms_inputs[@]}" |
   awk -v target="$target" 'NF >= 2 && $(NF - 1) ~ /^[ABCDGRSTVW]$/ {
     symbol = $NF;
     if (target == "osx-arm64") sub(/^_/, "", symbol);
@@ -192,7 +233,11 @@ printf '#define skcms_private lightstudio_ffmpeg_skcms_private\n' >> "$skcms_nam
 grep -q '^#define skcms_Transform ' "$skcms_namespace"
 for language in C CXX; do
   compiler_flags="$(sed -n "s/^CMAKE_${language}_FLAGS:STRING=//p" "$build_dir/CMakeCache.txt")"
-  cmake_args+=("-DCMAKE_${language}_FLAGS=$compiler_flags -include \"$skcms_namespace\"")
+  if [[ "$target" == win-* ]]; then
+    cmake_args+=("-DCMAKE_${language}_FLAGS=$compiler_flags -FI\"$skcms_namespace\"")
+  else
+    cmake_args+=("-DCMAKE_${language}_FLAGS=$compiler_flags -include \"$skcms_namespace\"")
+  fi
 done
 "${configure[@]}" "${cmake_args[@]}"
 # The default target is used on purpose: brotli's install rules cover its CLI,
@@ -209,6 +254,13 @@ static_libraries=(
   "$prefix/lib/libbrotlidec.a"
   "$prefix/lib/libbrotlienc.a"
 )
+
+if [[ "$target" == win-* ]]; then
+  static_libraries=()
+  for library in jxl jxl_cms jxl_threads hwy brotlicommon brotlidec brotlienc; do
+    static_libraries+=("$prefix/lib/$library.lib")
+  done
+fi
 
 pkg_config_files=(
   "$prefix/lib/pkgconfig/libjxl.pc"
@@ -236,7 +288,7 @@ skcms_conflicts="$("$nm_tool" -g "${static_libraries[@]}" |
     NF >= 2 {
       symbol = $NF;
       if (target == "osx-arm64") sub(/^_/, "", symbol);
-      if (symbol in original || symbol ~ /^skcms_/ || symbol ~ /^_Z.*13skcms_private/)
+      if (symbol in original || symbol ~ /^skcms_/ || symbol ~ /^_Z.*13skcms_private/ || symbol ~ /@skcms_private@/)
         print symbol;
     }' |
   LC_ALL=C sort -u)"
@@ -259,12 +311,17 @@ fi
 # (it ships libc++_static.a and libc++abi.a next to libc++_shared.so).
 case "$target" in
   android-*) cxx_runtime_libs="-lc++_static -lc++abi" ;;
+  win-*) cxx_runtime_libs="-llibcpmt" ;;
   *) cxx_runtime_libs="-lc++" ;;
 esac
 
 for pkg_config_file in "${pkg_config_files[@]}"; do
-  sed -i.bak -E "s/-lc\\+\\+( |\$)/$cxx_runtime_libs\\1/g" "$pkg_config_file"
+  sed -i.bak -E "s/-l(c\\+\\+|stdc\\+\\+)( |\$)/$cxx_runtime_libs\\2/g" "$pkg_config_file"
   rm -f -- "$pkg_config_file.bak"
+  if [[ "$target" == win-* ]]; then
+    sed -i.bak -E "s/ -lm( |\$)/\\1/g; s/^Libs\\.private:.*/& $cxx_runtime_libs/" "$pkg_config_file"
+    rm -f -- "$pkg_config_file.bak"
+  fi
 done
 
 # libjxl_threads.pc only lists '-lm' even though the runner is std::thread based.

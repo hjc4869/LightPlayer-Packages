@@ -2,7 +2,7 @@
 
 This repository builds native and managed NuGet packages for .NET:
 
-- [`LightStudio.Ffmpeg`](https://www.nuget.org/packages/LightStudio.Ffmpeg/): FFmpeg 9.0.1 and its decoding dependencies.
+- [`LightStudio.Ffmpeg`](https://www.nuget.org/packages/LightStudio.Ffmpeg/): FFmpeg 9.0.2 and its decoding dependencies.
 - [LightStudio.Photos](package/photos/README.md): LibRaw 0.22.2 and Little CMS 2.19.1 for RAW photos and ICC color management. See [Photos builds](#photos-builds) for its platform matrix and workflow.
 - [LightStudio.Onnx](package/onnx/README.md): ONNX Runtime 1.30.0 with its complete .NET managed API for four native RIDs, embedded Dawn/WebGPU on Linux, and CoreML on macOS. See [ONNX validation](tests/onnx/README.md) for package checks and platform limitations.
 - [LightStudio.sqlite-vec](package/sqlite-vec/README.md): sqlite-vec 0.1.9 loadable native extensions for eight native RIDs and single-threaded/multithreaded browser-WASM static libraries with bundled SQLite for WASM and no ONNX dependency. Windows can use the system WinSQLite engine.
@@ -12,6 +12,8 @@ This repository builds native and managed NuGet packages for .NET:
 | Runtime | Linking | Location in the package |
 | --- | --- | --- |
 | `android-arm64`, `android-x64` | Shared (`.so`) | `runtimes/android-<arch>/native` |
+| `win-x64`, `win-arm64` | Shared (`.dll`) | `runtimes/win-<arch>/native` |
+| `win-x64`, `win-arm64` | Static (`.lib`, NativeAOT only) | `static/win-<arch>` |
 | `osx-arm64` | Shared (`.dylib`) | `runtimes/osx-arm64/native` |
 | `osx-arm64` | Static (`.a`, native AOT only) | `static/osx-arm64` |
 | `browser-wasm`, single-threaded | Static (`.a`) | `static/wasm-em3`, `static/wasm-em6` |
@@ -19,11 +21,11 @@ This repository builds native and managed NuGet packages for .NET:
 
 Static archives are deliberately kept outside `runtimes/` so NuGet never treats them as deployable runtime assets. The package's `build/LightStudio.Ffmpeg.targets` wires them up instead.
 
-Every runtime bundles dav1d 1.5.4 as the AV1 decoder. The browser-wasm and osx-arm64 static sets ship `libdav1d.a` next to the FFmpeg archives; the Android and macOS shared libraries link dav1d statically into `libavcodec`.
+Every runtime bundles dav1d 1.5.4 as the AV1 decoder. The static sets ship `libdav1d.a` (`dav1d.lib` on Windows) next to the FFmpeg archives; the Android, macOS, and Windows shared libraries link dav1d statically into the FFmpeg codec library.
 
-The HLS and DASH demuxers and file protocol are enabled on every runtime for applications that provide manifests, playlists, and segment resources through `AVFormatContext.io_open`. FFmpeg networking remains disabled; HTTP transport belongs to the consuming application. DASH manifest parsing is provided by libxml2 2.15.3, which is linked statically into shared builds and shipped as `libxml2.a` with static builds.
+The HLS and DASH demuxers and file protocol are enabled on every runtime for applications that provide manifests, playlists, and segment resources through `AVFormatContext.io_open`. FFmpeg networking remains disabled; HTTP transport belongs to the consuming application. DASH manifest parsing is provided by libxml2 2.15.3, which is linked statically into shared builds and shipped as `libxml2.a` (`xml2.lib` on Windows) with static builds.
 
-PGS (Blu-ray bitmap) subtitles are enabled on every runtime through the `pgssub` decoder, including embedded PGS tracks in Matroska and MPEG-TS. The `sup` demuxer also supports standalone `.sup` subtitle files. CI checks the configured components for every target and runs a linked-library PGS smoke test for both browser-wasm variants.
+PGS (Blu-ray bitmap) subtitles are enabled on every runtime through the `pgssub` decoder, including embedded PGS tracks in Matroska and MPEG-TS. The `sup` demuxer also supports standalone `.sup` subtitle files. CI checks the configured components and runs linked-library PGS smoke tests for browser-wasm and both Windows architectures.
 
 ## Photo formats
 
@@ -40,7 +42,7 @@ The common still-image formats are enabled on every runtime:
 | JPEG XL (still and animated) | `jpegxl_pipe`, `jpegxl_anim` | `libjxl`, `libjxl_anim` |
 
 JPEG XL comes from libjxl 0.11.2, which is built from the `libjxl` submodule the
-same way dav1d is. It is enabled on `android-arm64`, `android-x64`, `osx-arm64`
+same way dav1d is. It is enabled on `android-arm64`, `android-x64`, `osx-arm64`, `win-x64`, `win-arm64`
 and the multi-threaded browser-wasm variant. It is **not** available in the
 single-threaded browser-wasm variant: libjxl's parallel runner is `std::thread`
 based and FFmpeg always creates it with `av_cpu_count()` workers, which aborts in
@@ -52,7 +54,7 @@ build below, the build first discovers all external C definitions in skcms's
 objects, then rebuilds libjxl with a forced prefix header. This covers internal
 data and helpers such as `powf_`, not just `skcms_*`; the C++ `skcms_private`
 namespace is renamed too. No pinned submodule sources or public `Jxl*` APIs
-change. skcms is already inside `libjxl_cms.a`, so no archive merge is needed.
+change. skcms is already inside `libjxl_cms.a` (`jxl_cms.lib` on Windows), so no archive merge is needed.
 
 Each wasm libjxl build runs [the skcms coexistence test](scripts/test-libjxl-wasm-skcms.sh).
 It whole-archive links an independent, unprefixed skcms alongside libjxl in both
@@ -63,7 +65,8 @@ SkiaSharp application; FFmpeg's single-threaded JPEG XL restriction still applie
 zlib is required by the PNG decoder. Android and macOS use the platform copy;
 browser-wasm uses the Emscripten `zlib` port and ships the resulting `libz.a`
 next to the FFmpeg archives, so consuming projects do not have to enable the
-port themselves.
+port themselves. Windows builds the pinned zlib submodule with the same MSVC ABI
+as FFmpeg, embeds it into shared libraries, and ships `zlib.lib` for static linking.
 
 ### Remaining symbol risks
 
@@ -93,26 +96,26 @@ risk, not proof that a particular application's final link currently fails.
 
 ## Publish
 
-Push a tag named `ffmpeg-v<package-version>`. The workflow builds each platform in its own job, then a final job merges the artifacts, packs `LightStudio.Ffmpeg`, and publishes it to [nuget.org](https://www.nuget.org/packages/LightStudio.Ffmpeg/). For version 9.0.1:
+Push a tag named `ffmpeg-v<package-version>`. The workflow builds and validates each platform, then a final job merges the artifacts and uploads the `LightStudio.Ffmpeg` NuGet package. The NuGet.org push step is disabled. For version 9.0.2.1:
 
 ```bash
-git tag ffmpeg-v9.0.1
-git push origin ffmpeg-v9.0.1
+git tag ffmpeg-v9.0.2.1
+git push origin ffmpeg-v9.0.2.1
 ```
 
 The workflow can also be run manually with a NuGet package version from the Actions tab.
 
 ## Consume
 
-The package is published to nuget.org, so no extra feed configuration is required:
+After publishing the generated package or configuring a local NuGet feed:
 
 ```bash
-dotnet add package LightStudio.Ffmpeg --version 9.0.1
+dotnet add package LightStudio.Ffmpeg --version 9.0.2.1
 ```
 
-### Android and macOS
+### Android, macOS, and Windows
 
-Nothing else is required. The shared libraries are deployed by the .NET SDK from `runtimes/<rid>/native`. The macOS binaries target macOS 11.0 or later; the Android binaries target API level 21 or later.
+The shared libraries are deployed by the .NET SDK from `runtimes/<rid>/native`; static linking is opt-in. Supply managed bindings such as `FFmpeg.AutoGen.Bindings.DynamicallyLoaded` and initialize `DynamicallyLoadedBindings` before calling FFmpeg. The macOS binaries target macOS 11.0 or later, Android targets API level 21 or later, and Windows targets Windows 10 or later.
 
 ### WebAssembly
 
@@ -125,9 +128,13 @@ The package adds the correct archives as `NativeFileReference` items automatical
   <PublishAot>true</PublishAot>
   <EnableStaticFfmpeg>true</EnableStaticFfmpeg>
 </PropertyGroup>
+<ItemGroup>
+  <PackageReference Include="FFmpeg.AutoGen.Bindings.StaticallyLinked" Version="9.0.1.1" />
+  <DirectPInvoke Include="__Internal" />
+</ItemGroup>
 ```
 
-`EnableStaticFfmpeg` adds the `NativeLibrary` items and the `c++`, `z`, `CoreMedia`, `CoreVideo`, and `VideoToolbox` linker arguments, and drops the package's shared libraries from the publish output. It is ignored when `PublishAot` is not enabled and on runtimes that ship shared libraries only, such as Android and browser-wasm.
+Publish for `win-x64`, `win-arm64`, or `osx-arm64`, and initialize `StaticallyLinkedBindings` before calling FFmpeg. `EnableStaticFfmpeg` adds the native archives and platform libraries, and drops the package's shared libraries from static publish output. It is ignored without `PublishAot` and on unsupported RIDs; browser-wasm has its own automatic static selection. See the [package README](package/README.md) for hardware APIs, linking details, and LGPL distribution obligations.
 
 ## Local builds
 
@@ -152,6 +159,78 @@ git submodule update --init
 
 dotnet pack package/LightStudio.Ffmpeg.csproj --output artifacts/packages
 ```
+
+### Windows FFmpeg builds
+
+Use Visual Studio 2022 or later with MSVC x64/ARM64 tools and a recent Windows SDK,
+MSYS2, and .NET 10 for the consumer tests. Start a fresh x64 Native Tools Command
+Prompt for `win-x64`, or an x64_arm64 Cross Tools Command Prompt for `win-arm64`.
+Launch MSYS2 from that prompt so it inherits the matching SDK environment:
+
+```cmd
+C:\msys64\msys2_shell.cmd -defterm -here -no-start -msys -use-full-path
+```
+
+```bash
+pacman -S --needed make diffutils pkgconf nasm perl \
+  mingw-w64-ucrt-x86_64-clang mingw-w64-ucrt-x86_64-lld \
+  mingw-w64-ucrt-x86_64-llvm mingw-w64-ucrt-x86_64-cmake \
+  mingw-w64-ucrt-x86_64-meson
+export PATH="/usr/bin:/ucrt64/bin:$PATH"
+git submodule update --init --depth 1 -- ffmpeg dav1d libjxl libxml2 zlib
+bash scripts/fetch-libjxl-dependencies.sh
+bash scripts/build-ffmpeg-windows.sh win-x64
+```
+
+For ARM64, use the matching fresh developer prompt and pass `win-arm64`.
+[The build](scripts/build-ffmpeg-windows.sh) stages 17 static `.lib` files,
+7 versioned FFmpeg DLLs, public headers, and configuration evidence under
+`artifacts/ffmpeg-win-<arch>`. Like macOS, shared libraries embed dav1d, JPEG XL,
+and libxml2; Windows also embeds zlib and the MSVC runtime. FFmpeg's MSVC
+toolchain requires separate static and shared build passes, both using the same
+features and static dependencies. Shared import libraries are not staged over
+the static archives. Configuration evidence for the shared pass is in
+`build-info/shared`.
+`FFMPEG_BUILD_JOBS` controls parallelism; `FFMPEG_REUSE_DEPS=1` reuses dependencies
+from the same target/toolchain during local FFmpeg iterations.
+
+The Windows builds use FFmpeg's official MSVC toolchain support with clang-cl and
+`/MT`; [BtbN's LGPL builds](https://github.com/BtbN/FFmpeg-Builds) are the licensing
+and feature reference. Format support follows macOS, with D3D11VA decoding and
+Media Foundation encoding. FFmpeg's available assembly paths, runtime CPU
+detection, and JPEG XL's AVX-512 variants are enabled. Configure checks reject
+missing hardware APIs, key formats, assembly support, or a non-LGPL configuration.
+
+From the matching Visual Studio developer PowerShell, run:
+
+```powershell
+./scripts/test-ffmpeg-windows.ps1 -Target win-x64
+./scripts/test-ffmpeg-windows.ps1 -Target win-x64 -Hardware
+./scripts/test-ffmpeg-package.ps1
+```
+
+The Windows smoke test links with MSVC, publishes static and shared AutoGen
+NativeAOT consumers, checks PE architecture/imports and DLL deployment, and runs
+decoding on matching hosts. Static publish output must contain no FFmpeg DLLs.
+`-Hardware` requires a usable Media Foundation H.264 hardware encoder and D3D11VA
+decoder; it rejects software fallback in both linkage modes. Package tests
+require both real Windows artifact sets, check runtime/static layout and all
+required libraries, and execute both NuGet-restored x64 consumers. They use empty
+non-Windows fixtures in a disposable test package, which must not be published.
+
+CI cross-builds both architectures on `windows-2022`, executes x64 tests there,
+and runs both static and DLL-backed ARM64 consumers on `windows-11-arm` before packing.
+GPU-dependent tests remain opt-in; a successful cross-link alone does not verify
+execution on an ARM64 machine or its graphics drivers.
+
+The sibling desktop project's local experiment is selected at publish time:
+
+```powershell
+dotnet publish ../LightPlayer/src/LightStudio.LightPlayer.Desktop -c Release -r win-x64 -p:LocalFfmpegLibraryDir="$PWD/artifacts/ffmpeg-win-x64"
+```
+
+Use the ARM64 RID and artifact directory together for an ARM64 publish. The
+property selects static bindings and direct P/Invokes without bundling BtbN DLLs.
 
 ## sqlite-vec Builds
 
