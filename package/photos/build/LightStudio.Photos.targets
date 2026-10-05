@@ -8,6 +8,7 @@
     <_LightStudioPhotosWasmFlavor Condition="'$(WasmEnableThreads)' == 'true'">wasm-mt-$(_LightStudioPhotosWasmEmsdk)</_LightStudioPhotosWasmFlavor>
     <_LightStudioPhotosStaticRid />
     <_LightStudioPhotosStaticRid Condition="'$(RuntimeIdentifier)' == 'osx-arm64' or '$(RuntimeIdentifier)' == 'osx-x64'">$(RuntimeIdentifier)</_LightStudioPhotosStaticRid>
+    <_LightStudioPhotosStaticRid Condition="'$(RuntimeIdentifier)' == 'win-x64' or '$(RuntimeIdentifier)' == 'win-arm64'">$(RuntimeIdentifier)</_LightStudioPhotosStaticRid>
     <_LightStudioPhotosUseStatic>false</_LightStudioPhotosUseStatic>
     <_LightStudioPhotosUseStatic Condition="'$(EnableStaticPhotos)' == 'true' and '$(PublishAot)' == 'true' and '$(_LightStudioPhotosStaticRid)' != ''">true</_LightStudioPhotosUseStatic>
   </PropertyGroup>
@@ -18,12 +19,20 @@
     <NativeFileReference Include="$(LightStudioPhotosPackageRoot)static/$(_LightStudioPhotosWasmFlavor)/libz.a" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(_LightStudioPhotosUseStatic)' == 'true'">
+  <ItemGroup Condition="'$(_LightStudioPhotosUseStatic)' == 'true' and ('$(_LightStudioPhotosStaticRid)' == 'osx-arm64' or '$(_LightStudioPhotosStaticRid)' == 'osx-x64')">
     <NativeLibrary Include="$(LightStudioPhotosPackageRoot)static/$(_LightStudioPhotosStaticRid)/libraw.a" />
     <NativeLibrary Include="$(LightStudioPhotosPackageRoot)static/$(_LightStudioPhotosStaticRid)/liblcms2.a" />
     <NativeLibrary Include="$(LightStudioPhotosPackageRoot)static/$(_LightStudioPhotosStaticRid)/libjpeg.a" />
     <NativeLibrary Include="$(LightStudioPhotosPackageRoot)static/$(_LightStudioPhotosStaticRid)/libz.a" />
     <LinkerArg Include="-lc++" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(_LightStudioPhotosUseStatic)' == 'true' and ('$(_LightStudioPhotosStaticRid)' == 'win-x64' or '$(_LightStudioPhotosStaticRid)' == 'win-arm64')">
+    <NativeLibrary Include="$(LightStudioPhotosPackageRoot)static/$(_LightStudioPhotosStaticRid)/libraw.lib" />
+    <NativeLibrary Include="$(LightStudioPhotosPackageRoot)static/$(_LightStudioPhotosStaticRid)/liblcms2.lib" />
+    <NativeLibrary Include="$(LightStudioPhotosPackageRoot)static/$(_LightStudioPhotosStaticRid)/jpeg.lib" />
+    <NativeLibrary Include="$(LightStudioPhotosPackageRoot)static/$(_LightStudioPhotosStaticRid)/zlib.lib" />
+    <NativeLibrary Include="ws2_32.lib" />
   </ItemGroup>
 
   <Target Name="ValidateLightStudioPhotosWasm" BeforeTargets="PrepareForBuild"

@@ -277,15 +277,17 @@ bridge does not supply a supported threaded integration for the full synchronous
 
 ## Photos Builds
 
-`LightStudio.Photos` is independent of FFmpeg. It includes shared libraries for `android-arm64`, `android-x64`, `linux-x64`, `linux-arm64`, `win-x64`, `win-arm64`, `osx-arm64` and `osx-x64`; static archives for both macOS architectures; and separate single/multi-threaded wasm32 archives. libjpeg-turbo 3.1.3 and zlib 1.3.2 enable lossy JPEG and floating-point deflate DNG decoding. They are embedded into LibRaw's shared libraries and shipped as `libjpeg.a`/`libz.a` beside `libraw.a`/`liblcms2.a` for macOS static consumers. Wasm embeds a namespaced JPEG implementation into `libraw.a` and ships only `libraw.a`, `liblcms2.a` and `libz.a`. The [package README](package/photos/README.md) documents P/Invoke names, `WasmEnableThreads`, `EnableStaticPhotos`, supported formats and licenses.
+`LightStudio.Photos` is independent of FFmpeg. It includes shared libraries for `android-arm64`, `android-x64`, `linux-x64`, `linux-arm64`, `win-x64`, `win-arm64`, `osx-arm64` and `osx-x64`; static archives for both macOS and Windows architectures; and separate single/multi-threaded wasm32 archives. libjpeg-turbo 3.1.3 and zlib 1.3.2 enable lossy JPEG and floating-point deflate DNG decoding. They are embedded into LibRaw's shared libraries and shipped as `libjpeg.a`/`libz.a` beside `libraw.a`/`liblcms2.a` for macOS static consumers, or `jpeg.lib`/`zlib.lib` beside `libraw.lib`/`liblcms2.lib` for Windows. Wasm embeds a namespaced JPEG implementation into `libraw.a` and ships only `libraw.a`, `liblcms2.a` and `libz.a`. The [package README](package/photos/README.md) documents P/Invoke names, `WasmEnableThreads`, `EnableStaticPhotos`, supported formats and licenses.
 
 Wasm retains JPEG ABI 80 internally. The build derives a `lightstudio_photos_` symbol prefix map from the complete JPEG archive, recompiles JPEG and LibRaw with it, then merges their archive members with `emar`. Merging alone or hidden visibility does not isolate symbols in a static wasm link. Emscripten 3.1.69 and 6.0.5's `llvm-objcopy` do not support wasm symbol localization/renaming; `--localize-hidden` leaves the global JPEG symbols unchanged. No JPEG ABI downgrade or pinned source changes are needed.
 
 The [Photos workflow](.github/workflows/photos.yml) uses `ubuntu-22.04`, the oldest supported hosted Ubuntu image, for Linux x64, Windows cross-builds, Android, wasm and packing. Linux arm64 builds natively on `ubuntu-22.04-arm`. Both Linux architectures compile inside pinned architecture-specific manylinux2014 (CentOS 7, glibc 2.17) containers; the host runner does not set the binary's glibc baseline. The baseline containers are build environments, not a recommendation to deploy an end-of-life OS.
 
-macOS uses `macos-14`, as the existing FFmpeg macOS job does, and explicitly targets macOS 11.0. That runner is deprecated upstream and will need replacement when retired; the deployment target can remain 11.0. Intel binaries are cross-built on Apple silicon. Windows x64 uses the MinGW Win32-thread toolchain on Linux, with no Windows build runner required.
+macOS uses `macos-14`, as the existing FFmpeg macOS job does, and explicitly targets macOS 11.0. That runner is deprecated upstream and will need replacement when retired; the deployment target can remain 11.0. Intel binaries are cross-built on Apple silicon. Windows x64 shared libraries use the MinGW Win32-thread toolchain on Linux.
 
-Windows ARM64 uses [LLVM-MinGW](https://github.com/mstorsjo/llvm-mingw), because GCC MinGW does not target Windows on ARM. Compilation stays on `ubuntu-22.04`, using the SHA-256-pinned 20260908 UCRT toolchain. All four libraries are built with the same LLVM-MinGW toolchain, avoiding incompatible GCC/LLVM static objects. The C++ runtime, JPEG and zlib are embedded in LibRaw, and the package includes the required toolchain notices.
+Windows ARM64 shared libraries use [LLVM-MinGW](https://github.com/mstorsjo/llvm-mingw), because GCC MinGW does not target Windows on ARM. Compilation stays on `ubuntu-22.04`, using the SHA-256-pinned 20260908 UCRT toolchain. All four libraries are built with the same LLVM-MinGW toolchain, avoiding incompatible GCC/LLVM static objects. The C++ runtime, JPEG and zlib are embedded in LibRaw, and the package includes the required toolchain notices.
+
+Windows static libraries build separately on `windows-2022`, using the same clang-cl/MSVC ABI and `/MT` runtime convention as FFmpeg. [The static build script](scripts/build-photos-windows-static.sh) uses CMake for JPEG, zlib and LCMS and LibRaw's upstream MSVC static target, without DLL import/export definitions. Its four `.lib` files are staged under `artifacts/photos-win-<arch>-static` and packed under `static/win-<arch>`. The existing MinGW DLL builds are unchanged. `EnableStaticPhotos=true` with `PublishAot=true` selects the static libraries and removes the Photos DLLs from publish output.
 
 Android follows FFmpeg's SDK setup and combined artifact pattern, using NDK r28c (`28.2.13676358`), API 21, and both 64-bit ABIs. Local builds use `/usr/lib/android-ndk` by default. Artifacts have 16 KB page alignment and do not require `libc++_shared.so`.
 
@@ -313,6 +315,12 @@ docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
 # Windows ARM64 cross-build on x64 Linux (Ubuntu 22.04 or compatible).
 ./scripts/setup-photos-llvm-mingw.sh
 ./scripts/build-photos.sh win-arm64
+
+# Windows static: use MSYS2 with the matching Visual Studio developer environment,
+# clang-cl, CMake and Ninja, as in the Windows FFmpeg build instructions above.
+bash scripts/build-photos-windows-static.sh win-x64
+# For ARM64, start a fresh x64_arm64 developer environment instead.
+bash scripts/build-photos-windows-static.sh win-arm64
 
 ANDROID_NDK_HOME=/usr/lib/android-ndk ./scripts/build-photos-android.sh
 
