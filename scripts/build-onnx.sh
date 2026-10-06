@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-TARGET="${1:?Usage: build-onnx.sh <linux-x64|linux-arm64|osx-x64|osx-arm64>}"
+TARGET="${1:?Usage: build-onnx.sh <linux-x64|linux-arm64|osx-x64|osx-arm64|ios-arm64|iossimulator-arm64>}"
 ONNX_VERSION=1.30.0
 ONNX_REVISION=f2c39fe2f838cf35ce7da92824f5a5e3ee6e88a7
 SOURCE_DIR="${ONNX_SOURCE_DIR:-$ROOT_DIR/artifacts/build/onnxruntime-src}"
@@ -10,6 +10,7 @@ BUILD_DIR="${ONNX_BUILD_DIR:-$ROOT_DIR/artifacts/build/onnx-$TARGET}"
 PREFIX="$ROOT_DIR/artifacts/onnx-$TARGET"
 
 platform_args=(--build_shared_lib)
+cmake_generator=Ninja
 cmake_args=(CMAKE_POSITION_INDEPENDENT_CODE=ON onnxruntime_BUILD_UNIT_TESTS=OFF)
 providers=CPU
 native_name=libonnxruntime.so
@@ -34,6 +35,17 @@ case "$TARGET" in
     platform_args+=(--use_coreml --osx_arch "$arch" --apple_deploy_target "${MACOSX_DEPLOYMENT_TARGET:-15.0}")
     cmake_args+=('CMAKE_INSTALL_RPATH=@loader_path' CMAKE_BUILD_WITH_INSTALL_RPATH=ON)
     ;;
+  ios-arm64|iossimulator-arm64)
+    providers+=', CoreML'
+    native_name=libonnxruntime.a
+    cmake_generator=Xcode
+    apple_sdk=iphoneos
+    [[ "$TARGET" != iossimulator-arm64 ]] || apple_sdk=iphonesimulator
+    platform_args=(--ios --use_coreml --osx_arch arm64 --apple_sysroot "$apple_sdk"
+      --apple_deploy_target "${IPHONEOS_DEPLOYMENT_TARGET:-15.0}")
+    cmake_args+=(onnxruntime_BUILD_SHARED_LIB=OFF BUILD_SHARED_LIBS=OFF
+      CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED=NO)
+    ;;
   *)
     printf 'Unsupported ONNX target: %s\n' "$TARGET" >&2
     exit 1
@@ -53,12 +65,20 @@ fi
   --build_dir "$BUILD_DIR" \
   --config Release --update --build --parallel "${JOBS:-8}" \
   --skip_tests --skip_submodule_sync --skip_pip_install \
-  --cmake_generator Ninja \
+  --cmake_generator "$cmake_generator" \
   --compile_no_warning_as_error --no_telemetry \
   "${platform_args[@]}" --cmake_extra_defines "${cmake_args[@]}"
 
 mkdir -p "$PREFIX/licenses/onnxruntime"
-cp -L "$BUILD_DIR/Release/$native_name" "$PREFIX/$native_name"
+if [[ "$TARGET" == ios-arm64 || "$TARGET" == iossimulator-arm64 ]]; then
+  archives=()
+  while IFS= read -r -d '' archive; do
+    archives+=("$archive")
+  done < <(find "$BUILD_DIR/Release" -type f -name '*.a' -path "*/Release-$apple_sdk/*" -print0)
+  xcrun --sdk "$apple_sdk" libtool -static -o "$PREFIX/$native_name" "${archives[@]}"
+else
+  cp -L "$BUILD_DIR/Release/$native_name" "$PREFIX/$native_name"
+fi
 cp "$SOURCE_DIR/LICENSE" "$SOURCE_DIR/ThirdPartyNotices.txt" "$PREFIX/licenses/onnxruntime/"
 while IFS= read -r -d '' license_file; do
   relative_path="${license_file#"$BUILD_DIR/Release/_deps/"}"

@@ -27,6 +27,7 @@ env:
   JOBS: "3"
   ANDROID_API_LEVEL: "27"
   MACOSX_DEPLOYMENT_TARGET: "11.0"
+  IPHONEOS_DEPLOYMENT_TARGET: "15.0"
 
 jobs:
   lint:
@@ -69,6 +70,12 @@ jobs:
           - rid: osx-x64
             runner: macos-15
             platform: macos
+          - rid: ios-arm64
+            runner: macos-15
+            platform: ios
+          - rid: iossimulator-arm64
+            runner: macos-15
+            platform: ios
           - rid: android-arm64
             runner: ubuntu-24.04
             platform: android
@@ -96,8 +103,8 @@ jobs:
           docker build -f scripts/sqlite-vec-linux.Dockerfile -t lightstudio-sqlite-vec-build scripts
           docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -e JOBS \
             -v "$PWD:/work" -w /work lightstudio-sqlite-vec-build bash scripts/build-sqlite-vec.sh "${{ matrix.rid }}"
-      - name: Build Windows or macOS extension
-        if: matrix.platform == 'windows' || matrix.platform == 'macos'
+      - name: Build Windows or Apple extension
+        if: matrix.platform == 'windows' || matrix.platform == 'macos' || matrix.platform == 'ios'
         run: bash scripts/build-sqlite-vec.sh "${{ matrix.rid }}"
       - name: Build Android extension
         if: matrix.platform == 'android'
@@ -176,7 +183,7 @@ jobs:
             exit 1
           fi
           echo "value=$package_version" >> "$GITHUB_OUTPUT"
-      - name: Pack all nine RIDs
+      - name: Pack all RIDs
         env:
           PACKAGE_VERSION: ${{ steps.version.outputs.value }}
         run: >-

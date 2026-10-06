@@ -4,10 +4,29 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ffmpeg_dir="$repo_root/ffmpeg"
-artifact_name="ffmpeg-osx-arm64"
+target="${1:-osx-arm64}"
+sdk=macosx
+deployment_target="${MACOSX_DEPLOYMENT_TARGET:-11.0}"
+target_flags="-arch arm64 -mmacosx-version-min=$deployment_target"
+shared_args=(--enable-shared --install-name-dir=@rpath)
+case "$target" in
+  osx-arm64) ;;
+  ios-arm64 | iossimulator-arm64)
+    sdk=iphoneos
+    deployment_target="${IPHONEOS_DEPLOYMENT_TARGET:-15.0}"
+    export IPHONEOS_DEPLOYMENT_TARGET="$deployment_target"
+    target_flags="-arch arm64 -miphoneos-version-min=$deployment_target"
+    if [[ "$target" == iossimulator-arm64 ]]; then
+      sdk=iphonesimulator
+      target_flags="-arch arm64 -mios-simulator-version-min=$deployment_target"
+    fi
+    shared_args=(--disable-shared)
+    ;;
+  *) echo "Unsupported FFmpeg Apple target: $target" >&2; exit 2 ;;
+esac
+artifact_name="ffmpeg-$target"
 build_dir="${FFMPEG_BUILD_DIR:-$repo_root/artifacts/build/$artifact_name}"
 artifacts_dir="${FFMPEG_ARTIFACTS_DIR:-$repo_root/artifacts/$artifact_name}"
-deployment_target="${MACOSX_DEPLOYMENT_TARGET:-11.0}"
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
   echo "This build must run on macOS." >&2
@@ -19,14 +38,13 @@ if [[ ! -x "$ffmpeg_dir/configure" ]]; then
   exit 1
 fi
 
-sdk_path="$(xcrun --sdk macosx --show-sdk-path)"
-cc="$(xcrun --sdk macosx --find clang)"
-cxx="$(xcrun --sdk macosx --find clang++)"
-ar="$(xcrun --sdk macosx --find ar)"
-ranlib="$(xcrun --sdk macosx --find ranlib)"
-nm="$(xcrun --sdk macosx --find nm)"
-strip="$(xcrun --sdk macosx --find strip)"
-target_flags="-arch arm64 -mmacosx-version-min=$deployment_target"
+sdk_path="$(xcrun --sdk "$sdk" --show-sdk-path)"
+cc="$(xcrun --sdk "$sdk" --find clang)"
+cxx="$(xcrun --sdk "$sdk" --find clang++)"
+ar="$(xcrun --sdk "$sdk" --find ar)"
+ranlib="$(xcrun --sdk "$sdk" --find ranlib)"
+nm="$(xcrun --sdk "$sdk" --find nm)"
+strip="$(xcrun --sdk "$sdk" --find strip)"
 
 if [[ -f "$ffmpeg_dir/ffbuild/config.mak" ]]; then
   make -C "$ffmpeg_dir" distclean
@@ -36,16 +54,16 @@ rm -rf -- "$build_dir"
 mkdir -p "$build_dir"
 
 dav1d_prefix="$build_dir/dav1d"
-MACOSX_DEPLOYMENT_TARGET="$deployment_target" "$repo_root/scripts/build-dav1d.sh" \
-  osx-arm64 "$dav1d_prefix" "$build_dir/dav1d-build"
+"$repo_root/scripts/build-dav1d.sh" \
+  "$target" "$dav1d_prefix" "$build_dir/dav1d-build"
 
 libjxl_prefix="$build_dir/libjxl"
-MACOSX_DEPLOYMENT_TARGET="$deployment_target" "$repo_root/scripts/build-libjxl.sh" \
-  osx-arm64 "$libjxl_prefix" "$build_dir/libjxl-build"
+"$repo_root/scripts/build-libjxl.sh" \
+  "$target" "$libjxl_prefix" "$build_dir/libjxl-build"
 
 libxml2_prefix="$build_dir/libxml2"
-MACOSX_DEPLOYMENT_TARGET="$deployment_target" "$repo_root/scripts/build-libxml2.sh" \
-  osx-arm64 "$libxml2_prefix" "$build_dir/libxml2-build"
+"$repo_root/scripts/build-libxml2.sh" \
+  "$target" "$libxml2_prefix" "$build_dir/libxml2-build"
 
 # Keep pkg-config away from the host libraries while cross-compiling.
 export PKG_CONFIG_LIBDIR="$dav1d_prefix/lib/pkgconfig:$libjxl_prefix/lib/pkgconfig:$libxml2_prefix/lib/pkgconfig"
@@ -68,8 +86,7 @@ cd "$build_dir"
   --extra-cxxflags="$target_flags" \
   --extra-ldflags="$target_flags" \
   --enable-static \
-  --enable-shared \
-  --install-name-dir=@rpath \
+  "${shared_args[@]}" \
   --enable-pic \
   --enable-pthreads \
   --disable-w32threads \
@@ -340,6 +357,7 @@ library_names=(libavdevice libavfilter libavcodec libavformat libavutil libswres
 dynamic_libraries=()
 
 for library_name in "${library_names[@]}"; do
+  [[ "$target" == osx-arm64 ]] || break
   library_dir="$build_dir/$library_name"
   dylib_link="$library_dir/$library_name.dylib"
 
@@ -354,9 +372,9 @@ for archive in "${archives[@]}"; do
   cp "$archive" "$artifacts_dir/"
 done
 
-for dynamic_library in "${dynamic_libraries[@]}"; do
+for dynamic_library in ${dynamic_libraries[@]+"${dynamic_libraries[@]}"}; do
   cp -L "$dynamic_library" "$artifacts_dir/"
 done
 
-printf "Staged %d FFmpeg archives and %d dynamic libraries for 'osx-arm64' in %s\n" \
-  "${#archives[@]}" "${#dynamic_libraries[@]}" "$artifacts_dir"
+printf "Staged %d FFmpeg archives and %d dynamic libraries for '%s' in %s\n" \
+  "${#archives[@]}" "${#dynamic_libraries[@]}" "$target" "$artifacts_dir"

@@ -18,7 +18,7 @@ output="$repo_root/artifacts/$artifact_name"
 build_jobs="${PHOTOS_BUILD_JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)}"
 
 if [[ $# -gt 1 ]]; then
-  echo 'Usage: build-photos.sh <linux-x64|linux-arm64|win-x64|win-arm64|android-arm64|android-x64|osx-arm64|osx-x64|browser-wasm|browser-wasm-mt>' >&2
+  echo 'Usage: build-photos.sh <linux-x64|linux-arm64|win-x64|win-arm64|android-arm64|android-x64|osx-arm64|osx-x64|ios-arm64|iossimulator-arm64|browser-wasm|browser-wasm-mt>' >&2
   exit 2
 fi
 
@@ -122,6 +122,25 @@ case "$target" in
     configure_args=(--enable-shared --enable-static --host="$host")
     compression_args+=("-DCMAKE_OSX_ARCHITECTURES=$architecture"
       "-DCMAKE_OSX_DEPLOYMENT_TARGET=$MACOSX_DEPLOYMENT_TARGET")
+    ;;
+  ios-arm64 | iossimulator-arm64)
+    export IPHONEOS_DEPLOYMENT_TARGET="${IPHONEOS_DEPLOYMENT_TARGET:-15.0}"
+    sdk=iphoneos
+    deployment_flag="-miphoneos-version-min=$IPHONEOS_DEPLOYMENT_TARGET"
+    if [[ "$target" == iossimulator-arm64 ]]; then
+      sdk=iphonesimulator
+      deployment_flag="-mios-simulator-version-min=$IPHONEOS_DEPLOYMENT_TARGET"
+    fi
+    sdk_path="$(xcrun --sdk "$sdk" --show-sdk-path)"
+    CC="$(xcrun --sdk "$sdk" --find clang)" CXX="$(xcrun --sdk "$sdk" --find clang++)"
+    AR="$(xcrun --sdk "$sdk" --find ar)" RANLIB="$(xcrun --sdk "$sdk" --find ranlib)"
+    NM="$(xcrun --sdk "$sdk" --find nm)" STRIP="$(xcrun --sdk "$sdk" --find strip)"
+    CFLAGS+=" -arch arm64 -isysroot $sdk_path $deployment_flag"
+    CXXFLAGS="$CFLAGS"
+    LDFLAGS="$CFLAGS"
+    configure_args=(--disable-shared --enable-static --host=aarch64-apple-darwin)
+    compression_args+=(-DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_ARCHITECTURES=arm64
+      "-DCMAKE_OSX_SYSROOT=$sdk_path" "-DCMAKE_OSX_DEPLOYMENT_TARGET=$IPHONEOS_DEPLOYMENT_TARGET")
     ;;
   browser-wasm | browser-wasm-mt)
     configure=(emconfigure)
@@ -288,6 +307,10 @@ case "$target" in
     install_name_tool -change "$prefix/lib/liblcms2.dylib" \
       @loader_path/liblcms2.dylib "$output/libraw.dylib"
     codesign --force --sign - "$output/libraw.dylib" "$output/liblcms2.dylib"
+    ;;
+  ios-arm64 | iossimulator-arm64)
+    cp "$prefix/lib/libraw.a" "$prefix/lib/liblcms2.a" \
+      "$prefix/lib/libjpeg.a" "$prefix/lib/libz.a" "$output/"
     ;;
   browser-wasm | browser-wasm-mt)
     cp "$prefix/lib/libraw.a" "$prefix/lib/liblcms2.a" "$prefix/lib/libz.a" "$output/"

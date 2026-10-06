@@ -69,10 +69,11 @@ jobs:
     needs: lint
     env:
       MACOSX_DEPLOYMENT_TARGET: "15.0"
+      IPHONEOS_DEPLOYMENT_TARGET: "15.0"
     strategy:
       fail-fast: false
       matrix:
-        rid: [osx-arm64, osx-x64]
+        rid: [osx-arm64, osx-x64, ios-arm64, iossimulator-arm64]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

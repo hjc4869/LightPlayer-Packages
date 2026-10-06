@@ -6,8 +6,8 @@
     <PackageId>LightStudio.Onnx</PackageId>
     <Version>1.30.0</Version>
     <Authors>LightStudio</Authors>
-    <Description>Complete ONNX Runtime .NET managed API with native runtimes for Linux and macOS on x64 and ARM64, embedded Dawn/WebGPU on Linux, and CoreML on macOS. No Microsoft ONNX Runtime NuGet dependency.</Description>
-    <PackageTags>onnx;onnxruntime;webgpu;dawn;coreml;inference;linux;macos</PackageTags>
+    <Description>Complete ONNX Runtime .NET managed API with native runtimes for Linux and macOS on x64 and ARM64, static libraries for iOS ARM64, embedded Dawn/WebGPU on Linux, and CoreML on macOS and iOS. No Microsoft ONNX Runtime NuGet dependency.</Description>
+    <PackageTags>onnx;onnxruntime;webgpu;dawn;coreml;inference;linux;macos;ios</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseFile>licenses/onnxruntime/LICENSE.txt</PackageLicenseFile>
     <RepositoryType>git</RepositoryType>
@@ -16,7 +16,7 @@
     <NoWarn>$(NoWarn);NU5128</NoWarn>
     <OnnxArtifactsPath Condition="'$(OnnxArtifactsPath)' == ''">$(MSBuildThisFileDirectory)../../artifacts</OnnxArtifactsPath>
     <PkgMicrosoft_ML_OnnxRuntime_Managed Condition="'$(PkgMicrosoft_ML_OnnxRuntime_Managed)' == ''">$(NuGetPackageRoot)microsoft.ml.onnxruntime.managed/1.30.0</PkgMicrosoft_ML_OnnxRuntime_Managed>
-    <_OnnxAllRids>linux-x64;linux-arm64;osx-x64;osx-arm64</_OnnxAllRids>
+    <_OnnxAllRids>linux-x64;linux-arm64;osx-x64;osx-arm64;ios-arm64;iossimulator-arm64</_OnnxAllRids>
     <OnnxRuntimeIdentifiers Condition="'$(OnnxRuntimeIdentifiers)' == ''">$(_OnnxAllRids)</OnnxRuntimeIdentifiers>
     <_OnnxSelectedRids>;$(OnnxRuntimeIdentifiers);</_OnnxSelectedRids>
   </PropertyGroup>
@@ -27,12 +27,23 @@
     <PackageReference Include="System.Numerics.Tensors" Version="9.0.0" Condition="'$(TargetFramework)' == 'net8.0'" />
     <None Include="$(PkgMicrosoft_ML_OnnxRuntime_Managed)/lib/netstandard2.0/Microsoft.ML.OnnxRuntime.dll;$(PkgMicrosoft_ML_OnnxRuntime_Managed)/lib/netstandard2.0/Microsoft.ML.OnnxRuntime.pdb" Pack="true" PackagePath="lib/netstandard2.0/" />
     <None Include="$(PkgMicrosoft_ML_OnnxRuntime_Managed)/lib/net8.0/Microsoft.ML.OnnxRuntime.dll;$(PkgMicrosoft_ML_OnnxRuntime_Managed)/lib/net8.0/Microsoft.ML.OnnxRuntime.pdb" Pack="true" PackagePath="lib/net8.0/" />
+    <None Include="$(PkgMicrosoft_ML_OnnxRuntime_Managed)/lib/net9.0-ios18.0/Microsoft.ML.OnnxRuntime.dll;$(PkgMicrosoft_ML_OnnxRuntime_Managed)/lib/net9.0-ios18.0/Microsoft.ML.OnnxRuntime.pdb" Pack="true" PackagePath="lib/net9.0-ios18.0/" />
     <None Include="$(PkgMicrosoft_ML_OnnxRuntime_Managed)/LICENSE.txt" Pack="true" PackagePath="licenses/onnxruntime/" />
     <None Include="$(PkgMicrosoft_ML_OnnxRuntime_Managed)/ThirdPartyNotices.txt" Pack="true" PackagePath="licenses/onnxruntime/" />
     <None Include="build/LightStudio.Onnx.targets" Pack="true" PackagePath="build/;buildTransitive/" />
     <None Include="README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
 
+  <ItemGroup Condition="$(_OnnxSelectedRids.Contains(';ios-arm64;'))">
+    <None Include="$(OnnxArtifactsPath)/onnx-ios-arm64/libonnxruntime.a" Pack="true" PackagePath="runtimes/ios-arm64/native/" />
+    <None Include="$(OnnxArtifactsPath)/onnx-ios-arm64/build-info.txt" Pack="true" PackagePath="build-info/ios-arm64.txt" />
+    <None Include="$(OnnxArtifactsPath)/onnx-ios-arm64/licenses/**/*" Pack="true" PackagePath="licenses/ios-arm64/" />
+  </ItemGroup>
+  <ItemGroup Condition="$(_OnnxSelectedRids.Contains(';iossimulator-arm64;'))">
+    <None Include="$(OnnxArtifactsPath)/onnx-iossimulator-arm64/libonnxruntime.a" Pack="true" PackagePath="runtimes/iossimulator-arm64/native/" />
+    <None Include="$(OnnxArtifactsPath)/onnx-iossimulator-arm64/build-info.txt" Pack="true" PackagePath="build-info/iossimulator-arm64.txt" />
+    <None Include="$(OnnxArtifactsPath)/onnx-iossimulator-arm64/licenses/**/*" Pack="true" PackagePath="licenses/iossimulator-arm64/" />
+  </ItemGroup>
   <ItemGroup Condition="$(_OnnxSelectedRids.Contains(';linux-x64;'))">
     <None Include="$(OnnxArtifactsPath)/onnx-linux-x64/libonnxruntime.so" Pack="true" PackagePath="runtimes/linux-x64/native/" />
     <None Include="$(OnnxArtifactsPath)/onnx-linux-x64/build-info.txt" Pack="true" PackagePath="build-info/linux-x64.txt" />

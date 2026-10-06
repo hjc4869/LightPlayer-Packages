@@ -11,6 +11,8 @@ Native **LibRaw 0.22.2** and **Little CMS 2.19.1** libraries for .NET. LibRaw in
 | `win-x64`, `win-arm64` (MSVC ABI) | Static `.lib`, native AOT opt-in | `static/<rid>` |
 | `osx-arm64`, `osx-x64` | Shared `.dylib` | `runtimes/<rid>/native` |
 | `osx-arm64`, `osx-x64` | Static `.a`, native AOT opt-in | `static/<rid>` |
+| `ios-arm64` | Static `.a`, device only | `runtimes/ios-arm64/native` |
+| `iossimulator-arm64` | Static `.a`, ARM64 simulator | `runtimes/iossimulator-arm64/native` |
 | `browser-wasm`, single-threaded | Static `.a` | `static/wasm-em3`, `static/wasm-em6` |
 | `browser-wasm`, multi-threaded | Static `.a` | `static/wasm-mt-em3`, `static/wasm-mt-em6` |
 
@@ -28,6 +30,14 @@ Target frameworks through .NET 10 select the `em3` archives built with Emscripte
 
 Each wasm variant supplies `libraw.a`, `liblcms2.a` and `libz.a`. JPEG is embedded into `libraw.a` with `lightstudio_photos_`-prefixed symbols, including internal helpers and data, and LibRaw uses those private names. Its JPEG ABI 80 does not compete for the ordinary JPEG symbols used by other dependencies. There is no standalone wasm `libjpeg.a` to reference manually. zlib and LCMS remain separate and are not namespaced.
 
+For iOS ARM64 devices and simulators, the .NET for iOS SDK automatically links
+`libraw.a`, `liblcms2.a`, `libjpeg.a`, and `libz.a` from `runtimes/<rid>/native/`,
+using `ios-arm64` or `iossimulator-arm64` respectively. No manual archive
+references, package-specific linking targets, or `EnableStaticPhotos` setting
+are needed. Use `__Internal` P/Invokes and link the system `c++` library through
+the app's iOS linker settings. JPEG and zlib symbols are not namespaced, as on
+macOS; avoid linking another incompatible static copy.
+
 For macOS or Windows native AOT static linking:
 
 ```xml
@@ -39,7 +49,7 @@ For macOS or Windows native AOT static linking:
 
 Publish for `osx-arm64`, `osx-x64`, `win-x64` or `win-arm64`. On macOS, this adds `libraw.a`, `liblcms2.a`, `libjpeg.a` and `libz.a` as `NativeLibrary` items and links `c++`. On Windows, it adds MSVC-compatible `libraw.lib`, `liblcms2.lib`, `jpeg.lib` and `zlib.lib`, plus the Windows SDK's `ws2_32.lib`. Use direct P/Invokes for the LibRaw and LCMS entry points, as required by your static bindings; this option supplies linker inputs, not managed bindings.
 
-Both platforms remove this package's shared libraries from the publish output, following `LightStudio.Ffmpeg`'s `EnableStaticFfmpeg` convention. macOS and Windows static JPEG symbols are not namespaced. `EnableStaticPhotos` has no effect without native AOT or on other RIDs. Static archives are outside `runtimes/` so they are not copied as deployable native assets.
+Both platforms remove this package's shared libraries from the publish output, following `LightStudio.Ffmpeg`'s `EnableStaticFfmpeg` convention. macOS and Windows static JPEG symbols are not namespaced. `EnableStaticPhotos` has no effect without native AOT or on other RIDs. Desktop and browser static archives are outside `runtimes/`; iOS uses the SDK's native static-asset support instead.
 
 Shared builds embed JPEG and zlib into LibRaw, so applications deploy only `libraw` and `liblcms2`, with no additional JPEG/zlib shared libraries to install. LibRaw links the separately exposed LCMS library from this package.
 
@@ -48,6 +58,7 @@ Shared builds embed JPEG and zlib into LibRaw, so applications deploy only `libr
 - Linux: release builds use the CentOS 7-based manylinux2014 environment for glibc 2.17 or newer, using baseline x86-64 or ARMv8-A instructions. Requires system `libstdc++`, `libgcc_s` and glibc; not an Alpine/musl build. Your .NET runtime may require a newer OS. Local arm64 cross-builds use the installed toolchain's sysroot and may require newer glibc than CI releases.
 - Android: API 21 or newer, NDK r28c, 16 KB page-compatible libraries. The C++ runtime is linked statically.
 - macOS: deployment target 11.0, both Apple silicon and Intel. Shared libraries resolve the bundled LCMS library relative to themselves.
+- iOS: ARM64 devices and simulators, deployment target 15.0, static only; no Intel simulator archives. Build with full Xcode using `bash scripts/build-photos.sh ios-arm64` or `bash scripts/build-photos.sh iossimulator-arm64`. The matching iPhoneOS or iPhoneSimulator SDK is selected automatically. `IPHONEOS_DEPLOYMENT_TARGET` overrides the minimum for both. The macOS library feature configuration is preserved.
 - Windows x64 shared: cross-built on Linux with the GCC MinGW Win32-thread toolchain. No separately installed MinGW runtime DLLs are required.
 - Windows ARM64 shared: cross-built on Linux with LLVM-MinGW 20260908 (LLVM 23.1.1), targeting native ARM64 rather than ARM64EC. Uses the UCRT provided by Windows 10/11 on ARM. JPEG, zlib and the LLVM C++ runtime are linked statically; only the two package DLLs and Windows system DLLs are needed.
 - Windows static: both architectures are built separately with clang-cl, the MSVC ABI and `/MT`, matching FFmpeg's Windows static libraries. These are true static archives, not DLL import libraries or renamed MinGW archives. Native AOT linking requires the matching MSVC tools and Windows SDK; the MinGW DLLs are not used by static publishes.

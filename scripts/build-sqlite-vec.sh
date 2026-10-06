@@ -2,7 +2,7 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-rid="${1:?Usage: build-sqlite-vec.sh <linux-x64|linux-arm64|win-x64|win-arm64|osx-x64|osx-arm64|android-x64|android-arm64|browser-wasm|browser-wasm-mt>}"
+rid="${1:?Usage: build-sqlite-vec.sh <linux-x64|linux-arm64|win-x64|win-arm64|osx-x64|osx-arm64|ios-arm64|iossimulator-arm64|android-x64|android-arm64|browser-wasm|browser-wasm-mt>}"
 artifact_name="sqlite-vec-$rid"
 if [[ "$rid" == browser-wasm || "$rid" == browser-wasm-mt ]]; then
   emsdk_version="$(emcc -dumpversion)"
@@ -55,6 +55,13 @@ case "$rid" in
     [[ "$rid" != osx-arm64 ]] || arch=arm64
     cmake_args+=("-DCMAKE_OSX_ARCHITECTURES=$arch"
       "-DCMAKE_OSX_DEPLOYMENT_TARGET=${MACOSX_DEPLOYMENT_TARGET:-11.0}")
+    ;;
+  ios-arm64|iossimulator-arm64)
+    sdk=iphoneos
+    [[ "$rid" != iossimulator-arm64 ]] || sdk=iphonesimulator
+    cmake_args+=(-DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_ARCHITECTURES=arm64
+      "-DCMAKE_OSX_SYSROOT=$(xcrun --sdk "$sdk" --show-sdk-path)"
+      "-DCMAKE_OSX_DEPLOYMENT_TARGET=${IPHONEOS_DEPLOYMENT_TARGET:-15.0}")
     ;;
   android-x64|android-arm64)
     ndk="${ANDROID_NDK_HOME:?Set ANDROID_NDK_HOME to Android NDK r28c or newer}"

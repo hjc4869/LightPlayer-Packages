@@ -7,8 +7,8 @@
     <PackageId>LightStudio.sqlite-vec</PackageId>
     <Version>0.1.9</Version>
     <Authors>LightStudio</Authors>
-    <Description>sqlite-vec loadable native extensions for Linux, Windows, macOS, and Android on x64 and ARM64, plus single-threaded and multithreaded browser-wasm static libraries with bundled SQLite. Native platforms require your own SQLite engine; bring your own managed bindings on all platforms.</Description>
-    <PackageTags>sqlite;sqlite-vec;vec0;vector;search;android;linux;macos;windows;wasm</PackageTags>
+    <Description>sqlite-vec loadable native extensions for Linux, Windows, macOS, and Android on x64 and ARM64, a static extension for iOS ARM64, plus single-threaded and multithreaded browser-wasm static libraries with bundled SQLite. Native platforms require your own SQLite engine; bring your own managed bindings on all platforms.</Description>
+    <PackageTags>sqlite;sqlite-vec;vec0;vector;search;android;ios;linux;macos;windows;wasm</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RepositoryType>git</RepositoryType>
@@ -16,7 +16,7 @@
     <IsPackable>true</IsPackable>
     <NoWarn>$(NoWarn);NU5128</NoWarn>
     <SqliteVecArtifactsPath Condition="'$(SqliteVecArtifactsPath)' == ''">$(MSBuildThisFileDirectory)../../artifacts</SqliteVecArtifactsPath>
-    <_SqliteVecAllRids>linux-x64;linux-arm64;win-x64;win-arm64;osx-x64;osx-arm64;android-x64;android-arm64;browser-wasm</_SqliteVecAllRids>
+    <_SqliteVecAllRids>linux-x64;linux-arm64;win-x64;win-arm64;osx-x64;osx-arm64;ios-arm64;iossimulator-arm64;android-x64;android-arm64;browser-wasm</_SqliteVecAllRids>
     <SqliteVecRuntimeIdentifiers Condition="'$(SqliteVecRuntimeIdentifiers)' == ''">$(_SqliteVecAllRids)</SqliteVecRuntimeIdentifiers>
     <_SqliteVecSelectedRids>;$(SqliteVecRuntimeIdentifiers);</_SqliteVecSelectedRids>
   </PropertyGroup>
@@ -26,6 +26,16 @@
     <None Include="README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
 
+  <ItemGroup Condition="$(_SqliteVecSelectedRids.Contains(';ios-arm64;'))">
+    <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-ios-arm64/libvec0.a" Pack="true" PackagePath="runtimes/ios-arm64/native/" />
+    <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-ios-arm64/build-info.txt" Pack="true" PackagePath="build-info/ios-arm64.txt" />
+    <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-ios-arm64/licenses/**/*" Pack="true" PackagePath="licenses/ios-arm64/" />
+  </ItemGroup>
+  <ItemGroup Condition="$(_SqliteVecSelectedRids.Contains(';iossimulator-arm64;'))">
+    <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-iossimulator-arm64/libvec0.a" Pack="true" PackagePath="runtimes/iossimulator-arm64/native/" />
+    <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-iossimulator-arm64/build-info.txt" Pack="true" PackagePath="build-info/iossimulator-arm64.txt" />
+    <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-iossimulator-arm64/licenses/**/*" Pack="true" PackagePath="licenses/iossimulator-arm64/" />
+  </ItemGroup>
   <ItemGroup Condition="$(_SqliteVecSelectedRids.Contains(';linux-x64;'))">
     <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-linux-x64/vec0.so" Pack="true" PackagePath="runtimes/linux-x64/native/" />
     <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-linux-x64/build-info.txt" Pack="true" PackagePath="build-info/linux-x64.txt" />

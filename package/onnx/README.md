@@ -1,7 +1,7 @@
 # LightStudio.Onnx
 
 ONNX Runtime 1.30.0 with the complete upstream .NET managed API, embedded
-Dawn/WebGPU on Linux, and CoreML on macOS. Add only `LightStudio.Onnx`;
+Dawn/WebGPU on Linux, and CoreML on macOS and iOS. Add only `LightStudio.Onnx`;
 do not also reference
 `Microsoft.ML.OnnxRuntime`, `.Managed`, or `.EP.WebGpu`.
 
@@ -49,6 +49,8 @@ guarantee GPU or NPU execution.
 | --- | --- | --- |
 | `linux-x64`, `linux-arm64` | CPU, WebGPU | glibc 2.39 baseline; compatible Vulkan driver/loader for WebGPU |
 | `osx-x64`, `osx-arm64` | CPU, CoreML | macOS 15 or later |
+| `ios-arm64` | CPU, CoreML (static) | iOS 15 or later; .NET 9+ for iOS with iOS 18+ API targeting |
+| `iossimulator-arm64` | CPU, CoreML (static) | ARM64 iOS simulator; same deployment and .NET requirements as devices |
 
 Dawn is embedded in the Linux runtime library. The macOS runtime includes CoreML
 integration using macOS system APIs. The OS, graphics driver, Vulkan loader
@@ -56,8 +58,28 @@ integration using macOS system APIs. The OS, graphics driver, Vulkan loader
 Telemetry is disabled. Standard framework dependencies
 `System.Memory` and `System.Numerics.Tensors` remain normal NuGet dependencies.
 
-Managed assets cover .NET Standard 2.0 and .NET 8+. Mobile
-platforms, musl RIDs, and static macOS linking are not included.
+Managed assets cover .NET Standard 2.0, .NET 8+, and the upstream
+`net9.0-ios18.0` bindings. Android, Intel iOS simulators, musl RIDs, and static macOS
+linking are not included.
+
+### iOS
+
+The .NET for iOS SDK automatically links `libonnxruntime.a` from
+`runtimes/ios-arm64/native/` for devices or
+`runtimes/iossimulator-arm64/native/` for ARM64 simulators. Each archive combines ONNX Runtime and its static
+dependencies, with CPU and CoreML enabled as on macOS. No manual archive
+reference or custom package linking target is needed. The iOS managed assembly
+uses `__Internal` P/Invokes instead of trying to load a dylib. The generic
+CoreML API shown above also works on iOS.
+
+Link the system `c++` library and `Foundation` and `CoreML` frameworks through
+the app's iOS linker settings. OS frameworks and the C++ runtime are not bundled.
+Build with full Xcode using `bash scripts/build-onnx.sh ios-arm64` or
+`bash scripts/build-onnx.sh iossimulator-arm64`. The matching iPhoneOS or
+iPhoneSimulator SDK is selected automatically. `IPHONEOS_DEPLOYMENT_TARGET`
+overrides the native minimum of 15.0 for both. Upstream's
+Xcode generator is used with shared-library generation explicitly disabled;
+no dynamic framework is built or shipped.
 
 ## Browser Decision
 
@@ -77,7 +99,7 @@ unchanged, with no Microsoft ONNX Runtime package dependency in the final NuGet.
 Upstream and dependency notices are included under `licenses/`.
 
 Build a native RID with `bash scripts/build-onnx.sh <rid>`, then pack after all
-four native outputs are present:
+six native outputs are present:
 
 ```sh
 dotnet pack package/onnx/LightStudio.Onnx.csproj -c Release -o artifacts/packages
@@ -89,6 +111,6 @@ all-platform release.
 
 Use the pinned Linux Dockerfile for release builds; compiling directly on a newer
 distribution can raise the glibc requirement. The GitHub Actions workflow builds
-all four RIDs on `onnx-v*` tags or manual dispatch, then packs and uploads the
+all six RIDs on `onnx-v*` tags or manual dispatch, then packs and uploads the
 complete package without post-build validation. Only manual dispatch with
 `publish=true` pushes to NuGet.org using `NUGET_API_KEY`.

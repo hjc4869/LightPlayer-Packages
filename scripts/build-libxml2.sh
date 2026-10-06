@@ -15,6 +15,8 @@ Targets:
   android-arm64    Android NDK, aarch64
   android-x64      Android NDK, x86_64
   osx-arm64        macOS, Apple silicon
+  ios-arm64        iOS devices, ARM64 (static only)
+  iossimulator-arm64  iOS simulator, ARM64 (static only)
   win-x64          Windows, clang-cl/MSVC ABI, x86_64
   win-arm64        Windows, clang-cl/MSVC ABI, aarch64
 EOF
@@ -131,6 +133,18 @@ case "$target" in
     )
 
     export MACOSX_DEPLOYMENT_TARGET="$deployment_target"
+    ;;
+
+  ios-arm64 | iossimulator-arm64)
+    sdk=iphoneos
+    [[ "$target" != iossimulator-arm64 ]] || sdk=iphonesimulator
+    cmake_args+=(
+      -DCMAKE_SYSTEM_NAME=iOS
+      -DCMAKE_OSX_ARCHITECTURES=arm64
+      "-DCMAKE_OSX_SYSROOT=$(xcrun --sdk "$sdk" --show-sdk-path)"
+      "-DCMAKE_OSX_DEPLOYMENT_TARGET=${IPHONEOS_DEPLOYMENT_TARGET:-15.0}"
+      -DLIBXML2_WITH_THREADS=ON
+    )
     ;;
 
   win-x64 | win-arm64)

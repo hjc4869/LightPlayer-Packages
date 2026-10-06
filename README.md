@@ -4,8 +4,8 @@ This repository builds native and managed NuGet packages for .NET:
 
 - [`LightStudio.Ffmpeg`](https://www.nuget.org/packages/LightStudio.Ffmpeg/): FFmpeg 9.0.2 and its decoding dependencies.
 - [LightStudio.Photos](package/photos/README.md): LibRaw 0.22.2 and Little CMS 2.19.1 for RAW photos and ICC color management. See [Photos builds](#photos-builds) for its platform matrix and workflow.
-- [LightStudio.Onnx](package/onnx/README.md): ONNX Runtime 1.30.0 with its complete .NET managed API for four native RIDs, embedded Dawn/WebGPU on Linux, and CoreML on macOS. See [ONNX build notes](tests/onnx/README.md) for release build instructions and platform limitations.
-- [LightStudio.sqlite-vec](package/sqlite-vec/README.md): sqlite-vec 0.1.9 loadable native extensions for eight native RIDs and single-threaded/multithreaded browser-WASM static libraries with bundled SQLite for WASM and no ONNX dependency. Windows can use the system WinSQLite engine.
+- [LightStudio.Onnx](package/onnx/README.md): ONNX Runtime 1.30.0 with its complete .NET managed API for six native RIDs, embedded Dawn/WebGPU on Linux, and CoreML on macOS and iOS. See the package README for release build instructions and platform limitations.
+- [LightStudio.sqlite-vec](package/sqlite-vec/README.md): sqlite-vec 0.1.9 loadable native extensions for eight native RIDs, static iOS ARM64 device/simulator extensions, and single-threaded/multithreaded browser-WASM static libraries with bundled SQLite for WASM and no ONNX dependency. Windows can use the system WinSQLite engine.
 
 The workflows build, stage, pack, and upload artifacts without post-build tests or validation. Pre-build lint and toolchain/configuration checks remain enabled.
 
@@ -18,10 +18,12 @@ The workflows build, stage, pack, and upload artifacts without post-build tests 
 | `win-x64`, `win-arm64` | Static (`.lib`, NativeAOT only) | `static/win-<arch>` |
 | `osx-arm64` | Shared (`.dylib`) | `runtimes/osx-arm64/native` |
 | `osx-arm64` | Static (`.a`, native AOT only) | `static/osx-arm64` |
+| `ios-arm64` | Static (`.a`, device only) | `runtimes/ios-arm64/native` |
+| `iossimulator-arm64` | Static (`.a`, ARM64 simulator) | `runtimes/iossimulator-arm64/native` |
 | `browser-wasm`, single-threaded | Static (`.a`) | `static/wasm-em3`, `static/wasm-em6` |
 | `browser-wasm`, multi-threaded | Static (`.a`) | `static/wasm-mt-em3`, `static/wasm-mt-em6` |
 
-Static archives are deliberately kept outside `runtimes/` so NuGet never treats them as deployable runtime assets. The package's `build/LightStudio.Ffmpeg.targets` wires them up instead.
+Desktop and browser static archives are kept outside `runtimes/` and linked by the package's `build/LightStudio.Ffmpeg.targets`. iOS archives use `runtimes/ios-arm64/native/` or `runtimes/iossimulator-arm64/native/` and the .NET for iOS SDK's automatic static linking instead.
 
 Every runtime bundles dav1d 1.5.4 as the AV1 decoder. The static sets ship `libdav1d.a` (`dav1d.lib` on Windows) next to the FFmpeg archives; the Android, macOS, and Windows shared libraries link dav1d statically into the FFmpeg codec library.
 
@@ -44,7 +46,7 @@ The common still-image formats are enabled on every runtime:
 | JPEG XL (still and animated) | `jpegxl_pipe`, `jpegxl_anim` | `libjxl`, `libjxl_anim` |
 
 JPEG XL comes from libjxl 0.11.2, which is built from the `libjxl` submodule the
-same way dav1d is. It is enabled on `android-arm64`, `android-x64`, `osx-arm64`, `win-x64`, `win-arm64`
+same way dav1d is. It is enabled on `android-arm64`, `android-x64`, `osx-arm64`, `ios-arm64`, `iossimulator-arm64`, `win-x64`, `win-arm64`
 and the multi-threaded browser-wasm variant. It is **not** available in the
 single-threaded browser-wasm variant: libjxl's parallel runner is `std::thread`
 based and FFmpeg always creates it with `av_cpu_count()` workers, which aborts in
@@ -58,7 +60,7 @@ data and helpers such as `powf_`, not just `skcms_*`; the C++ `skcms_private`
 namespace is renamed too. No pinned submodule sources or public `Jxl*` APIs
 change. skcms is already inside `libjxl_cms.a` (`jxl_cms.lib` on Windows), so no archive merge is needed.
 
-zlib is required by the PNG decoder. Android and macOS use the platform copy;
+zlib is required by the PNG decoder. Android, macOS, and iOS use the platform copy;
 browser-wasm uses the Emscripten `zlib` port and ships the resulting `libz.a`
 next to the FFmpeg archives, so consuming projects do not have to enable the
 port themselves. Windows builds the pinned zlib submodule with the same MSVC ABI
@@ -112,6 +114,37 @@ dotnet add package LightStudio.Ffmpeg --version 9.0.2.1
 ### Android, macOS, and Windows
 
 The shared libraries are deployed by the .NET SDK from `runtimes/<rid>/native`; static linking is opt-in. Supply managed bindings such as `FFmpeg.AutoGen.Bindings.DynamicallyLoaded` and initialize `DynamicallyLoadedBindings` before calling FFmpeg. The macOS binaries target macOS 11.0 or later, Android targets API level 21 or later, and Windows targets Windows 10 or later.
+
+### iOS ARM64
+
+All four packages support iOS ARM64 devices and simulators with static archives
+only, targeting iOS 15.0 by default. Their `.a` files live under
+`runtimes/ios-arm64/native/` or `runtimes/iossimulator-arm64/native/` for
+automatic linking by .NET for iOS, without custom iOS linking targets or the
+desktop static opt-in properties. Intel simulator RIDs are not included. Use static
+`__Internal` bindings, and supply the system libraries/frameworks listed in each
+package README. ONNX includes upstream's `net9.0-ios18.0` managed bindings.
+
+Build on macOS with full Xcode and the iPhoneOS/iPhoneSimulator SDKs; set
+`IPHONEOS_DEPLOYMENT_TARGET` to override the minimum for both targets:
+
+```sh
+bash scripts/build-ffmpeg-osx-arm64.sh ios-arm64
+bash scripts/build-photos.sh ios-arm64
+bash scripts/build-onnx.sh ios-arm64
+bash scripts/build-sqlite-vec.sh ios-arm64
+
+bash scripts/build-ffmpeg-osx-arm64.sh iossimulator-arm64
+bash scripts/build-photos.sh iossimulator-arm64
+bash scripts/build-onnx.sh iossimulator-arm64
+bash scripts/build-sqlite-vec.sh iossimulator-arm64
+```
+
+Device and simulator archives are built separately and cannot be interchanged.
+The iOS builds retain the corresponding macOS library feature options,
+including FFmpeg VideoToolbox and ONNX CoreML, with shared output disabled.
+sqlite-vec remains extension-only and requires the application's SQLite engine
+to register `sqlite3_vec_init` through `sqlite3_auto_extension`.
 
 ### WebAssembly
 
@@ -213,12 +246,12 @@ property selects static bindings and direct P/Invokes without bundling BtbN DLLs
 
 [The sqlite-vec workflow](.github/workflows/sqlite-vec.yml) independently builds
 `linux-x64`, `linux-arm64`, `win-x64`, `win-arm64`, `osx-x64`, `osx-arm64`,
-`android-x64`, `android-arm64`, and both `browser-wasm` threading variants.
-Native RIDs contain only the vec0 shared library; WASM has vec0 and our own
+`ios-arm64`, `iossimulator-arm64`, `android-x64`, `android-arm64`, and both `browser-wasm` threading variants.
+Native RIDs contain only vec0 (static on iOS, shared elsewhere); WASM has vec0 and our own
 SQLite 3.50.4 static archives for Emscripten 3.1.69 and 6.0.2, selected through `NativeFileReference` according
 to `WasmEnableThreads` and the target framework (.NET <= 10: `em3`, >= 11: `em6`).
 All outputs include licenses and build metadata. The package does not depend
-on LightStudio.Onnx or ship managed bindings. Desktop/Android consumers supply
+on LightStudio.Onnx or ship managed bindings. Desktop/Android/iOS consumers supply
 their own SQLite engine; WASM consumers use the bundled engine. All consumers
 supply their own managed provider and register `sqlite3_vec_init`.
 
@@ -234,7 +267,7 @@ dotnet pack package/sqlite-vec/LightStudio.sqlite-vec.csproj -c Release -o artif
 
 Release Linux builds use the pinned
 [Ubuntu 24.04 build image](scripts/sqlite-vec-linux.Dockerfile), not the host
-toolchain. A complete package includes all eight native artifacts and all four WASM
+toolchain. A complete package includes all ten native artifacts and all four WASM
 variants. Build these with `bash scripts/build-sqlite-vec.sh browser-wasm` and
 `bash scripts/build-sqlite-vec.sh browser-wasm-mt` under each supported SDK. Select
 local subsets with `SqliteVecRuntimeIdentifiers` and use a prerelease version.
@@ -245,9 +278,9 @@ using `NUGET_API_KEY` after all build jobs pass.
 ## ONNX Builds
 
 [The ONNX workflow](.github/workflows/onnx.yml) builds `linux-x64`, `linux-arm64`,
-`osx-x64`, and `osx-arm64`.
-It uses embedded Dawn/Vulkan on Linux and CoreML on macOS. Provider
-implementations are built into the runtime library; CoreML uses macOS system APIs.
+`osx-x64`, `osx-arm64`, `ios-arm64`, and `iossimulator-arm64`.
+It uses embedded Dawn/Vulkan on Linux and CoreML on macOS and iOS. Provider
+implementations are built into the runtime library; CoreML uses Apple system APIs.
 The NuGet contains the complete upstream managed assemblies; consumers need no Microsoft ONNX
 NuGet references. WebGPU selection on Linux uses the standard
 `SessionOptions.AppendExecutionProvider("WebGPU", options)` API. Select macOS CoreML with
@@ -257,14 +290,14 @@ NuGet references. WebGPU selection on Linux uses the standard
 Sources are downloaded at a verified upstream commit into `artifacts/build`.
 Linux release builds use the pinned
 [Ubuntu 24.04 image](scripts/onnx-linux.Dockerfile) and target glibc 2.39.
-macOS targets 15.0.
+macOS and iOS target 15.0. iOS builds are static only.
 
 ```sh
 bash scripts/build-onnx.sh linux-x64
 dotnet pack package/onnx/LightStudio.Onnx.csproj -c Release -o artifacts/packages
 ```
 
-Collect all four native outputs for a complete package. Use the Linux Docker build
+Collect all six native outputs for a complete package. Use the Linux Docker build
 documented in [the build notes](tests/onnx/README.md) for release-compatible
 binaries. Select local subsets with `OnnxRuntimeIdentifiers` and use a prerelease
 version; they are not full releases. Tags named `onnx-v<version>` build/upload only. Manual
@@ -276,6 +309,10 @@ bridge does not supply a supported threaded integration for the full synchronous
 .NET API. See [the build notes](tests/onnx/README.md) for the platform rationale.
 
 ## Photos Builds
+
+iOS ARM64 devices and simulators use the same library features as macOS with static output only:
+`libraw.a`, `liblcms2.a`, `libjpeg.a`, and `libz.a`. The Apple-hosted workflow
+also builds this target; its SDK and consumption requirements are described above.
 
 `LightStudio.Photos` is independent of FFmpeg. It includes shared libraries for `android-arm64`, `android-x64`, `linux-x64`, `linux-arm64`, `win-x64`, `win-arm64`, `osx-arm64` and `osx-x64`; static archives for both macOS and Windows architectures; and separate single/multi-threaded wasm32 archives. libjpeg-turbo 3.1.3 and zlib 1.3.2 enable lossy JPEG and floating-point deflate DNG decoding. They are embedded into LibRaw's shared libraries and shipped as `libjpeg.a`/`libz.a` beside `libraw.a`/`liblcms2.a` for macOS static consumers, or `jpeg.lib`/`zlib.lib` beside `libraw.lib`/`liblcms2.lib` for Windows. Wasm embeds a namespaced JPEG implementation into `libraw.a` and ships only `libraw.a`, `liblcms2.a` and `libz.a`. The [package README](package/photos/README.md) documents P/Invoke names, `WasmEnableThreads`, `EnableStaticPhotos`, supported formats and licenses.
 

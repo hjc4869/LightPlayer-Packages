@@ -15,6 +15,8 @@ Targets:
   android-arm64    Android NDK, aarch64
   android-x64      Android NDK, x86_64
   osx-arm64        macOS, Apple silicon
+  ios-arm64        iOS devices, ARM64 (static only)
+  iossimulator-arm64  iOS simulator, ARM64 (static only)
   win-x64          Windows, clang-cl/MSVC ABI, x86_64
   win-arm64        Windows, clang-cl/MSVC ABI, aarch64
 EOF
@@ -193,8 +195,21 @@ EOF
     meson_args+=(--cross-file "$cross_file" -Denable_asm=true -Db_staticpic=true)
     ;;
 
-  osx-arm64)
+  osx-arm64 | ios-arm64 | iossimulator-arm64)
     deployment_target="${MACOSX_DEPLOYMENT_TARGET:-11.0}"
+    sdk=macosx
+    subsystem=macos
+    deployment_flag="-mmacosx-version-min=$deployment_target"
+    if [[ "$target" != osx-arm64 ]]; then
+      sdk=iphoneos
+      subsystem=ios
+      deployment_target="${IPHONEOS_DEPLOYMENT_TARGET:-15.0}"
+      deployment_flag="-miphoneos-version-min=$deployment_target"
+      if [[ "$target" == iossimulator-arm64 ]]; then
+        sdk=iphonesimulator
+        deployment_flag="-mios-simulator-version-min=$deployment_target"
+      fi
+    fi
 
     if [[ "$(uname -s)" != "Darwin" ]]; then
       echo "The osx-arm64 dav1d build must run on macOS." >&2
@@ -203,31 +218,35 @@ EOF
 
     # The toolchain clang is invoked directly (not through the /usr/bin shim), so
     # it has no implicit SDK and needs an explicit -isysroot.
-    sdk_path="$(xcrun --sdk macosx --show-sdk-path)"
+    sdk_path="$(xcrun --sdk "$sdk" --show-sdk-path)"
 
     cat >"$cross_file" <<EOF
 [binaries]
-c = '$(xcrun --sdk macosx --find clang)'
-cpp = '$(xcrun --sdk macosx --find clang++)'
-ar = '$(xcrun --sdk macosx --find ar)'
-ranlib = '$(xcrun --sdk macosx --find ranlib)'
-strip = '$(xcrun --sdk macosx --find strip)'
+c = '$(xcrun --sdk "$sdk" --find clang)'
+cpp = '$(xcrun --sdk "$sdk" --find clang++)'
+ar = '$(xcrun --sdk "$sdk" --find ar)'
+ranlib = '$(xcrun --sdk "$sdk" --find ranlib)'
+strip = '$(xcrun --sdk "$sdk" --find strip)'
 pkg-config = 'pkg-config'
 
 [built-in options]
-c_args = ['-arch', 'arm64', '-isysroot', '$sdk_path', '-mmacosx-version-min=$deployment_target']
-c_link_args = ['-arch', 'arm64', '-isysroot', '$sdk_path', '-mmacosx-version-min=$deployment_target']
+c_args = ['-arch', 'arm64', '-isysroot', '$sdk_path', '$deployment_flag']
+cpp_args = ['-arch', 'arm64', '-isysroot', '$sdk_path', '$deployment_flag']
+c_link_args = ['-arch', 'arm64', '-isysroot', '$sdk_path', '$deployment_flag']
+cpp_link_args = ['-arch', 'arm64', '-isysroot', '$sdk_path', '$deployment_flag']
 
 [host_machine]
 system = 'darwin'
-subsystem = 'macos'
+subsystem = '$subsystem'
 kernel = 'xnu'
 cpu_family = 'aarch64'
 cpu = 'aarch64'
 endian = 'little'
 EOF
 
-    export MACOSX_DEPLOYMENT_TARGET="$deployment_target"
+    if [[ "$target" == osx-arm64 ]]; then
+      export MACOSX_DEPLOYMENT_TARGET="$deployment_target"
+    fi
 
     meson_args+=(--cross-file "$cross_file" -Denable_asm=true -Db_staticpic=true)
     ;;
