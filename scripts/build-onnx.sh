@@ -71,6 +71,7 @@ fi
 
 mkdir -p "$PREFIX/licenses/onnxruntime"
 if [[ "$TARGET" == ios-arm64 || "$TARGET" == iossimulator-arm64 ]]; then
+  cmake --build "$BUILD_DIR/Release" --config Release --target re2 --parallel "${JOBS:-8}"
   archives=()
   while IFS= read -r -d '' archive; do
     archives+=("$archive")
