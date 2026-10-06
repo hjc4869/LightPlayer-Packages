@@ -45,6 +45,8 @@ ar="$(xcrun --sdk "$sdk" --find ar)"
 ranlib="$(xcrun --sdk "$sdk" --find ranlib)"
 nm="$(xcrun --sdk "$sdk" --find nm)"
 strip="$(xcrun --sdk "$sdk" --find strip)"
+host_cc="$(xcrun --sdk macosx --find clang)"
+host_flags="-arch $(uname -m) -isysroot $(xcrun --sdk macosx --show-sdk-path) -mmacosx-version-min=${MACOSX_DEPLOYMENT_TARGET:-11.0}"
 
 if [[ -f "$ffmpeg_dir/ffbuild/config.mak" ]]; then
   make -C "$ffmpeg_dir" distclean
@@ -74,6 +76,10 @@ cd "$build_dir"
 "$ffmpeg_dir/configure" \
   --cc="$cc" \
   --cxx="$cxx" \
+  --host-cc="$host_cc" \
+  --host-ld="$host_cc" \
+  --host-cflags="$host_flags" \
+  --host-ldflags="$host_flags" \
   --ar="$ar" \
   --ranlib="$ranlib" \
   --nm="$nm" \

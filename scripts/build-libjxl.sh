@@ -175,6 +175,7 @@ case "$target" in
     [[ "$target" != iossimulator-arm64 ]] || sdk=iphonesimulator
     cmake_args+=(
       -DCMAKE_SYSTEM_NAME=iOS
+      -DCMAKE_MACOSX_BUNDLE=OFF
       -DCMAKE_OSX_ARCHITECTURES=arm64
       "-DCMAKE_OSX_SYSROOT=$(xcrun --sdk "$sdk" --show-sdk-path)"
       "-DCMAKE_OSX_DEPLOYMENT_TARGET=${IPHONEOS_DEPLOYMENT_TARGET:-15.0}"

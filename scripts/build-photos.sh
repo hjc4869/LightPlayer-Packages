@@ -139,7 +139,7 @@ case "$target" in
     CXXFLAGS="$CFLAGS"
     LDFLAGS="$CFLAGS"
     configure_args=(--disable-shared --enable-static --host=aarch64-apple-darwin)
-    compression_args+=(-DCMAKE_SYSTEM_NAME=iOS -DCMAKE_OSX_ARCHITECTURES=arm64
+    compression_args+=(-DCMAKE_SYSTEM_NAME=iOS -DCMAKE_SYSTEM_PROCESSOR=arm64 -DCMAKE_OSX_ARCHITECTURES=arm64
       "-DCMAKE_OSX_SYSROOT=$sdk_path" "-DCMAKE_OSX_DEPLOYMENT_TARGET=$IPHONEOS_DEPLOYMENT_TARGET")
     ;;
   browser-wasm | browser-wasm-mt)
