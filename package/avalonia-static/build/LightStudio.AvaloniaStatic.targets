@@ -64,6 +64,19 @@
     </ItemGroup>
   </Target>
 
+  <Target Name="AvaloniaStaticAndroidLinkMode" AfterTargets="SetupOSSpecificProps" Condition="'$(_AvaloniaStaticActive)' == 'true' and '$(_AvaloniaStaticSupported)' == 'true' and '$(_AvaloniaStaticPlatform)' == 'android'">
+    <ItemGroup>
+      <LinkerArg Remove="--target=$(TargetTriple)" />
+    </ItemGroup>
+    <PropertyGroup>
+      <CrossCompileAbi>android27</CrossCompileAbi>
+      <TargetTriple>$(CrossCompileArch)-linux-$(CrossCompileAbi)</TargetTriple>
+    </PropertyGroup>
+    <ItemGroup>
+      <LinkerArg Include="--target=$(TargetTriple)" />
+    </ItemGroup>
+  </Target>
+
   <Target Name="AvaloniaStaticAppleLinkMode" BeforeTargets="LinkNative" Condition="'$(_AvaloniaStaticActive)' == 'true' and '$(_AvaloniaStaticSupported)' == 'true' and '$(_AvaloniaStaticPlatform)' == 'osx'">
     <PropertyGroup>
       <StaticExecutable>false</StaticExecutable>
