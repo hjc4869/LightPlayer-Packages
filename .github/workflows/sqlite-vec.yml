@@ -103,7 +103,7 @@ jobs:
           docker build -f scripts/sqlite-vec-linux.Dockerfile -t lightstudio-sqlite-vec-build scripts
           docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -e JOBS \
             -v "$PWD:/work" -w /work lightstudio-sqlite-vec-build bash scripts/build-sqlite-vec.sh "${{ matrix.rid }}"
-      - name: Build Windows or Apple extension
+      - name: Build Windows or Apple libraries
         if: matrix.platform == 'windows' || matrix.platform == 'macos' || matrix.platform == 'ios'
         run: bash scripts/build-sqlite-vec.sh "${{ matrix.rid }}"
       - name: Build Android extension

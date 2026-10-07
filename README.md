@@ -5,7 +5,7 @@ This repository builds native and managed NuGet packages for .NET:
 - [`LightStudio.Ffmpeg`](https://www.nuget.org/packages/LightStudio.Ffmpeg/): FFmpeg 9.0.2 and its decoding dependencies.
 - [LightStudio.Photos](package/photos/README.md): LibRaw 0.22.2 and Little CMS 2.19.1 for RAW photos and ICC color management. See [Photos builds](#photos-builds) for its platform matrix and workflow.
 - [LightStudio.Onnx](package/onnx/README.md): ONNX Runtime 1.30.0 with its complete .NET managed API for six native RIDs, embedded Dawn/WebGPU on Linux, and CoreML on macOS and iOS. See the package README for release build instructions and platform limitations.
-- [LightStudio.sqlite-vec](package/sqlite-vec/README.md): sqlite-vec 0.1.9 loadable native extensions for eight native RIDs, static iOS ARM64 device/simulator extensions, and single-threaded/multithreaded browser-WASM static libraries with bundled SQLite for WASM and no ONNX dependency. Windows can use the system WinSQLite engine.
+- [LightStudio.sqlite-vec](package/sqlite-vec/README.md): sqlite-vec 0.1.9 loadable native extensions for eight native RIDs, static Windows/macOS and iOS ARM64 device/simulator extensions, and single-threaded/multithreaded browser-WASM static libraries with bundled SQLite for WASM and no ONNX dependency. Windows can use the system WinSQLite engine.
 
 The workflows build, stage, pack, and upload artifacts without post-build tests or validation. Pre-build lint and toolchain/configuration checks remain enabled.
 
@@ -247,13 +247,19 @@ property selects static bindings and direct P/Invokes without bundling BtbN DLLs
 [The sqlite-vec workflow](.github/workflows/sqlite-vec.yml) independently builds
 `linux-x64`, `linux-arm64`, `win-x64`, `win-arm64`, `osx-x64`, `osx-arm64`,
 `ios-arm64`, `iossimulator-arm64`, `android-x64`, `android-arm64`, and both `browser-wasm` threading variants.
-Native RIDs contain only vec0 (static on iOS, shared elsewhere); WASM has vec0 and our own
+Native RIDs contain only vec0 (static on iOS, shared and static on Windows/macOS,
+shared on Linux/Android); WASM has vec0 and our own
 SQLite 3.50.4 static archives for Emscripten 3.1.69 and 6.0.2, selected through `NativeFileReference` according
 to `WasmEnableThreads` and the target framework (.NET <= 10: `em3`, >= 11: `em6`).
 All outputs include licenses and build metadata. The package does not depend
 on LightStudio.Onnx or ship managed bindings. Desktop/Android/iOS consumers supply
 their own SQLite engine; WASM consumers use the bundled engine. All consumers
 supply their own managed provider and register `sqlite3_vec_init`.
+
+Windows/macOS builds stage both library types together. Their static archives
+are packaged under `static/<rid>/`; Native AOT consumers opt in with
+`EnableStaticSqliteVec=true` and `PublishAot=true`, following Photos. Windows
+static archives use the MSVC ABI and `/MT`. Shared deployment remains the default.
 
 The standard SQLite extension API also works with Windows WinSQLite; no
 `winsqlite3.lib` link or separate Windows variant is necessary. See

@@ -66,6 +66,7 @@ if(EMSCRIPTEN)
   endif()
   set(sqlite_linking "static calls to bundled SQLite 3.50.4 (libsqlite3.a)")
 elseif(MSVC)
+  set_target_properties(vec0 PROPERTIES ARCHIVE_OUTPUT_NAME "vec0_import")
   target_compile_definitions(vec0 PRIVATE _CRT_SECURE_NO_WARNINGS)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "iOS")
   set(sqlite_linking "static extension API table only; no SQLite engine")
@@ -84,6 +85,25 @@ else()
   endif()
 endif()
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows" OR CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+  add_library(vec0_static STATIC "${CMAKE_CURRENT_BINARY_DIR}/sqlite-vec.c")
+  target_include_directories(vec0_static PRIVATE "${sqlite_vec_SOURCE_DIR}" "${sqlite_headers_SOURCE_DIR}")
+  set_target_properties(vec0_static PROPERTIES
+    OUTPUT_NAME vec0
+    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/static"
+    C_STANDARD 11
+    C_STANDARD_REQUIRED YES
+    MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>"
+  )
+  if(WIN32)
+    set_target_properties(vec0_static PROPERTIES PREFIX "" SUFFIX ".lib")
+  endif()
+  if(MSVC)
+    target_compile_definitions(vec0_static PRIVATE _CRT_SECURE_NO_WARNINGS)
+  endif()
+  install(FILES "$<TARGET_FILE:vec0_static>" DESTINATION .)
+endif()
+
 set(SQLITE_VEC_RID "" CACHE STRING "NuGet runtime identifier")
 file(DOWNLOAD
   https://raw.githubusercontent.com/asg017/sqlite-vec/e9f598abfa0c06b328d8fe5da9c3760cce74be10/LICENSE-MIT
@@ -94,6 +114,10 @@ file(DOWNLOAD
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/build-info.txt"
   "sqlite-vec ${PROJECT_VERSION}\nSource: e9f598abfa0c06b328d8fe5da9c3760cce74be10\nAmalgamation SHA256: 3acd67cb4aff080c7050926fd3cf8227905fe5b7ee3829d8ee5024ab1283cf61\nLocal fix: MSVC ARM64 64-bit popcount argument\nRID: ${SQLITE_VEC_RID}\nSQLite headers: 3.50.4\nSQLite linking: ${sqlite_linking}\nC compiler: ${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION}\n"
 )
+if(TARGET vec0_static)
+  file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/build-info.txt"
+    "Desktop libraries: shared and static\nStatic SQLite linking: extension API table only; no SQLite engine\n")
+endif()
 if(EMSCRIPTEN)
   file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/build-info.txt"
     "WASM threads: ${SQLITE_VEC_WASM_THREADS}\nLocal fix: WASM32 64-bit popcount builtin\nSQLite engine: 3.50.4\nSQLite amalgamation SHA256: 1d3049dd0f830a025a53105fc79fd2ab9431aea99e137809d064d8ee8356b032\nSQLite options: SQLITE_OMIT_LOAD_EXTENSION;SQLITE_ENABLE_COLUMN_METADATA;SQLITE_ENABLE_FTS5;SQLITE_ENABLE_RTREE\n")
