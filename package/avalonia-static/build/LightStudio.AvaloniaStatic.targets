@@ -1,0 +1,75 @@
+<Project>
+  <PropertyGroup>
+    <EnableStaticAvalonia Condition="'$(EnableStaticAvalonia)' == ''">true</EnableStaticAvalonia>
+    <AvaloniaStaticRoot Condition="'$(AvaloniaStaticRoot)' == ''">$(MSBuildThisFileDirectory)../static/</AvaloniaStaticRoot>
+    <_AvaloniaStaticRids>;android-x64;android-arm64;osx-x64;osx-arm64;linux-x64;linux-arm64;win-x64;win-arm64;</_AvaloniaStaticRids>
+    <_AvaloniaStaticActive Condition="'$(EnableStaticAvalonia)' == 'true' and '$(PublishAot)' == 'true' and '$(RuntimeIdentifier)' != ''">true</_AvaloniaStaticActive>
+    <_AvaloniaStaticSupported>$(_AvaloniaStaticRids.Contains(';$(RuntimeIdentifier);'))</_AvaloniaStaticSupported>
+    <_AvaloniaStaticPlatform>$([System.String]::Copy('$(RuntimeIdentifier)').Split('-')[0])</_AvaloniaStaticPlatform>
+    <_AvaloniaStaticDirectory>$(AvaloniaStaticRoot)$(RuntimeIdentifier)/</_AvaloniaStaticDirectory>
+    <LinkerFlavor Condition="'$(_AvaloniaStaticActive)' == 'true' and '$(_AvaloniaStaticPlatform)' == 'linux' and '$(LinkerFlavor)' == ''">lld</LinkerFlavor>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(_AvaloniaStaticActive)' == 'true' and '$(_AvaloniaStaticSupported)' == 'true'">
+    <DirectPInvoke Include="libSkiaSharp;libHarfBuzzSharp" />
+    <_AvaloniaStaticArchive Include="$(_AvaloniaStaticDirectory)libHarfBuzzSharp.a;$(_AvaloniaStaticDirectory)libSkiaSharp.a;$(_AvaloniaStaticDirectory)libskia.a;$(_AvaloniaStaticDirectory)libGLESv2_static.a;$(_AvaloniaStaticDirectory)libANGLE_static.a" Condition="'$(_AvaloniaStaticPlatform)' != 'win'" />
+    <_AvaloniaStaticArchive Include="$(_AvaloniaStaticDirectory)libHarfBuzzSharp.lib;$(_AvaloniaStaticDirectory)SkiaSharp.lib;$(_AvaloniaStaticDirectory)skia.lib;$(_AvaloniaStaticDirectory)libGLESv2_static.lib;$(_AvaloniaStaticDirectory)libANGLE_static.lib" Condition="'$(_AvaloniaStaticPlatform)' == 'win'" />
+    <_AvaloniaStaticArchive Include="$(_AvaloniaStaticDirectory)libskottie.a;$(_AvaloniaStaticDirectory)libskresources.a;$(_AvaloniaStaticDirectory)libsksg.a;$(_AvaloniaStaticDirectory)libskshaper.a;$(_AvaloniaStaticDirectory)libjsonreader.a" Condition="'$(_AvaloniaStaticPlatform)' != 'win'" />
+    <_AvaloniaStaticArchive Include="$(_AvaloniaStaticDirectory)skottie.lib;$(_AvaloniaStaticDirectory)skresources.lib;$(_AvaloniaStaticDirectory)sksg.lib;$(_AvaloniaStaticDirectory)skshaper.lib;$(_AvaloniaStaticDirectory)jsonreader.lib" Condition="'$(_AvaloniaStaticPlatform)' == 'win'" />
+    <_AvaloniaStaticDynamicName Include="libSkiaSharp;libHarfBuzzSharp" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(_AvaloniaStaticActive)' == 'true' and '$(_AvaloniaStaticSupported)' == 'true' and '$(_AvaloniaStaticPlatform)' == 'win'">
+    <DirectPInvoke Include="libSkiaSharp.dll;libHarfBuzzSharp.dll;libGLESv2;libGLESv2.dll;av_libGLESv2;av_libGLESv2.dll;av_libglesv2;av_libglesv2.dll" />
+    <LinkerArg Include="d3d9.lib;d3d11.lib;d3d12.lib;dxguid.lib;dxgi.lib;d3dcompiler.lib;Gdi32.lib;User32.lib;synchronization.lib;fontsub.lib;Ole32.lib;USP10.lib" />
+    <_AvaloniaStaticDynamicName Include="av_libGLESv2;av_libglesv2;libGLESv2" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(_AvaloniaStaticActive)' == 'true' and '$(_AvaloniaStaticSupported)' == 'true' and '$(_AvaloniaStaticPlatform)' == 'linux'">
+    <DirectPInvoke Include="libSkiaSharp.so;libHarfBuzzSharp.so" />
+    <NativeSystemLibrary Include="stdc++;gcc_eh;fontconfig;GL;X11;Xext;dl" />
+    <LinkerArg Include="-Wl,-z,nostart-stop-gc" Condition="'$(LinkerFlavor)' == 'lld'" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(_AvaloniaStaticActive)' == 'true' and '$(_AvaloniaStaticSupported)' == 'true' and '$(_AvaloniaStaticPlatform)' == 'android'">
+    <DirectPInvoke Include="libSkiaSharp.so;libHarfBuzzSharp.so" />
+    <NativeSystemLibrary Include="c++_static;c++abi;android;log;EGL;GLESv2;dl;m" />
+    <LinkerArg Include="-Wl,-z,max-page-size=16384" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(_AvaloniaStaticActive)' == 'true' and '$(_AvaloniaStaticSupported)' == 'true' and '$(_AvaloniaStaticPlatform)' == 'osx'">
+    <DirectPInvoke Include="libSkiaSharp.dylib;libHarfBuzzSharp.dylib;libAvaloniaNative;libAvaloniaNative.dylib;AvaloniaNative" />
+    <_AvaloniaStaticArchive Include="$(_AvaloniaStaticDirectory)macos_font_preinit.o;$(_AvaloniaStaticDirectory)libAvaloniaNative.a" />
+    <NativeSystemLibrary Include="c++" />
+    <LinkerArg Include="-ObjC;-framework AppKit;-framework Carbon;-framework CoreFoundation;-framework CoreGraphics;-framework CoreText;-framework Foundation;-framework IOSurface;-framework Metal;-framework OpenGL;-framework QuartzCore;-framework UniformTypeIdentifiers" />
+    <_AvaloniaStaticDynamicName Include="libAvaloniaNative" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(_AvaloniaStaticActive)' == 'true' and '$(_AvaloniaStaticSupported)' == 'true'">
+    <NativeLibrary Include="@(_AvaloniaStaticArchive)" />
+    <NativeLibrary Remove="$(_AvaloniaStaticDirectory)libGLESv2_static.a;$(_AvaloniaStaticDirectory)libANGLE_static.a" Condition="'$(_AvaloniaStaticPlatform)' == 'osx'" />
+  </ItemGroup>
+
+  <Target Name="ValidateAvaloniaStatic" BeforeTargets="PrepareForBuild;WriteIlcRspFileForCompilation;LinkNative" Condition="'$(_AvaloniaStaticActive)' == 'true'">
+    <Error Condition="'$(_AvaloniaStaticSupported)' != 'true'" Text="LightStudio.AvaloniaStatic does not support $(RuntimeIdentifier)." />
+    <Error Condition="!Exists('%(_AvaloniaStaticArchive.Identity)')" Text="Missing LightStudio.AvaloniaStatic input: %(_AvaloniaStaticArchive.Identity)" />
+  </Target>
+
+  <Target Name="AvaloniaStaticFilterPublish" AfterTargets="ComputeFilesToPublish" Condition="'$(_AvaloniaStaticActive)' == 'true' and '$(_AvaloniaStaticSupported)' == 'true'">
+    <PropertyGroup>
+      <_AvaloniaStaticReplacedNames>;@(_AvaloniaStaticDynamicName);</_AvaloniaStaticReplacedNames>
+    </PropertyGroup>
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="$(_AvaloniaStaticReplacedNames.Contains(';%(ResolvedFileToPublish.Filename);')) and ('%(ResolvedFileToPublish.Extension)' == '.dll' or '%(ResolvedFileToPublish.Extension)' == '.so' or '%(ResolvedFileToPublish.Extension)' == '.dylib')" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="AvaloniaStaticAppleLinkMode" BeforeTargets="LinkNative" Condition="'$(_AvaloniaStaticActive)' == 'true' and '$(_AvaloniaStaticSupported)' == 'true' and '$(_AvaloniaStaticPlatform)' == 'osx'">
+    <PropertyGroup>
+      <StaticExecutable>false</StaticExecutable>
+    </PropertyGroup>
+    <ItemGroup>
+      <LinkerArg Remove="-static;-static-pie" />
+    </ItemGroup>
+  </Target>
+</Project>

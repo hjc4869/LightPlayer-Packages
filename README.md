@@ -6,6 +6,7 @@ This repository builds native and managed NuGet packages for .NET:
 - [LightStudio.Photos](package/photos/README.md): LibRaw 0.22.2 and Little CMS 2.19.1 for RAW photos and ICC color management. See [Photos builds](#photos-builds) for its platform matrix and workflow.
 - [LightStudio.Onnx](package/onnx/README.md): ONNX Runtime 1.30.0 with its complete .NET managed API for six native RIDs, embedded Dawn/WebGPU on Linux, and CoreML on macOS and iOS. See the package README for release build instructions and platform limitations.
 - [LightStudio.sqlite-vec](package/sqlite-vec/README.md): sqlite-vec 0.1.9 loadable native extensions for eight native RIDs, static Windows/macOS and iOS ARM64 device/simulator extensions, and single-threaded/multithreaded browser-WASM static libraries with bundled SQLite for WASM and no ONNX dependency. Windows can use the system WinSQLite engine.
+- [LightStudio.AvaloniaStatic](package/avalonia-static/README.md): Avalonia 12.1.3 static native dependencies for Windows, Linux, macOS, and Android on x64 and ARM64, using SkiaSharp 4.153.1, HarfBuzzSharp 14.2.1.301, ANGLE, and the LightStudio Avalonia fork for macOS.
 
 The workflows build, stage, pack, and upload artifacts without post-build tests or validation. Pre-build lint and toolchain/configuration checks remain enabled.
 

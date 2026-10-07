@@ -1,0 +1,8 @@
+This package includes native libraries under their respective upstream licenses.
+Full notices collected from each source and its dependencies are included under
+licenses/<rid>/. System libraries and OS frameworks are not redistributed.
+
+SkiaSharp 4.153.1 and Skia: https://github.com/mono/SkiaSharp
+HarfBuzz 14.2.1 / HarfBuzzSharp 14.2.1.301: same SkiaSharp release source tree
+ANGLE chromium/7922: https://github.com/google/angle
+Avalonia.Native 12.1.3: https://github.com/hjc4869/Avalonia, release/12.1.3

@@ -1,0 +1,22 @@
+{
+  "skiasharp": {
+    "url": "https://github.com/mono/SkiaSharp.git",
+    "ref": "v4.153.1",
+    "commit": "4783f51448f9b070dda4f87b83e941c9599e466e"
+  },
+  "angle": {
+    "url": "https://github.com/google/angle.git",
+    "ref": "chromium/7922",
+    "commit": "7e08726e32026a0bbabd6ec8a1a90f5ab533ed66"
+  },
+  "avalonia": {
+    "url": "https://github.com/hjc4869/Avalonia.git",
+    "ref": "release/12.1.3",
+    "commit": "c615cc726704dc61437bcdefb5d2fce5af89b68d"
+  },
+  "depot_tools": {
+    "url": "https://chromium.googlesource.com/chromium/tools/depot_tools.git",
+    "ref": "8fecc592a290769242d5098666cee8d29b7f0523",
+    "commit": "8fecc592a290769242d5098666cee8d29b7f0523"
+  }
+}
