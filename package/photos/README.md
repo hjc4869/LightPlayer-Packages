@@ -5,7 +5,9 @@ Native **LibRaw 0.22.2** and **Little CMS 2.19.1** libraries for .NET. LibRaw in
 | Runtime | Libraries | Package location |
 | --- | --- | --- |
 | `android-arm64`, `android-x64` | Shared `.so` | `runtimes/<rid>/native` |
+| `android-arm64`, `android-x64` | Static `.a`, native AOT opt-in | `static/<rid>` |
 | `linux-x64`, `linux-arm64` | Shared `.so` | `runtimes/<rid>/native` |
+| `linux-x64`, `linux-arm64` | Static `.a`, native AOT opt-in | `static/<rid>` |
 | `win-x64` (MinGW) | Shared `.dll` | `runtimes/win-x64/native` |
 | `win-arm64` (LLVM-MinGW) | Shared `.dll` | `runtimes/win-arm64/native` |
 | `win-x64`, `win-arm64` (MSVC ABI) | Static `.lib`, native AOT opt-in | `static/<rid>` |
@@ -24,21 +26,22 @@ dotnet add package LightStudio.Photos --version 0.22.2
 
 Use native library names `libraw` and `liblcms2` in P/Invoke declarations. The .NET SDK deploys shared libraries automatically. For statically linked platforms, use the native entry-point conventions required by your .NET toolchain/binding generator.
 
+On every target, the bundled JPEG symbols, including internal helpers and data, use the `lightstudio_photos_` prefix, and LibRaw references those private names. This isolates its JPEG ABI 80 from other linked JPEG implementations. zlib and LCMS are not namespaced.
+
 For WebAssembly, `WasmEnableThreads=true` selects the pthread-enabled archives; otherwise the single-threaded archives are selected. `NativeFileReference` items are added automatically, including through transitive references. Wasm exception handling must remain enabled (`WasmEnableExceptionHandling=true`, the SDK default). Use independent LibRaw handles for concurrent work; the multi-threaded build is pthread-compatible, not an OpenMP worker pool.
 
 Target frameworks through .NET 10 select the `em3` archives built with Emscripten 3.1.69 and legacy wasm exceptions; .NET 11 and newer select `em6` built with 6.0.2 and standardized wasm exceptions (`-sWASM_LEGACY_EXCEPTIONS=0`). Compilation and linking use the same exception mode. This is a best-effort compatibility rule, not a guarantee for every workload/toolchain version. Both SDK variants are supplied for each threading mode.
 
-Each wasm variant supplies `libraw.a`, `liblcms2.a` and `libz.a`. JPEG is embedded into `libraw.a` with `lightstudio_photos_`-prefixed symbols, including internal helpers and data, and LibRaw uses those private names. Its JPEG ABI 80 does not compete for the ordinary JPEG symbols used by other dependencies. There is no standalone wasm `libjpeg.a` to reference manually. zlib and LCMS remain separate and are not namespaced.
+Each wasm variant supplies `libraw.a`, `liblcms2.a` and `libz.a`. The private JPEG implementation is embedded into `libraw.a`; there is no standalone wasm `libjpeg.a` to reference manually. zlib and LCMS remain separate.
 
 For iOS ARM64 devices and simulators, the .NET for iOS SDK automatically links
 `libraw.a`, `liblcms2.a`, `libjpeg.a`, and `libz.a` from `runtimes/<rid>/native/`,
 using `ios-arm64` or `iossimulator-arm64` respectively. No manual archive
 references, package-specific linking targets, or `EnableStaticPhotos` setting
 are needed. Use `__Internal` P/Invokes and link the system `c++` library through
-the app's iOS linker settings. JPEG and zlib symbols are not namespaced, as on
-macOS; avoid linking another incompatible static copy.
+the app's iOS linker settings.
 
-For macOS or Windows native AOT static linking:
+For Android, Linux, macOS, or Windows native AOT static linking:
 
 ```xml
 <PropertyGroup>
@@ -47,9 +50,11 @@ For macOS or Windows native AOT static linking:
 </PropertyGroup>
 ```
 
-Publish for `osx-arm64`, `osx-x64`, `win-x64` or `win-arm64`. On macOS, this adds `libraw.a`, `liblcms2.a`, `libjpeg.a` and `libz.a` as `NativeLibrary` items and links `c++`. On Windows, it adds MSVC-compatible `libraw.lib`, `liblcms2.lib`, `jpeg.lib` and `zlib.lib`, plus the Windows SDK's `ws2_32.lib`. Use direct P/Invokes for the LibRaw and LCMS entry points, as required by your static bindings; this option supplies linker inputs, not managed bindings.
+Publish for `android-arm64`, `android-x64`, `linux-arm64`, `linux-x64`, `osx-arm64`, `osx-x64`, `win-x64` or `win-arm64`. Android, Linux, and macOS add `libraw.a`, `liblcms2.a`, `libjpeg.a` and `libz.a` as `NativeLibrary` items. macOS links `c++`; Linux links `stdc++`, `m`, and `pthread`; Android links the consuming NDK's `c++_static` and `c++abi`, plus `dl` and `m`, and requests 16 KB pages. Windows adds MSVC-compatible `libraw.lib`, `liblcms2.lib`, `jpeg.lib` and `zlib.lib`, plus the Windows SDK's `ws2_32.lib`. Use direct P/Invokes for the LibRaw and LCMS entry points, as required by your static bindings; this option supplies linker inputs, not managed bindings.
 
-Both platforms remove this package's shared libraries from the publish output, following `LightStudio.Ffmpeg`'s `EnableStaticFfmpeg` convention. macOS and Windows static JPEG symbols are not namespaced. `EnableStaticPhotos` has no effect without native AOT or on other RIDs. Desktop and browser static archives are outside `runtimes/`; iOS uses the SDK's native static-asset support instead.
+Static publishes remove this package's shared libraries from the publish output, following `LightStudio.Ffmpeg`'s `EnableStaticFfmpeg` convention. `EnableStaticPhotos` has no effect without native AOT or on other RIDs. Android, desktop, and browser static archives are outside `runtimes/`; iOS uses the SDK's native static-asset support instead.
+
+Android static consumption requires a NativeAOT host that honors `NativeLibrary`, `NativeSystemLibrary`, and `LinkerArg` with a compatible NDK. Standard .NET Android Mono AOT does not consume these archives automatically. The Linux and Android build jobs produce both shared libraries and static archives; the application chooses which to consume.
 
 Shared builds embed JPEG and zlib into LibRaw, so applications deploy only `libraw` and `liblcms2`, with no additional JPEG/zlib shared libraries to install. LibRaw links the separately exposed LCMS library from this package.
 

@@ -5,7 +5,7 @@
     <PackageId>LightStudio.Photos</PackageId>
     <Version>0.22.2</Version>
     <Authors>LightStudio</Authors>
-    <Description>LibRaw 0.22.2 and Little CMS 2.19.1 native libraries for .NET, with libjpeg-turbo 3.1.3 and zlib 1.3.2 for compressed DNG support. Shared libraries for Android arm64/x64, Linux arm64/x64, macOS arm64/x64 and Windows arm64/x64 (MinGW), with static archives for iOS ARM64, single/multi-threaded browser-wasm and macOS/Windows native AOT (MSVC on Windows).</Description>
+    <Description>LibRaw 0.22.2 and Little CMS 2.19.1 native libraries for .NET, with libjpeg-turbo 3.1.3 and zlib 1.3.2 for compressed DNG support. Shared libraries for Android arm64/x64, Linux arm64/x64, macOS arm64/x64 and Windows arm64/x64 (MinGW), with static archives for iOS ARM64, single/multi-threaded browser-wasm and Android/Linux/macOS/Windows native AOT (MSVC on Windows).</Description>
     <PackageTags>photos;raw;libraw;lcms2;color;native;android;ios;linux;macos;windows;webassembly;wasm</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>(LGPL-2.1-or-later OR CDDL-1.0) AND MIT AND IJG AND Zlib AND (GPL-3.0-or-later WITH GCC-exception-3.1) AND (Apache-2.0 WITH LLVM-exception)</PackageLicenseExpression>
@@ -24,12 +24,16 @@
     <None Include="$(PhotosArtifactsPath)/photos-iossimulator-arm64/libraw.a;$(PhotosArtifactsPath)/photos-iossimulator-arm64/liblcms2.a;$(PhotosArtifactsPath)/photos-iossimulator-arm64/libjpeg.a;$(PhotosArtifactsPath)/photos-iossimulator-arm64/libz.a" Pack="true" PackagePath="runtimes/iossimulator-arm64/native/" />
     <None Include="$(PhotosArtifactsPath)/photos-linux-x64/libraw.so;$(PhotosArtifactsPath)/photos-linux-x64/liblcms2.so" Pack="true" PackagePath="runtimes/linux-x64/native/" />
     <None Include="$(PhotosArtifactsPath)/photos-linux-arm64/libraw.so;$(PhotosArtifactsPath)/photos-linux-arm64/liblcms2.so" Pack="true" PackagePath="runtimes/linux-arm64/native/" />
+    <None Include="$(PhotosArtifactsPath)/photos-linux-x64/libraw.a;$(PhotosArtifactsPath)/photos-linux-x64/liblcms2.a;$(PhotosArtifactsPath)/photos-linux-x64/libjpeg.a;$(PhotosArtifactsPath)/photos-linux-x64/libz.a" Pack="true" PackagePath="static/linux-x64/" />
+    <None Include="$(PhotosArtifactsPath)/photos-linux-arm64/libraw.a;$(PhotosArtifactsPath)/photos-linux-arm64/liblcms2.a;$(PhotosArtifactsPath)/photos-linux-arm64/libjpeg.a;$(PhotosArtifactsPath)/photos-linux-arm64/libz.a" Pack="true" PackagePath="static/linux-arm64/" />
     <None Include="$(PhotosArtifactsPath)/photos-win-x64/libraw.dll;$(PhotosArtifactsPath)/photos-win-x64/liblcms2.dll" Pack="true" PackagePath="runtimes/win-x64/native/" />
     <None Include="$(PhotosArtifactsPath)/photos-win-arm64/libraw.dll;$(PhotosArtifactsPath)/photos-win-arm64/liblcms2.dll" Pack="true" PackagePath="runtimes/win-arm64/native/" />
     <None Include="$(PhotosArtifactsPath)/photos-win-x64-static/*.lib" Pack="true" PackagePath="static/win-x64/" />
     <None Include="$(PhotosArtifactsPath)/photos-win-arm64-static/*.lib" Pack="true" PackagePath="static/win-arm64/" />
     <None Include="$(PhotosArtifactsPath)/photos-android/android-arm64/libraw.so;$(PhotosArtifactsPath)/photos-android/android-arm64/liblcms2.so" Pack="true" PackagePath="runtimes/android-arm64/native/" />
     <None Include="$(PhotosArtifactsPath)/photos-android/android-x64/libraw.so;$(PhotosArtifactsPath)/photos-android/android-x64/liblcms2.so" Pack="true" PackagePath="runtimes/android-x64/native/" />
+    <None Include="$(PhotosArtifactsPath)/photos-android/android-arm64/libraw.a;$(PhotosArtifactsPath)/photos-android/android-arm64/liblcms2.a;$(PhotosArtifactsPath)/photos-android/android-arm64/libjpeg.a;$(PhotosArtifactsPath)/photos-android/android-arm64/libz.a" Pack="true" PackagePath="static/android-arm64/" />
+    <None Include="$(PhotosArtifactsPath)/photos-android/android-x64/libraw.a;$(PhotosArtifactsPath)/photos-android/android-x64/liblcms2.a;$(PhotosArtifactsPath)/photos-android/android-x64/libjpeg.a;$(PhotosArtifactsPath)/photos-android/android-x64/libz.a" Pack="true" PackagePath="static/android-x64/" />
     <None Include="$(PhotosArtifactsPath)/photos-osx-arm64/libraw.dylib;$(PhotosArtifactsPath)/photos-osx-arm64/liblcms2.dylib" Pack="true" PackagePath="runtimes/osx-arm64/native/" />
     <None Include="$(PhotosArtifactsPath)/photos-osx-x64/libraw.dylib;$(PhotosArtifactsPath)/photos-osx-x64/liblcms2.dylib" Pack="true" PackagePath="runtimes/osx-x64/native/" />
     <None Include="$(PhotosArtifactsPath)/photos-osx-arm64/libraw.a;$(PhotosArtifactsPath)/photos-osx-arm64/liblcms2.a;$(PhotosArtifactsPath)/photos-osx-arm64/libjpeg.a;$(PhotosArtifactsPath)/photos-osx-arm64/libz.a" Pack="true" PackagePath="static/osx-arm64/" />

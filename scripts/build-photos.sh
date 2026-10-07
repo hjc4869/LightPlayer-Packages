@@ -35,12 +35,14 @@ case "$target" in
   linux-x64)
     [[ "$(uname -sm)" == 'Linux x86_64' ]] || { echo 'linux-x64 requires x86_64 Linux.' >&2; exit 1; }
     command -v patchelf >/dev/null || { echo 'patchelf is required for Linux builds.' >&2; exit 1; }
+    configure_args+=(--enable-static)
     CFLAGS+=' -fPIC -march=x86-64 -mtune=generic'
     CXXFLAGS="$CFLAGS"
     ;;
   linux-arm64)
     [[ "$(uname -s)" == Linux ]] || { echo 'linux-arm64 requires Linux.' >&2; exit 1; }
     command -v patchelf >/dev/null || { echo 'patchelf is required for Linux builds.' >&2; exit 1; }
+    configure_args+=(--enable-static)
     CFLAGS+=' -fPIC -march=armv8-a'
     CXXFLAGS="$CFLAGS"
     if [[ "$(uname -m)" != aarch64 ]]; then
@@ -99,7 +101,7 @@ case "$target" in
     CFLAGS+=' -fPIC'
     CXXFLAGS="$CFLAGS"
     LDFLAGS='-Wl,-z,max-page-size=16384'
-    configure_args+=(--host="$triple")
+    configure_args+=(--host="$triple" --enable-static)
     android_abi=arm64-v8a
     [[ "$target" != android-x64 ]] || android_abi=x86_64
     compression_args+=("-DCMAKE_TOOLCHAIN_FILE=$android_ndk_home/build/cmake/android.toolchain.cmake"
@@ -169,7 +171,7 @@ case "$target" in
     ;;
 esac
 
-for tool in git tar autoreconf automake make pkg-config cmake "$CC" "$CXX" "$AR" "$RANLIB"; do
+for tool in git tar autoreconf automake make pkg-config cmake "$CC" "$CXX" "$AR" "$RANLIB" "$NM"; do
   command -v "$tool" >/dev/null || { echo "Required tool missing: $tool" >&2; exit 1; }
 done
 
@@ -210,16 +212,24 @@ for library in libjpeg-turbo zlib; do
     "${compression_args[@]}" "${library_args[@]}"
   cmake --build "$build_dir" --parallel "$build_jobs"
   cmake --install "$build_dir"
-  if [[ "$library" == libjpeg-turbo && "$target" == browser-wasm* ]]; then
+  if [[ "$library" == libjpeg-turbo ]]; then
     jpeg_symbols="$build_root/jpeg-symbols.txt"
     jpeg_namespace="$build_root/jpeg-namespace.h"
-    "$NM" --extern-only --defined-only --just-symbol-name "$prefix/lib/libjpeg.a" |
-      awk '/^[A-Za-z_][A-Za-z0-9_]*$/' | LC_ALL=C sort -u > "$jpeg_symbols"
+    "$NM" -g "$prefix/lib/libjpeg.a" |
+      awk -v target="$target" 'NF >= 2 && $(NF - 1) ~ /^[ABCDGRSTVW]$/ {
+        symbol = $NF;
+        if (target ~ /^(osx-|ios-|iossimulator-)/) sub(/^_/, "", symbol);
+        if (symbol ~ /^[A-Za-z_][A-Za-z0-9_]*$/) print symbol
+      }' | LC_ALL=C sort -u > "$jpeg_symbols"
+    if [[ ! -s "$jpeg_symbols" ]]; then
+      echo "No exported JPEG symbols found for '$target'." >&2
+      exit 1
+    fi
     awk '/^[A-Za-z_][A-Za-z0-9_]*$/ { printf "#define %s lightstudio_photos_%s\n", $1, $1 }' \
       "$jpeg_symbols" > "$jpeg_namespace"
     "${compression_cmake[@]}" -S "$source_dir" -B "$build_dir" \
       "-DCMAKE_C_FLAGS=$CFLAGS -include $jpeg_namespace"
-    cmake --build "$build_dir" --parallel "$build_jobs"
+    cmake --build "$build_dir" --clean-first --parallel "$build_jobs"
     cmake --install "$build_dir"
   fi
 done
@@ -249,9 +259,7 @@ for library in lcms2 libraw; do
     if [[ "$target" == win-* || "$target" == android-* ]]; then
       configure_args+=(--disable-shared --enable-static)
     fi
-    if [[ "$target" == browser-wasm* ]]; then
-      CPPFLAGS+=" -include $jpeg_namespace"
-    fi
+    CPPFLAGS+=" -include $jpeg_namespace"
     "${configure[@]}" "$source_dir/configure" --prefix="$prefix" --libdir="$prefix/lib" \
       "${configure_args[@]}" --disable-examples --disable-openmp \
       --enable-jpeg --enable-zlib --enable-lcms
@@ -267,7 +275,9 @@ done
 
 case "$target" in
   linux-x64 | linux-arm64)
-    cp "$prefix/lib/libraw.so" "$prefix/lib/liblcms2.so" "$output/"
+    cp "$prefix/lib/libraw.so" "$prefix/lib/liblcms2.so" \
+      "$prefix/lib/libraw.a" "$prefix/lib/liblcms2.a" \
+      "$prefix/lib/libjpeg.a" "$prefix/lib/libz.a" "$output/"
     patchelf --set-rpath "\$ORIGIN" "$output/libraw.so"
     ;;
   android-arm64 | android-x64)
@@ -275,7 +285,9 @@ case "$target" in
       -Wl,-soname,libraw.so -Wl,--whole-archive "$prefix/lib/libraw.a" \
       -Wl,--no-whole-archive "$prefix/lib/libjpeg.a" "$prefix/lib/libz.a" \
       -L"$prefix/lib" -llcms2 -lm -o "$prefix/lib/libraw.so"
-    cp "$prefix/lib/libraw.so" "$prefix/lib/liblcms2.so" "$output/"
+    cp "$prefix/lib/libraw.so" "$prefix/lib/liblcms2.so" \
+      "$prefix/lib/libraw.a" "$prefix/lib/liblcms2.a" \
+      "$prefix/lib/libjpeg.a" "$prefix/lib/libz.a" "$output/"
     mkdir -p "$output/licenses"
     cp "$android_ndk_home/NOTICE.toolchain" "$output/licenses/"
     ;;

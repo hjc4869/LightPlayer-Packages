@@ -58,6 +58,16 @@ for library in libjpeg-turbo zlib lcms2; do
     -B "$(cygpath -m "$build_dir")" "${cmake_args[@]}" "${library_args[@]}"
   cmake --build "$(cygpath -m "$build_dir")" --parallel "$build_jobs"
   cmake --install "$(cygpath -m "$build_dir")"
+  if [[ "$library" == libjpeg-turbo ]]; then
+    jpeg_namespace="$build_root/jpeg-namespace.h"
+    llvm-nm --extern-only --defined-only --just-symbol-name "$prefix/lib/jpeg-static.lib" |
+      awk '/^[A-Za-z_][A-Za-z0-9_]*$/' | LC_ALL=C sort -u |
+      awk '{ printf "#define %s lightstudio_photos_%s\n", $1, $1 }' > "$jpeg_namespace"
+    MSYS2_ARG_CONV_EXCL='*' cmake -S "$(cygpath -m "$source_dir")" \
+      -B "$(cygpath -m "$build_dir")" "-DCMAKE_C_FLAGS=/FI\"$(cygpath -m "$jpeg_namespace")\""
+    cmake --build "$(cygpath -m "$build_dir")" --clean-first --parallel "$build_jobs"
+    cmake --install "$(cygpath -m "$build_dir")"
+  fi
 done
 
 # Use LibRaw's upstream MSVC static target in a disposable source tree.
@@ -68,7 +78,7 @@ git -C "$repo_root/libraw" archive HEAD | tar -x -C "$source_dir"
 pushd "$source_dir" >/dev/null
 MSYS2_ARG_CONV_EXCL='*' nmake -nologo -f Makefile.msvc 'lib\libraw_static.lib' \
   "CC=clang-cl --target=$triple" \
-  "COPT=/nologo /O2 /MT /EHsc /I. /I\"$(cygpath -m "$prefix/include")\" /DWIN32 /D_WIN32_WINNT=0x0A00 /D_CRT_SECURE_NO_WARNINGS /DLIBRAW_NOTHREADS /DUSE_LCMS2 /DUSE_JPEG /DUSE_ZLIB"
+  "COPT=/nologo /O2 /MT /EHsc /I. /I\"$(cygpath -m "$prefix/include")\" /FI\"$(cygpath -m "$jpeg_namespace")\" /DWIN32 /D_WIN32_WINNT=0x0A00 /D_CRT_SECURE_NO_WARNINGS /DLIBRAW_NOTHREADS /DUSE_LCMS2 /DUSE_JPEG /DUSE_ZLIB"
 popd >/dev/null
 
 cp "$source_dir/lib/libraw_static.lib" "$output/libraw.lib"
