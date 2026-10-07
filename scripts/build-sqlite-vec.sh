@@ -86,9 +86,9 @@ if [[ "$rid" == android-* ]]; then
 elif [[ "$rid" == osx-* ]]; then
   codesign --force --sign - "$prefix/vec0.dylib"
 fi
-if [[ "$rid" == browser-wasm* ]]; then
+if [[ "$rid" == browser-wasm* || "$rid" == android-* ]]; then
   printf 'Built sqlite-vec and bundled SQLite for %s: %s\n' "$rid" "$prefix"
-elif [[ "$rid" == win-* || "$rid" == osx-* ]]; then
+elif [[ "$rid" == linux-* || "$rid" == win-* || "$rid" == osx-* ]]; then
   printf 'Built shared and static extension-only sqlite-vec for %s: %s\n' "$rid" "$prefix"
 else
   printf 'Built extension-only sqlite-vec for %s: %s\n' "$rid" "$prefix"

@@ -11,6 +11,7 @@
     <_LightStudioSqliteWasmArchive>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../static/$(_LightStudioSqliteVecWasmFlavor)/libsqlite3.a'))</_LightStudioSqliteWasmArchive>
     <_LightStudioSqliteVecStaticRid />
     <_LightStudioSqliteVecStaticRid Condition="'$(RuntimeIdentifier)' == 'win-x64' or '$(RuntimeIdentifier)' == 'win-arm64' or '$(RuntimeIdentifier)' == 'osx-x64' or '$(RuntimeIdentifier)' == 'osx-arm64'">$(RuntimeIdentifier)</_LightStudioSqliteVecStaticRid>
+    <_LightStudioSqliteVecStaticRid Condition="'$(RuntimeIdentifier)' == 'linux-x64' or '$(RuntimeIdentifier)' == 'linux-arm64' or '$(RuntimeIdentifier)' == 'android-x64' or '$(RuntimeIdentifier)' == 'android-arm64'">$(RuntimeIdentifier)</_LightStudioSqliteVecStaticRid>
     <_LightStudioSqliteVecUseStatic>false</_LightStudioSqliteVecUseStatic>
     <_LightStudioSqliteVecUseStatic Condition="'$(EnableStaticSqliteVec)' == 'true' and '$(PublishAot)' == 'true' and '$(_LightStudioSqliteVecStaticRid)' != ''">true</_LightStudioSqliteVecUseStatic>
   </PropertyGroup>
@@ -21,8 +22,16 @@
   <ItemGroup Condition="'$(_LightStudioSqliteVecUseStatic)' == 'true' and ('$(_LightStudioSqliteVecStaticRid)' == 'win-x64' or '$(_LightStudioSqliteVecStaticRid)' == 'win-arm64')">
     <NativeLibrary Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../static/$(_LightStudioSqliteVecStaticRid)/vec0.lib'))" Exclude="@(NativeLibrary)" />
   </ItemGroup>
-  <ItemGroup Condition="'$(_LightStudioSqliteVecUseStatic)' == 'true' and ('$(_LightStudioSqliteVecStaticRid)' == 'osx-x64' or '$(_LightStudioSqliteVecStaticRid)' == 'osx-arm64')">
+  <ItemGroup Condition="'$(_LightStudioSqliteVecUseStatic)' == 'true' and '$(_LightStudioSqliteVecStaticRid)' != 'win-x64' and '$(_LightStudioSqliteVecStaticRid)' != 'win-arm64'">
     <NativeLibrary Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../static/$(_LightStudioSqliteVecStaticRid)/libvec0.a'))" Exclude="@(NativeLibrary)" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(_LightStudioSqliteVecUseStatic)' == 'true' and ('$(_LightStudioSqliteVecStaticRid)' == 'linux-x64' or '$(_LightStudioSqliteVecStaticRid)' == 'linux-arm64')">
+    <NativeSystemLibrary Include="m" Exclude="@(NativeSystemLibrary)" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(_LightStudioSqliteVecUseStatic)' == 'true' and ('$(_LightStudioSqliteVecStaticRid)' == 'android-x64' or '$(_LightStudioSqliteVecStaticRid)' == 'android-arm64')">
+    <NativeLibrary Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../static/$(_LightStudioSqliteVecStaticRid)/libsqlite3.a'))" Exclude="@(NativeLibrary)" />
+    <NativeSystemLibrary Include="dl;m" Exclude="@(NativeSystemLibrary)" />
+    <LinkerArg Include="-Wl,-z,max-page-size=16384" Exclude="@(LinkerArg)" />
   </ItemGroup>
   <Target Name="ValidateLightStudioSqliteVecPlatform" BeforeTargets="PrepareForBuild">
     <Error Condition="'$(RuntimeIdentifier)' != '' and !$([System.String]::Copy('$(_LightStudioSqliteVecSupportedRids)').Contains(';$(RuntimeIdentifier);'))" Text="LightStudio.sqlite-vec does not support RuntimeIdentifier '$(RuntimeIdentifier)'. Supported RIDs: $(_LightStudioSqliteVecSupportedRids)" />

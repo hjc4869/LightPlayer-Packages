@@ -85,12 +85,13 @@ else()
   endif()
 endif()
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Windows" OR CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows" OR CMAKE_SYSTEM_NAME STREQUAL "Darwin" OR CMAKE_SYSTEM_NAME STREQUAL "Linux" OR ANDROID)
   add_library(vec0_static STATIC "${CMAKE_CURRENT_BINARY_DIR}/sqlite-vec.c")
   target_include_directories(vec0_static PRIVATE "${sqlite_vec_SOURCE_DIR}" "${sqlite_headers_SOURCE_DIR}")
   set_target_properties(vec0_static PROPERTIES
     OUTPUT_NAME vec0
     ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/static"
+    POSITION_INDEPENDENT_CODE YES
     C_STANDARD 11
     C_STANDARD_REQUIRED YES
     MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>"
@@ -102,6 +103,30 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Windows" OR CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     target_compile_definitions(vec0_static PRIVATE _CRT_SECURE_NO_WARNINGS)
   endif()
   install(FILES "$<TARGET_FILE:vec0_static>" DESTINATION .)
+endif()
+
+if(ANDROID)
+  add_library(sqlite3 STATIC "${sqlite_headers_SOURCE_DIR}/sqlite3.c")
+  add_library(sqlite3_shared SHARED "${sqlite_headers_SOURCE_DIR}/sqlite3.c")
+  foreach(sqlite_target IN ITEMS sqlite3 sqlite3_shared)
+    target_include_directories(${sqlite_target} PUBLIC "${sqlite_headers_SOURCE_DIR}")
+    set_target_properties(${sqlite_target} PROPERTIES
+      OUTPUT_NAME sqlite3
+      POSITION_INDEPENDENT_CODE YES
+      C_STANDARD 11
+      C_STANDARD_REQUIRED YES
+    )
+    target_compile_definitions(${sqlite_target} PRIVATE
+      SQLITE_THREADSAFE=1
+      SQLITE_ENABLE_COLUMN_METADATA
+      SQLITE_ENABLE_FTS5
+      SQLITE_ENABLE_RTREE
+    )
+    target_link_libraries(${sqlite_target} PRIVATE m dl)
+  endforeach()
+  target_link_options(sqlite3_shared PRIVATE "LINKER:-z,defs" "LINKER:-z,max-page-size=16384")
+  set(sqlite_linking "extension API table only; bundled SQLite 3.50.4 (libsqlite3.a and libsqlite3.so)")
+  install(FILES "$<TARGET_FILE:sqlite3_shared>" DESTINATION .)
 endif()
 
 set(SQLITE_VEC_RID "" CACHE STRING "NuGet runtime identifier")
@@ -116,11 +141,18 @@ file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/build-info.txt"
 )
 if(TARGET vec0_static)
   file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/build-info.txt"
-    "Desktop libraries: shared and static\nStatic SQLite linking: extension API table only; no SQLite engine\n")
+    "vec0 libraries: shared and static\nStatic SQLite linking: extension API table only\n")
 endif()
 if(EMSCRIPTEN)
   file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/build-info.txt"
-    "WASM threads: ${SQLITE_VEC_WASM_THREADS}\nLocal fix: WASM32 64-bit popcount builtin\nSQLite engine: 3.50.4\nSQLite amalgamation SHA256: 1d3049dd0f830a025a53105fc79fd2ab9431aea99e137809d064d8ee8356b032\nSQLite options: SQLITE_OMIT_LOAD_EXTENSION;SQLITE_ENABLE_COLUMN_METADATA;SQLITE_ENABLE_FTS5;SQLITE_ENABLE_RTREE\n")
+    "WASM threads: ${SQLITE_VEC_WASM_THREADS}\nLocal fix: WASM32 64-bit popcount builtin\nSQLite loadable extensions: omitted\n")
+elseif(ANDROID)
+  file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/build-info.txt"
+    "SQLite libraries: shared and static\nSQLite threads: SQLITE_THREADSAFE=1\nSQLite loadable extensions: supported\n")
+endif()
+if(EMSCRIPTEN OR ANDROID)
+  file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/build-info.txt"
+    "SQLite engine: 3.50.4\nSQLite amalgamation SHA256: 1d3049dd0f830a025a53105fc79fd2ab9431aea99e137809d064d8ee8356b032\nSQLite options: SQLITE_ENABLE_COLUMN_METADATA;SQLITE_ENABLE_FTS5;SQLITE_ENABLE_RTREE\n")
   file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/SQLite-PUBLIC-DOMAIN.txt"
     "SQLite is in the public domain.\nhttps://www.sqlite.org/copyright.html\n")
   install(FILES "$<TARGET_FILE:sqlite3>" DESTINATION .)
