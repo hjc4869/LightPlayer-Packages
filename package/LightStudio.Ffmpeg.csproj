@@ -6,7 +6,7 @@
     <PackageId>LightStudio.Ffmpeg</PackageId>
     <Version>9.0.2.1</Version>
     <Authors>LightStudio</Authors>
-    <Description>FFmpeg 9.0.2 LGPL native libraries for .NET, with HLS and DASH custom I/O support, dav1d (AV1), libjxl (JPEG XL), and common photo formats. Shared libraries for Android, osx-arm64, win-x64 and win-arm64, static archives for iOS ARM64 and browser-wasm, and NativeAOT static libraries for osx-arm64, win-x64 and win-arm64. Windows includes D3D11VA and Media Foundation support.</Description>
+    <Description>FFmpeg 9.0.2 LGPL native libraries for .NET, with HLS and DASH custom I/O support, dav1d (AV1), libjxl (JPEG XL), and common photo formats. Shared libraries for Android, osx-arm64, win-x64 and win-arm64, static archives for iOS ARM64 and browser-wasm, and NativeAOT static libraries for osx-arm64, win-x64 and win-arm64. macOS and Windows include transcoding filters and libopus encoding. Windows includes D3D11VA and Media Foundation support.</Description>
     <PackageTags>ffmpeg;native;nativeaot;lgpl;hls;dash;android;ios;osx-arm64;win-x64;win-arm64;d3d11va;mediafoundation;browser-wasm;webassembly;wasm;dav1d;libjxl;jpegxl;avif;heic</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>LGPL-2.1-or-later AND BSD-2-Clause AND BSD-3-Clause AND Apache-2.0 AND MIT AND Zlib</PackageLicenseExpression>
@@ -57,6 +57,7 @@
     <None Include="../dav1d/COPYING" Pack="true" PackagePath="licenses/dav1d/" />
     <None Include="../libjxl/LICENSE" Pack="true" PackagePath="licenses/libjxl/" />
     <None Include="../libxml2/Copyright" Pack="true" PackagePath="licenses/libxml2/" />
+    <None Include="../opus/COPYING;../opus/LICENSE_PLEASE_READ.txt" Pack="true" PackagePath="licenses/opus/" />
     <None Include="../libjxl/third_party/brotli/LICENSE" Pack="true" PackagePath="licenses/brotli/" />
     <None Include="../libjxl/third_party/highway/LICENSE" Pack="true" PackagePath="licenses/highway/" />
     <None Include="../libjxl/third_party/skcms/LICENSE" Pack="true" PackagePath="licenses/skcms/" />

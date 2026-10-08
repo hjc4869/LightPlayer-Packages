@@ -14,7 +14,7 @@ FFmpeg 9.0.2 native libraries for .NET, with AV1 decoding provided by dav1d 1.5.
 | `browser-wasm`, single-threaded | Static (`.a`) | `static/wasm-em3`, `static/wasm-em6` |
 | `browser-wasm`, multi-threaded | Static (`.a`) | `static/wasm-mt-em3`, `static/wasm-mt-em6` |
 
-The FFmpeg command-line programs, networking, device and filter implementations, software encoders, and other optional external-library dependencies are not included. The `libavdevice`, `libavfilter`, and `libswscale` cores are included with their optional components disabled. macOS and iOS include VideoToolbox encoders; Windows includes Media Foundation encoders.
+The FFmpeg command-line programs, networking, device implementations, and software video encoders are not included. macOS and iOS include VideoToolbox encoders; Windows includes Media Foundation encoders. macOS and Windows also include libopus 1.6.1 for Opus encoding and the `hwdownload`, `hwupload`, `scale`, `format`, `aformat`, and `aresample` filters. Hardware scaling uses `scale_vt` on macOS and `scale_d3d11` on Windows.
 
 The HLS and DASH demuxers and file protocol are enabled for applications that provide manifests, playlists, and segment resources through `AVFormatContext.io_open`. FFmpeg networking remains disabled; HTTP transport belongs to the consuming application.
 
@@ -34,7 +34,7 @@ JPEG XL is unavailable in the single-threaded browser-wasm variant, because libj
 
 ## Shared libraries
 
-Shared libraries are deployed automatically by the .NET SDK on Android, macOS, and Windows. Android sonames are unversioned (`libavcodec.so`), macOS dylibs use `@rpath` install names, and Windows DLLs use versioned names (`avcodec-63.dll`). FFmpeg's internal dependencies resolve from the application's native library directory. dav1d and libjxl are linked statically into the codec library and libxml2 into the format library, without adding runtime library dependencies.
+Shared libraries are deployed automatically by the .NET SDK on Android, macOS, and Windows. Android sonames are unversioned (`libavcodec.so`), macOS dylibs use `@rpath` install names, and Windows DLLs use versioned names (`avcodec-63.dll`). FFmpeg's internal dependencies resolve from the application's native library directory. dav1d and libjxl are linked statically into the codec library and libxml2 into the format library, without adding runtime library dependencies. macOS and Windows also embed libopus in the codec library and ship its separate archive for static linking.
 
 Supply managed bindings separately. For example, reference `FFmpeg.AutoGen.Bindings.DynamicallyLoaded` version `9.0.1.1` and initialize `FFmpeg.AutoGen.Bindings.DynamicallyLoaded.DynamicallyLoadedBindings.Initialize()` before calling FFmpeg. Shared deployment works with ordinary .NET applications and NativeAOT; leave `EnableStaticFfmpeg` unset or `false`.
 
@@ -46,8 +46,8 @@ assets in `runtimes/<rid>/native/`; no package-specific linking targets,
 manual archive references, or `EnableStaticFfmpeg` setting are needed. Use
 static bindings with `__Internal`, not a dynamic library loader.
 
-The build targets iOS 15 or later and retains the macOS codec, format, pthread,
-and VideoToolbox configuration. Hardware codec availability depends on the
+The build targets iOS 15 or later and includes the common decoding and demuxing
+components, pthreads, and VideoToolbox. Hardware codec availability depends on the
 device and OS. All third-party dependencies are static; the application must
 link the system `c++` and `z` libraries and the `CoreMedia`, `CoreVideo`, and
 `VideoToolbox` frameworks through its iOS linker settings. Intel simulator
@@ -67,7 +67,7 @@ The package injects the matching archives as `NativeFileReference` items automat
 
 ## Windows
 
-Windows libraries use the MSVC ABI and static MSVC C/C++ runtime (`/MT`), built with clang-cl, the Windows SDK, and the MSVC librarian. Both architectures ship 7 FFmpeg DLLs for shared deployment and 17 COFF `.lib` archives for static NativeAOT linking. The DLLs embed dav1d, JPEG XL, Brotli, Highway, libxml2, zlib, and the MSVC runtime, so no separate third-party or MinGW runtime DLLs are needed. The static archives include these dependencies separately and are not DLL import libraries. Windows libraries target Windows 10 or later; the consuming .NET version may impose additional requirements.
+Windows libraries use the MSVC ABI and static MSVC C/C++ runtime (`/MT`), built with clang-cl, the Windows SDK, and the MSVC librarian. Both architectures ship 7 FFmpeg DLLs for shared deployment and 18 COFF `.lib` archives for static NativeAOT linking. The DLLs embed dav1d, JPEG XL, Brotli, Highway, libxml2, libopus, zlib, and the MSVC runtime, so no separate third-party or MinGW runtime DLLs are needed. The static archives include these dependencies separately and are not DLL import libraries. Windows libraries target Windows 10 or later; the consuming .NET version may impose additional requirements.
 
 The format selection matches macOS. D3D11VA decoding is enabled for H.264, HEVC, AV1, VP9, MPEG-2, VC-1, and WMV3. Media Foundation provides `aac_mf`, `ac3_mf`, `av1_mf`, `h264_mf`, `hevc_mf`, and `mp3_mf` encoders. Set the encoder option `hw_encoding=1` to require hardware encoding. Runtime availability depends on Windows components, the GPU/driver, and the codec profile; Media Foundation is an encoding API in this FFmpeg build, not a separate decoding backend.
 
@@ -95,6 +95,6 @@ The package adds the native archives and required system libraries: `mfuuid`, `o
 
 ## Licensing
 
-FFmpeg is licensed under the GNU Lesser General Public License, version 2.1 or later; dav1d under the BSD 2-Clause license; libjxl and skcms under the BSD 3-Clause license; highway under the Apache License 2.0; brotli and libxml2 under the MIT license; and zlib under the zlib license. The upstream licensing files are included in the package under `licenses/`.
+FFmpeg is licensed under the GNU Lesser General Public License, version 2.1 or later; dav1d under the BSD 2-Clause license; libjxl, skcms, and libopus under the BSD 3-Clause license; highway under the Apache License 2.0; brotli and libxml2 under the MIT license; and zlib under the zlib license. The upstream licensing files, including the Opus royalty-free patent license references, are included in the package under `licenses/`.
 
 Windows builds explicitly disable GPL, nonfree, and version-3-only FFmpeg components. Static linking still carries LGPL obligations: distributors must provide the applicable notices and source, and a way to relink the application with a modified library, such as suitable application object files and build instructions. A NativeAOT executable or this NuGet package alone is not a complete relinking kit.

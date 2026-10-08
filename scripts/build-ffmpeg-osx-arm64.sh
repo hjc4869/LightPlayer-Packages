@@ -27,6 +27,13 @@ esac
 artifact_name="ffmpeg-$target"
 build_dir="${FFMPEG_BUILD_DIR:-$repo_root/artifacts/build/$artifact_name}"
 artifacts_dir="${FFMPEG_ARTIFACTS_DIR:-$repo_root/artifacts/$artifact_name}"
+transcode_args=()
+if [[ "$target" == osx-arm64 ]]; then
+  transcode_args=(
+    --enable-libopus --enable-encoder=libopus
+    --enable-filter=hwdownload,hwupload,scale,format,scale_vt,aformat,aresample
+  )
+fi
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
   echo "This build must run on macOS." >&2
@@ -69,6 +76,11 @@ libxml2_prefix="$build_dir/libxml2"
 
 # Keep pkg-config away from the host libraries while cross-compiling.
 export PKG_CONFIG_LIBDIR="$dav1d_prefix/lib/pkgconfig:$libjxl_prefix/lib/pkgconfig:$libxml2_prefix/lib/pkgconfig"
+if [[ "$target" == osx-arm64 ]]; then
+  opus_prefix="$build_dir/opus"
+  bash "$repo_root/scripts/build-opus.sh" "$target" "$opus_prefix" "$build_dir/opus-build"
+  export PKG_CONFIG_LIBDIR="$PKG_CONFIG_LIBDIR:$opus_prefix/lib/pkgconfig"
+fi
 export PKG_CONFIG_PATH="$PKG_CONFIG_LIBDIR"
 
 cd "$build_dir"
@@ -287,6 +299,7 @@ cd "$build_dir"
   --enable-encoder=h264_videotoolbox \
   --enable-encoder=hevc_videotoolbox \
   --enable-encoder=prores_videotoolbox \
+  ${transcode_args[@]+"${transcode_args[@]}"} \
   --enable-stripping
 
 if ! grep -q '^#define HAVE_PTHREADS 1$' config.h; then
@@ -337,6 +350,19 @@ for component in DASH_DEMUXER HLS_DEMUXER FILE_PROTOCOL \
   fi
 done
 
+if [[ "$target" == osx-arm64 ]]; then
+  if ! grep -q '^#define CONFIG_LIBOPUS 1$' config.h; then
+    echo "FFmpeg did not enable libopus for macOS." >&2
+    exit 1
+  fi
+  for component in HWDOWNLOAD_FILTER HWUPLOAD_FILTER SCALE_FILTER FORMAT_FILTER SCALE_VT_FILTER AFORMAT_FILTER ARESAMPLE_FILTER LIBOPUS_ENCODER; do
+    if ! grep -q "^#define CONFIG_$component 1$" config_components.h; then
+      echo "FFmpeg did not enable $component for macOS." >&2
+      exit 1
+    fi
+  done
+fi
+
 build_jobs="${FFMPEG_BUILD_JOBS:-$(sysctl -n hw.logicalcpu)}"
 make -j"$build_jobs"
 
@@ -358,6 +384,9 @@ archives=(
   "$libjxl_prefix/lib/libbrotlienc.a"
   "$libxml2_prefix/lib/libxml2.a"
 )
+if [[ "$target" == osx-arm64 ]]; then
+  archives+=("$opus_prefix/lib/libopus.a")
+fi
 
 library_names=(libavdevice libavfilter libavcodec libavformat libavutil libswresample libswscale)
 dynamic_libraries=()

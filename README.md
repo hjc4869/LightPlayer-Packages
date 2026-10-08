@@ -2,7 +2,7 @@
 
 This repository builds native and managed NuGet packages for .NET:
 
-- [`LightStudio.Ffmpeg`](https://www.nuget.org/packages/LightStudio.Ffmpeg/): FFmpeg 9.0.2 and its decoding dependencies.
+- [`LightStudio.Ffmpeg`](https://www.nuget.org/packages/LightStudio.Ffmpeg/): FFmpeg 9.0.2 with decoding and desktop transcoding dependencies.
 - [LightStudio.Photos](package/photos/README.md): LibRaw 0.22.2 and Little CMS 2.19.1 for RAW photos and ICC color management. See [Photos builds](#photos-builds) for its platform matrix and workflow.
 - [LightStudio.Onnx](package/onnx/README.md): ONNX Runtime 1.30.0 with its complete .NET managed API for six native RIDs, embedded Dawn/WebGPU on Linux, and CoreML on macOS and iOS. See the package README for release build instructions and platform limitations.
 - [LightStudio.sqlite-vec](package/sqlite-vec/README.md): sqlite-vec 0.1.9 shared and static native extensions for eight desktop/Android RIDs, static iOS ARM64 device/simulator extensions, and single-threaded/multithreaded browser-WASM static libraries, with bundled SQLite for Android/WASM and no ONNX dependency. Windows can use the system WinSQLite engine.
@@ -27,6 +27,8 @@ The workflows build, stage, pack, and upload artifacts without post-build tests 
 Desktop and browser static archives are kept outside `runtimes/` and linked by the package's `build/LightStudio.Ffmpeg.targets`. iOS archives use `runtimes/ios-arm64/native/` or `runtimes/iossimulator-arm64/native/` and the .NET for iOS SDK's automatic static linking instead.
 
 Every runtime bundles dav1d 1.5.4 as the AV1 decoder. The static sets ship `libdav1d.a` (`dav1d.lib` on Windows) next to the FFmpeg archives; the Android, macOS, and Windows shared libraries link dav1d statically into the FFmpeg codec library.
+
+macOS and Windows bundle libopus 1.6.1 for Opus encoding, embedded in shared FFmpeg libraries and supplied as `libopus.a` or `opus.lib` for static linking. These desktop builds include `hwdownload`, `hwupload`, `scale`, `format`, `aformat`, and `aresample`; hardware scaling uses `scale_vt` on macOS and `scale_d3d11` on Windows.
 
 The HLS and DASH demuxers and file protocol are enabled on every runtime for applications that provide manifests, playlists, and segment resources through `AVFormatContext.io_open`. FFmpeg networking remains disabled; HTTP transport belongs to the consuming application. DASH manifest parsing is provided by libxml2 2.15.3, which is linked statically into shared builds and shipped as `libxml2.a` (`xml2.lib` on Windows) with static builds.
 
@@ -142,8 +144,8 @@ bash scripts/build-sqlite-vec.sh iossimulator-arm64
 ```
 
 Device and simulator archives are built separately and cannot be interchanged.
-The iOS builds retain the corresponding macOS library feature options,
-including FFmpeg VideoToolbox and ONNX CoreML, with shared output disabled.
+The iOS builds include the common decoding and demuxing components,
+FFmpeg VideoToolbox, and ONNX CoreML, with shared output disabled.
 sqlite-vec remains extension-only and requires the application's SQLite engine
 to register `sqlite3_vec_init` through `sqlite3_auto_extension`.
 
@@ -168,7 +170,7 @@ Publish for `win-x64`, `win-arm64`, or `osx-arm64`, and initialize `StaticallyLi
 
 ## Local builds
 
-All variants build dav1d, libjxl, and libxml2 from their submodules first, so cmake, meson and ninja are required. libjxl has ten nested submodules, including a multi-gigabyte test corpus, so `--recursive` is deliberately avoided; `scripts/fetch-libjxl-dependencies.sh` initializes only brotli, highway and skcms.
+All variants build dav1d, libjxl, and libxml2 from their submodules first, and desktop FFmpeg builds also build libopus. cmake, meson and ninja are required. libjxl has ten nested submodules, including a multi-gigabyte test corpus, so `--recursive` is deliberately avoided; `scripts/fetch-libjxl-dependencies.sh` initializes only brotli, highway and skcms.
 
 Each script stages its output under `artifacts/<artifact-name>`. Collect all platform outputs, normally from CI, before packing a complete package.
 
@@ -207,16 +209,16 @@ pacman -S --needed make diffutils pkgconf nasm perl \
   mingw-w64-ucrt-x86_64-llvm mingw-w64-ucrt-x86_64-cmake \
   mingw-w64-ucrt-x86_64-meson
 export PATH="/usr/bin:/ucrt64/bin:$PATH"
-git submodule update --init --depth 1 -- ffmpeg dav1d libjxl libxml2 zlib
+git submodule update --init --depth 1 -- ffmpeg dav1d libjxl libxml2 opus zlib
 bash scripts/fetch-libjxl-dependencies.sh
 bash scripts/build-ffmpeg-windows.sh win-x64
 ```
 
 For ARM64, use the matching fresh developer prompt and pass `win-arm64`.
-[The build](scripts/build-ffmpeg-windows.sh) stages 17 static `.lib` files,
+[The build](scripts/build-ffmpeg-windows.sh) stages 18 static `.lib` files,
 7 versioned FFmpeg DLLs, public headers, and configuration evidence under
 `artifacts/ffmpeg-win-<arch>`. Like macOS, shared libraries embed dav1d, JPEG XL,
-and libxml2; Windows also embeds zlib and the MSVC runtime. FFmpeg's MSVC
+libxml2, and libopus; Windows also embeds zlib and the MSVC runtime. FFmpeg's MSVC
 toolchain requires separate static and shared build passes, both using the same
 features and static dependencies. Shared import libraries are not staged over
 the static archives. Configuration evidence for the shared pass is in

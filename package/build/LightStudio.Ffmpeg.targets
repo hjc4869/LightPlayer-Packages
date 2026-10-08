@@ -27,7 +27,7 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(_LightStudioFfmpegUseStatic)' == 'true' and ('$(_LightStudioFfmpegStaticRid)' == 'win-x64' or '$(_LightStudioFfmpegStaticRid)' == 'win-arm64')">
-    <_LightStudioFfmpegWindowsLibrary Include="avcodec;avdevice;avfilter;avformat;avutil;swresample;swscale;dav1d;jxl;jxl_cms;jxl_threads;hwy;brotlicommon;brotlidec;brotlienc;xml2;zlib" />
+    <_LightStudioFfmpegWindowsLibrary Include="avcodec;avdevice;avfilter;avformat;avutil;swresample;swscale;dav1d;jxl;jxl_cms;jxl_threads;hwy;brotlicommon;brotlidec;brotlienc;xml2;opus;zlib" />
     <_LightStudioFfmpegWindowsArchive Include="@(_LightStudioFfmpegWindowsLibrary->'$(LightStudioFfmpegStaticLibraryDir)/%(Identity).lib')" />
     <NativeLibrary Include="@(_LightStudioFfmpegWindowsArchive)" />
     <NativeLibrary Include="mfuuid.lib;ole32.lib;strmiids.lib;user32.lib;bcrypt.lib" />

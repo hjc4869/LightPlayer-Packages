@@ -27,7 +27,7 @@ done
 
 ffmpeg_dir="$repo_root/ffmpeg"
 if [[ ! -f "$ffmpeg_dir/configure" ]]; then
-  echo "Initialize the ffmpeg, dav1d, libjxl, libxml2 and zlib submodules first." >&2
+  echo "Initialize the ffmpeg, dav1d, libjxl, libxml2, opus and zlib submodules first." >&2
   exit 1
 fi
 
@@ -37,6 +37,7 @@ build_jobs="${FFMPEG_BUILD_JOBS:-$(getconf _NPROCESSORS_ONLN)}"
 dav1d_prefix="$build_dir/dav1d"
 libjxl_prefix="$build_dir/libjxl"
 libxml2_prefix="$build_dir/libxml2"
+opus_prefix="$build_dir/opus"
 zlib_prefix="$build_dir/zlib"
 mkdir -p "$build_dir"
 
@@ -44,6 +45,7 @@ if [[ "${FFMPEG_REUSE_DEPS:-0}" != 1 ]]; then
   bash "$repo_root/scripts/build-dav1d.sh" "$target" "$dav1d_prefix" "$build_dir/dav1d-build"
   bash "$repo_root/scripts/build-libjxl.sh" "$target" "$libjxl_prefix" "$build_dir/libjxl-build"
   bash "$repo_root/scripts/build-libxml2.sh" "$target" "$libxml2_prefix" "$build_dir/libxml2-build"
+  bash "$repo_root/scripts/build-opus.sh" "$target" "$opus_prefix" "$build_dir/opus-build"
 fi
 
 MSYS2_ARG_CONV_EXCL='*' cmake -G Ninja \
@@ -58,7 +60,7 @@ cmake --build "$(cygpath -m "$build_dir/zlib-build")" --parallel "$build_jobs"
 cmake --install "$(cygpath -m "$build_dir/zlib-build")"
 cp "$zlib_prefix/lib/zs.lib" "$zlib_prefix/lib/zlib.lib"
 
-export PKG_CONFIG_LIBDIR="$dav1d_prefix/lib/pkgconfig:$libjxl_prefix/lib/pkgconfig:$libxml2_prefix/lib/pkgconfig"
+export PKG_CONFIG_LIBDIR="$dav1d_prefix/lib/pkgconfig:$libjxl_prefix/lib/pkgconfig:$libxml2_prefix/lib/pkgconfig:$opus_prefix/lib/pkgconfig"
 export PKG_CONFIG_PATH="$PKG_CONFIG_LIBDIR"
 export MSYS2_ARG_CONV_EXCL=
 
@@ -110,13 +112,14 @@ configure_args=(
   --disable-programs --disable-debug --disable-doc --disable-autodetect
   --enable-swscale --enable-avfilter --enable-avdevice
   --disable-filters --disable-devices --disable-network
+  --enable-filter=hwdownload,hwupload,scale,format,scale_d3d11,aformat,aresample
   --enable-d3d11va --enable-mediafoundation
   --disable-dxva2 --disable-d3d12va --disable-vaapi --disable-vdpau --disable-videotoolbox
   --disable-protocols --enable-protocol=file
   --disable-bsfs --disable-muxers --disable-demuxers --disable-parsers
   --disable-decoders --disable-encoders --disable-hwaccels
-  --pkg-config-flags=--static --enable-zlib --enable-libxml2 --enable-libdav1d --enable-libjxl
-  --enable-encoder=aac_mf,ac3_mf,av1_mf,h264_mf,hevc_mf,mp3_mf
+  --pkg-config-flags=--static --enable-zlib --enable-libxml2 --enable-libdav1d --enable-libjxl --enable-libopus
+  --enable-encoder=aac_mf,ac3_mf,av1_mf,h264_mf,hevc_mf,mp3_mf,libopus
   "${component_args[@]}"
 )
 
@@ -139,7 +142,7 @@ for linkage in static shared; do
   for feature in W32THREADS INLINE_ASM; do
     grep -q "^#define HAVE_$feature 1$" config.h || { echo "Missing $feature for $target ($linkage)." >&2; exit 1; }
   done
-  for feature in D3D11VA MEDIAFOUNDATION LIBDAV1D LIBJXL LIBXML2 ZLIB RUNTIME_CPUDETECT; do
+  for feature in D3D11VA MEDIAFOUNDATION LIBDAV1D LIBJXL LIBXML2 LIBOPUS ZLIB RUNTIME_CPUDETECT; do
     grep -q "^#define CONFIG_$feature 1$" config.h || { echo "Missing $feature for $target ($linkage)." >&2; exit 1; }
   done
   for feature in GPL NONFREE VERSION3 NETWORK; do
@@ -150,7 +153,8 @@ for linkage in static shared; do
   for component in DASH_DEMUXER HLS_DEMUXER FILE_PROTOCOL SUP_DEMUXER PGSSUB_DECODER \
     LIBDAV1D_DECODER LIBJXL_DECODER LIBJXL_ANIM_DECODER PNG_DECODER WEBP_DECODER TIFF_DECODER \
     H264_D3D11VA_HWACCEL HEVC_D3D11VA_HWACCEL AV1_D3D11VA_HWACCEL VP9_D3D11VA_HWACCEL \
-    H264_MF_ENCODER HEVC_MF_ENCODER AV1_MF_ENCODER; do
+    H264_MF_ENCODER HEVC_MF_ENCODER AV1_MF_ENCODER LIBOPUS_ENCODER \
+    HWDOWNLOAD_FILTER HWUPLOAD_FILTER SCALE_FILTER FORMAT_FILTER SCALE_D3D11_FILTER AFORMAT_FILTER ARESAMPLE_FILTER; do
     grep -q "^#define CONFIG_$component 1$" config_components.h || { echo "Missing $component for $target ($linkage)." >&2; exit 1; }
   done
   if [[ "$target" == win-x64 ]]; then
@@ -176,7 +180,7 @@ for linkage in static shared; do
   make install-headers
 done
 
-cp "$dav1d_prefix/lib/dav1d.lib" "$libxml2_prefix/lib/xml2.lib" "$zlib_prefix/lib/zlib.lib" "$artifacts_dir/"
+cp "$dav1d_prefix/lib/dav1d.lib" "$libxml2_prefix/lib/xml2.lib" "$opus_prefix/lib/opus.lib" "$zlib_prefix/lib/zlib.lib" "$artifacts_dir/"
 for library in jxl jxl_cms jxl_threads hwy brotlicommon brotlidec brotlienc; do
   cp "$libjxl_prefix/lib/$library.lib" "$artifacts_dir/"
 done
