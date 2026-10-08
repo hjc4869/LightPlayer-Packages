@@ -12,6 +12,7 @@
     <!-- Only runtimes that ship static archives and support native AOT can be linked statically. -->
     <_LightStudioFfmpegStaticRid Condition="'$(RuntimeIdentifier)' == 'osx-arm64'">osx-arm64</_LightStudioFfmpegStaticRid>
     <_LightStudioFfmpegStaticRid Condition="'$(RuntimeIdentifier)' == 'win-x64' or '$(RuntimeIdentifier)' == 'win-arm64'">$(RuntimeIdentifier)</_LightStudioFfmpegStaticRid>
+    <_LightStudioFfmpegStaticRid Condition="'$(RuntimeIdentifier)' == 'android-arm64' or '$(RuntimeIdentifier)' == 'android-x64'">$(RuntimeIdentifier)</_LightStudioFfmpegStaticRid>
     <LightStudioFfmpegStaticLibraryDir Condition="'$(LightStudioFfmpegStaticLibraryDir)' == ''">$(LightStudioFfmpegPackageRoot)static/$(_LightStudioFfmpegStaticRid)</LightStudioFfmpegStaticLibraryDir>
 
     <_LightStudioFfmpegUseStatic>false</_LightStudioFfmpegUseStatic>
@@ -25,6 +26,21 @@
   <ItemGroup Condition="'$(_LightStudioFfmpegUseStatic)' == 'true' and '$(_LightStudioFfmpegStaticRid)' == 'osx-arm64'">
     <NativeLibrary Include="$(LightStudioFfmpegStaticLibraryDir)/*.a" />
   </ItemGroup>
+
+  <ItemGroup Condition="'$(_LightStudioFfmpegUseStatic)' == 'true' and ('$(_LightStudioFfmpegStaticRid)' == 'android-arm64' or '$(_LightStudioFfmpegStaticRid)' == 'android-x64')">
+    <_LightStudioFfmpegAndroidLibrary Include="avcodec;avdevice;avfilter;avformat;avutil;swresample;swscale;dav1d;jxl;jxl_cms;jxl_threads;hwy;brotlicommon;brotlidec;brotlienc;xml2" />
+    <_LightStudioFfmpegAndroidArchive Include="@(_LightStudioFfmpegAndroidLibrary->'$(LightStudioFfmpegStaticLibraryDir)/lib%(Identity).a')" />
+    <NativeLibrary Include="@(_LightStudioFfmpegAndroidArchive)" />
+    <NativeSystemLibrary Include="c++_static;c++abi;z;android;mediandk;log;dl;m" />
+    <LinkerArg Include="@(_LightStudioFfmpegAndroidArchive->'-Wl,--exclude-libs,%(Filename)%(Extension)')" />
+    <LinkerArg Include="-Wl,-z,max-page-size=16384" />
+  </ItemGroup>
+
+  <Target Name="ValidateLightStudioFfmpegAndroidStaticLibraries" BeforeTargets="PrepareForBuild;IlcCompile"
+          Condition="'@(_LightStudioFfmpegAndroidArchive)' != ''">
+    <Error Condition="!Exists('%(_LightStudioFfmpegAndroidArchive.Identity)')"
+           Text="Missing FFmpeg static library '%(_LightStudioFfmpegAndroidArchive.Identity)'. Restore a complete LightStudio.Ffmpeg package or build the matching Android artifacts." />
+  </Target>
 
   <ItemGroup Condition="'$(_LightStudioFfmpegUseStatic)' == 'true' and ('$(_LightStudioFfmpegStaticRid)' == 'win-x64' or '$(_LightStudioFfmpegStaticRid)' == 'win-arm64')">
     <_LightStudioFfmpegWindowsLibrary Include="avcodec;avdevice;avfilter;avformat;avutil;swresample;swscale;dav1d;jxl;jxl_cms;jxl_threads;hwy;brotlicommon;brotlidec;brotlienc;xml2;opus;zlib" />

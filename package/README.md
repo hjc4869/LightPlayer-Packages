@@ -5,6 +5,7 @@ FFmpeg 9.0.2 native libraries for .NET, with AV1 decoding provided by dav1d 1.5.
 | Runtime | Linking | Location in the package |
 | --- | --- | --- |
 | `android-arm64`, `android-x64` | Shared (`.so`) | `runtimes/android-<arch>/native` |
+| `android-arm64`, `android-x64` | Static (`.a`, native AOT opt-in) | `static/android-<arch>` |
 | `win-x64`, `win-arm64` | Shared (`.dll`) | `runtimes/win-<arch>/native` |
 | `win-x64`, `win-arm64` | Static (`.lib`, NativeAOT only) | `static/win-<arch>` |
 | `osx-arm64` | Shared (`.dylib`) | `runtimes/osx-arm64/native` |
@@ -89,9 +90,17 @@ Set `EnableStaticFfmpeg` to link the static archives into the AOT binary instead
 </ItemGroup>
 ```
 
-Use `win-x64`, `win-arm64`, or `osx-arm64`. Initialize `FFmpeg.AutoGen.Bindings.StaticallyLinked.StaticallyLinkedBindings.Initialize()` before using the abstractions, and do not initialize the dynamically loaded bindings in that build. Other P/Invoke bindings need equivalent direct-call configuration.
+Use `android-arm64`, `android-x64`, `win-x64`, `win-arm64`, or `osx-arm64`. Initialize `FFmpeg.AutoGen.Bindings.StaticallyLinked.StaticallyLinkedBindings.Initialize()` before using the abstractions, and do not initialize the dynamically loaded bindings in that build. Other P/Invoke bindings need equivalent direct-call configuration.
 
-The package adds the native archives and required system libraries: `mfuuid`, `ole32`, `strmiids`, `user32`, and `bcrypt` on Windows; `c++`, `z`, `CoreMedia`, `CoreVideo`, and `VideoToolbox` on macOS. Windows and macOS shared libraries are removed from static publish output. `EnableStaticFfmpeg` is ignored without `PublishAot` and on unsupported RIDs. `LightStudioFfmpegStaticLibraryDir` can override the archive directory for local builds; Windows consumers fail early if any required archive is missing.
+The package adds the native archives and required system libraries: `mfuuid`, `ole32`, `strmiids`, `user32`, and `bcrypt` on Windows; `c++`, `z`, `CoreMedia`, `CoreVideo`, and `VideoToolbox` on macOS; `c++_static`, `c++abi`, `z`, `android`, `mediandk`, `log`, `dl`, and `m` on Android. This package's shared libraries are removed from static publish output. `EnableStaticFfmpeg` is ignored without `PublishAot` and on unsupported RIDs. `LightStudioFfmpegStaticLibraryDir` can override the archive directory for local builds; Android and Windows consumers fail early if any required archive is missing.
+
+### Android requirements
+
+Each Android RID includes seven FFmpeg archives plus dav1d, libjxl, libjxl_cms, libjxl_threads, Highway, three Brotli archives, and libxml2. zlib remains an Android system library; the C++ runtime comes from the consuming NDK. JNI and MediaCodec support are retained.
+
+Use an Android NativeAOT/native-host toolchain that supports `NativeLibrary`, `NativeSystemLibrary`, `LinkerArg`, and direct P/Invoke. This opt-in does not enable static linking for ordinary Mono-based .NET for Android applications. Match the Android API and NDK to the binaries: the build script defaults to API 21, while the publishing workflow selects API 35 with NDK r28c. The final link requests 16 KB page alignment and localizes symbols from the FFmpeg archive set with `--exclude-libs`; static calls must use direct bindings, not runtime symbol lookup. Link FFmpeg archives normally, not with blanket `--whole-archive`, because upstream libraries share some internal helper objects.
+
+The skcms private prefix covers C definitions and references, including `powf_`, and the C++ private namespace. Builds audit the installed archives for unprefixed names. Both Android ABIs were checked against the repository's available static Skia/ANGLE set: skcms co-links with Skia in both archive orders, and no strong-symbol overlaps were found across the two sets. This is not general isolation of every dependency: additional copies of Brotli, Highway, dav1d, libxml2, or zlib can still conflict. Export localization does not prevent duplicate definitions within a static link; share one compatible implementation or namespace each private copy.
 
 ## Licensing
 

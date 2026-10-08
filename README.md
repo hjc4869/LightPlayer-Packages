@@ -15,6 +15,7 @@ The workflows build, stage, pack, and upload artifacts without post-build tests 
 | Runtime | Linking | Location in the package |
 | --- | --- | --- |
 | `android-arm64`, `android-x64` | Shared (`.so`) | `runtimes/android-<arch>/native` |
+| `android-arm64`, `android-x64` | Static (`.a`, native AOT opt-in) | `static/android-<arch>` |
 | `win-x64`, `win-arm64` | Shared (`.dll`) | `runtimes/win-<arch>/native` |
 | `win-x64`, `win-arm64` | Static (`.lib`, NativeAOT only) | `static/win-<arch>` |
 | `osx-arm64` | Shared (`.dylib`) | `runtimes/osx-arm64/native` |
@@ -62,6 +63,13 @@ objects, then rebuilds libjxl with a forced prefix header. This covers internal
 data and helpers such as `powf_`, not just `skcms_*`; the C++ `skcms_private`
 namespace is renamed too. No pinned submodule sources or public `Jxl*` APIs
 change. skcms is already inside `libjxl_cms.a` (`jxl_cms.lib` on Windows), so no archive merge is needed.
+
+The build verifies that every installed libjxl archive is free of original skcms
+definitions and references. Android ARM64 and x64 static archives were checked
+against the available Avalonia/Skia/ANGLE builds: libjxl_cms and Skia co-link with
+whole-archive inclusion in either order, and the complete sets have no overlapping
+strong definitions. This confirms the skcms workaround for those pinned inputs,
+not arbitrary additional versions of the dependencies listed below.
 
 zlib is required by the PNG decoder. Android, macOS, and iOS use the platform copy;
 browser-wasm uses the Emscripten `zlib` port and ships the resulting `libz.a`
@@ -116,7 +124,7 @@ dotnet add package LightStudio.Ffmpeg --version 9.0.2.1
 
 ### Android, macOS, and Windows
 
-The shared libraries are deployed by the .NET SDK from `runtimes/<rid>/native`; static linking is opt-in. Supply managed bindings such as `FFmpeg.AutoGen.Bindings.DynamicallyLoaded` and initialize `DynamicallyLoadedBindings` before calling FFmpeg. The macOS binaries target macOS 11.0 or later, Android targets API level 21 or later, and Windows targets Windows 10 or later.
+The shared libraries are deployed by the .NET SDK from `runtimes/<rid>/native`; static linking is opt-in. Supply managed bindings such as `FFmpeg.AutoGen.Bindings.DynamicallyLoaded` and initialize `DynamicallyLoadedBindings` before calling FFmpeg. The macOS binaries target macOS 11.0 or later, the Android build script defaults to API 21 (the publishing workflow selects API 35), and Windows targets Windows 10 or later.
 
 ### iOS ARM64
 
@@ -166,7 +174,7 @@ The package adds the correct archives as `NativeFileReference` items automatical
 </ItemGroup>
 ```
 
-Publish for `win-x64`, `win-arm64`, or `osx-arm64`, and initialize `StaticallyLinkedBindings` before calling FFmpeg. `EnableStaticFfmpeg` adds the native archives and platform libraries, and drops the package's shared libraries from static publish output. It is ignored without `PublishAot` and on unsupported RIDs; browser-wasm has its own automatic static selection. See the [package README](package/README.md) for hardware APIs, linking details, and LGPL distribution obligations.
+Publish for `android-arm64`, `android-x64`, `win-x64`, `win-arm64`, or `osx-arm64`, and initialize `StaticallyLinkedBindings` before calling FFmpeg. `EnableStaticFfmpeg` adds the native archives and platform libraries, and drops the package's shared libraries from static publish output. It is ignored without `PublishAot` and on unsupported RIDs; browser-wasm has its own automatic static selection. Android requires a compatible NativeAOT/native-host toolchain, not ordinary Mono AOT. Its linker inputs localize the FFmpeg archives' symbols and request 16 KB page alignment. See the [package README](package/README.md) for hardware APIs, linking details, symbol-isolation limits, and LGPL distribution obligations.
 
 ## Local builds
 

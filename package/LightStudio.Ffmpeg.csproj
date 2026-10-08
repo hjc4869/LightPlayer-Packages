@@ -6,7 +6,7 @@
     <PackageId>LightStudio.Ffmpeg</PackageId>
     <Version>9.0.2.1</Version>
     <Authors>LightStudio</Authors>
-    <Description>FFmpeg 9.0.2 LGPL native libraries for .NET, with HLS and DASH custom I/O support, dav1d (AV1), libjxl (JPEG XL), and common photo formats. Shared libraries for Android, osx-arm64, win-x64 and win-arm64, static archives for iOS ARM64 and browser-wasm, and NativeAOT static libraries for osx-arm64, win-x64 and win-arm64. macOS and Windows include transcoding filters and libopus encoding. Windows includes D3D11VA and Media Foundation support.</Description>
+    <Description>FFmpeg 9.0.2 LGPL native libraries for .NET, with HLS and DASH custom I/O support, dav1d (AV1), libjxl (JPEG XL), and common photo formats. Shared libraries for Android, osx-arm64, win-x64 and win-arm64, static archives for iOS ARM64 and browser-wasm, and NativeAOT static libraries for Android, osx-arm64, win-x64 and win-arm64. macOS and Windows include transcoding filters and libopus encoding. Windows includes D3D11VA and Media Foundation support.</Description>
     <PackageTags>ffmpeg;native;nativeaot;lgpl;hls;dash;android;ios;osx-arm64;win-x64;win-arm64;d3d11va;mediafoundation;browser-wasm;webassembly;wasm;dav1d;libjxl;jpegxl;avif;heic</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>LGPL-2.1-or-later AND BSD-2-Clause AND BSD-3-Clause AND Apache-2.0 AND MIT AND Zlib</PackageLicenseExpression>
@@ -34,8 +34,10 @@
     <None Include="$(FFmpegArtifactsPath)/ffmpeg-iossimulator-arm64/*.a" Pack="true" PackagePath="runtimes/iossimulator-arm64/native/" />
   </ItemGroup>
 
-  <!-- Desktop and browser static archives use opt-in or platform-specific linking. -->
+  <!-- Android, desktop and browser static archives use opt-in or platform-specific linking. -->
   <ItemGroup Label="Statically linked assets">
+    <None Include="$(FFmpegArtifactsPath)/ffmpeg-android/android-arm64/*.a" Pack="true" PackagePath="static/android-arm64/" />
+    <None Include="$(FFmpegArtifactsPath)/ffmpeg-android/android-x64/*.a" Pack="true" PackagePath="static/android-x64/" />
     <None Include="$(FFmpegArtifactsPath)/ffmpeg-win-x64/*.lib" Pack="true" PackagePath="static/win-x64/" />
     <None Include="$(FFmpegArtifactsPath)/ffmpeg-win-arm64/*.lib" Pack="true" PackagePath="static/win-arm64/" />
     <None Include="$(FFmpegArtifactsPath)/ffmpeg-osx-arm64/*.a" Pack="true" PackagePath="static/osx-arm64/" />

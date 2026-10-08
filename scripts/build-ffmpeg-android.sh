@@ -115,7 +115,7 @@ build_abi() {
     --arch="$ffmpeg_arch" \
     --enable-cross-compile \
     --sysroot="$sysroot" \
-    --disable-static \
+    --enable-static \
     --enable-shared \
     --enable-pic \
     --enable-pthreads \
@@ -376,14 +376,38 @@ build_abi() {
   mkdir -p "$artifacts_dir"
 
   local library_name
+  local static_targets=()
   for library_name in "${library_names[@]}"; do
     cp -L "$build_dir/$library_name/$library_name.so" "$artifacts_dir/$library_name.so"
+    static_targets+=("$library_name/$library_name.a")
+  done
+
+  rm -f -- "${static_targets[@]}"
+  make -j"$build_jobs" CONFIG_SHARED= "${static_targets[@]}"
+  for library_name in "${library_names[@]}"; do
+    cp "$build_dir/$library_name/$library_name.a" "$artifacts_dir/$library_name.a"
+  done
+
+  local archives=(
+    "$dav1d_prefix/lib/libdav1d.a"
+    "$libjxl_prefix/lib/libjxl.a"
+    "$libjxl_prefix/lib/libjxl_cms.a"
+    "$libjxl_prefix/lib/libjxl_threads.a"
+    "$libjxl_prefix/lib/libhwy.a"
+    "$libjxl_prefix/lib/libbrotlicommon.a"
+    "$libjxl_prefix/lib/libbrotlidec.a"
+    "$libjxl_prefix/lib/libbrotlienc.a"
+    "$libxml2_prefix/lib/libxml2.a"
+  )
+  local archive
+  for archive in "${archives[@]}"; do
+    cp "$archive" "$artifacts_dir/"
   done
 
   popd >/dev/null
 
-  printf "Staged %d FFmpeg shared libraries for '%s' in %s\n" \
-    "${#library_names[@]}" "$dotnet_rid" "$artifacts_dir"
+  printf "Staged %d FFmpeg shared libraries and %d static archives for '%s' in %s\n" \
+    "${#library_names[@]}" "$((${#library_names[@]} + ${#archives[@]}))" "$dotnet_rid" "$artifacts_dir"
 }
 
 for abi in arm64 x64; do

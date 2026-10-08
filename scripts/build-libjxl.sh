@@ -241,6 +241,10 @@ fi
     if (target == "osx-arm64" || target == "ios-arm64" || target == "iossimulator-arm64") sub(/^_/, "", symbol);
     if (symbol ~ /^[A-Za-z_][A-Za-z0-9_]*$/ && symbol !~ /^_Z/) print symbol
   }' | LC_ALL=C sort -u > "$skcms_symbols"
+if ! grep -qx 'skcms_Transform' "$skcms_symbols"; then
+  echo "Failed to discover skcms C symbols in '$skcms_objects'." >&2
+  exit 1
+fi
 awk '{ printf "#define %s lightstudio_ffmpeg_%s\n", $1, $1 }' \
   "$skcms_symbols" > "$skcms_namespace"
 printf '#define skcms_private lightstudio_ffmpeg_skcms_private\n' >> "$skcms_namespace"
@@ -257,6 +261,26 @@ done
 # so building only the libraries leaves 'cmake --install' without input files.
 cmake --build "$build_dir" --parallel "$build_jobs"
 cmake --install "$build_dir"
+
+shopt -s nullglob
+installed_archives=("$prefix/lib"/*.a "$prefix/lib"/*.lib)
+shopt -u nullglob
+if [[ ${#installed_archives[@]} -eq 0 ]]; then
+  echo "No installed libjxl archives found in '$prefix/lib'." >&2
+  exit 1
+fi
+"$nm_tool" -g "${installed_archives[@]}" > "$build_dir/installed-symbols.txt"
+awk -v target="$target" 'NR == FNR { original[$1] = 1; next }
+  NF >= 2 {
+    symbol = $NF;
+    if (target == "osx-arm64" || target == "ios-arm64" || target == "iossimulator-arm64") sub(/^_/, "", symbol);
+    if (symbol in original || symbol ~ /^skcms_/ ||
+        (index(symbol, "skcms_private") && !index(symbol, "lightstudio_ffmpeg_skcms_private"))) {
+      print "Unprefixed skcms definition or reference: " symbol;
+      failed = 1;
+    }
+  }
+  END { exit failed }' "$skcms_symbols" "$build_dir/installed-symbols.txt"
 
 pkg_config_files=(
   "$prefix/lib/pkgconfig/libjxl.pc"
