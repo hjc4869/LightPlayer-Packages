@@ -15,9 +15,10 @@ if [[ "${VSCMD_ARG_TGT_ARCH:-}" != "$vc_arch" ]]; then
   exit 1
 fi
 
-build_root="$repo_root/artifacts/build/photos-$target-static"
+artifacts_root="${PHOTOS_ARTIFACTS_PATH:-$repo_root/artifacts}"
+build_root="$artifacts_root/build/photos-$target-static"
 prefix="$build_root/install"
-output="$repo_root/artifacts/photos-$target-static"
+output="$artifacts_root/photos-$target-static"
 build_jobs="${PHOTOS_BUILD_JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)}"
 
 rm -rf -- "$build_root" "$output"
@@ -33,6 +34,17 @@ cmake_args=(
   -DCMAKE_INSTALL_PREFIX="$(cygpath -m "$prefix")"
   -DCMAKE_INSTALL_LIBDIR=lib -DCMAKE_INSTALL_INCLUDEDIR=include
 )
+
+source_dir="$build_root/jxrlib-source"
+build_dir="$build_root/jxrlib-build"
+mkdir -p "$source_dir"
+git -C "$repo_root/jxrlib" archive HEAD | tar -x -C "$source_dir"
+MSYS2_ARG_CONV_EXCL='*' cmake -S "$(cygpath -m "$repo_root/scripts/jxrlib")" \
+  -B "$(cygpath -m "$build_dir")" "${cmake_args[@]}" \
+  "-DJXRLIB_SOURCE_DIR=$(cygpath -m "$source_dir")" -DJXRLIB_BUILD_SHARED=OFF
+cmake --build "$(cygpath -m "$build_dir")" --parallel "$build_jobs"
+cmake --install "$(cygpath -m "$build_dir")"
+cp "$prefix/lib/libjxrglue.lib" "$prefix/lib/libjpegxr.lib" "$output/"
 
 for library in libjpeg-turbo zlib lcms2; do
   source_dir="$build_root/$library-source"

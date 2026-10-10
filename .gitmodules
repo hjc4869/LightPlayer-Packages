@@ -25,3 +25,6 @@
 [submodule "opus"]
 	path = opus
 	url = https://github.com/xiph/opus.git
+[submodule "jxrlib"]
+	path = jxrlib
+	url = https://github.com/4creators/jxrlib.git

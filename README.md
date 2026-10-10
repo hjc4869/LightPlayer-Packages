@@ -3,7 +3,7 @@
 This repository builds native and managed NuGet packages for .NET:
 
 - [`LightStudio.Ffmpeg`](https://www.nuget.org/packages/LightStudio.Ffmpeg/): FFmpeg 9.0.2 with decoding and desktop transcoding dependencies.
-- [LightStudio.Photos](package/photos/README.md): LibRaw 0.22.2 and Little CMS 2.19.1 for RAW photos and ICC color management. See [Photos builds](#photos-builds) for its platform matrix and workflow.
+- [LightStudio.Photos](package/photos/README.md): LibRaw 0.22.2, Little CMS 2.19.1 and jxrlib 1.1 for RAW photos, ICC color management and JPEG XR. See [Photos builds](#photos-builds) for its platform matrix and workflow.
 - [LightStudio.Onnx](package/onnx/README.md): ONNX Runtime 1.30.0 with its complete .NET managed API for six native RIDs, embedded Dawn/WebGPU on Linux, and CoreML on macOS and iOS. See the package README for release build instructions and platform limitations.
 - [LightStudio.sqlite-vec](package/sqlite-vec/README.md): sqlite-vec 0.1.9 shared and static native extensions for eight desktop/Android RIDs, static iOS ARM64 device/simulator extensions, and single-threaded/multithreaded browser-WASM static libraries, with bundled SQLite for Android/WASM and no ONNX dependency. Windows can use the system WinSQLite engine.
 - [LightStudio.AvaloniaStatic](package/avalonia-static/README.md): Avalonia 12.1.3 static native dependencies for Windows, Linux, macOS, and Android on x64 and ARM64, using SkiaSharp 4.153.1, HarfBuzzSharp 14.2.1.301, ANGLE, and the LightStudio Avalonia fork for macOS.
@@ -330,10 +330,10 @@ bridge does not supply a supported threaded integration for the full synchronous
 ## Photos Builds
 
 iOS ARM64 devices and simulators use the same library features as macOS with static output only:
-`libraw.a`, `liblcms2.a`, `libjpeg.a`, and `libz.a`. The Apple-hosted workflow
+`libraw.a`, `liblcms2.a`, `libjpeg.a`, `libz.a`, `libjxrglue.a` and `libjpegxr.a`. The Apple-hosted workflow
 also builds this target; its SDK and consumption requirements are described above.
 
-`LightStudio.Photos` is independent of FFmpeg. It includes shared libraries for `android-arm64`, `android-x64`, `linux-x64`, `linux-arm64`, `win-x64`, `win-arm64`, `osx-arm64` and `osx-x64`; static archives for both macOS and Windows architectures; and separate single/multi-threaded wasm32 archives. libjpeg-turbo 3.1.3 and zlib 1.3.2 enable lossy JPEG and floating-point deflate DNG decoding. They are embedded into LibRaw's shared libraries and shipped as `libjpeg.a`/`libz.a` beside `libraw.a`/`liblcms2.a` for macOS static consumers, or `jpeg.lib`/`zlib.lib` beside `libraw.lib`/`liblcms2.lib` for Windows. Wasm embeds a namespaced JPEG implementation into `libraw.a` and ships only `libraw.a`, `liblcms2.a` and `libz.a`. The [package README](package/photos/README.md) documents P/Invoke names, `WasmEnableThreads`, `EnableStaticPhotos`, supported formats and licenses.
+`LightStudio.Photos` is independent of FFmpeg. It includes shared and static libraries for `android-arm64`, `android-x64`, `linux-x64`, `linux-arm64`, `win-x64`, `win-arm64`, `osx-arm64` and `osx-x64`, and separate single/multi-threaded wasm32 archives. libjpeg-turbo 3.1.3 and zlib 1.3.2 enable lossy JPEG and floating-point deflate DNG decoding. They are embedded into LibRaw's shared libraries and shipped as `libjpeg.a`/`libz.a` beside `libraw.a`/`liblcms2.a` for native static consumers, or `jpeg.lib`/`zlib.lib` beside `libraw.lib`/`liblcms2.lib` for Windows. jxrlib 1.1 adds JPEG XR via `libjxrglue` and `libjpegxr`, with shared and static libraries matching each platform. Wasm embeds a namespaced JPEG implementation into `libraw.a` and ships `libraw.a`, `liblcms2.a`, `libz.a`, `libjxrglue.a` and `libjpegxr.a`. The [package README](package/photos/README.md) documents P/Invoke names, `WasmEnableThreads`, `EnableStaticPhotos`, supported formats and licenses.
 
 Wasm retains JPEG ABI 80 internally. The build derives a `lightstudio_photos_` symbol prefix map from the complete JPEG archive, recompiles JPEG and LibRaw with it, then merges their archive members with `emar`. Merging alone or hidden visibility does not isolate symbols in a static wasm link. Emscripten 3.1.69 and 6.0.5's `llvm-objcopy` do not support wasm symbol localization/renaming; `--localize-hidden` leaves the global JPEG symbols unchanged. No JPEG ABI downgrade or pinned source changes are needed.
 
@@ -341,16 +341,16 @@ The [Photos workflow](.github/workflows/photos.yml) uses `ubuntu-22.04`, the old
 
 macOS uses `macos-14`, as the existing FFmpeg macOS job does, and explicitly targets macOS 11.0. That runner is deprecated upstream and will need replacement when retired; the deployment target can remain 11.0. Intel binaries are cross-built on Apple silicon. Windows x64 shared libraries use the MinGW Win32-thread toolchain on Linux.
 
-Windows ARM64 shared libraries use [LLVM-MinGW](https://github.com/mstorsjo/llvm-mingw), because GCC MinGW does not target Windows on ARM. Compilation stays on `ubuntu-22.04`, using the SHA-256-pinned 20260908 UCRT toolchain. All four libraries are built with the same LLVM-MinGW toolchain, avoiding incompatible GCC/LLVM static objects. The C++ runtime, JPEG and zlib are embedded in LibRaw, and the package includes the required toolchain notices.
+Windows ARM64 shared libraries use [LLVM-MinGW](https://github.com/mstorsjo/llvm-mingw), because GCC MinGW does not target Windows on ARM. Compilation stays on `ubuntu-22.04`, using the SHA-256-pinned 20260908 UCRT toolchain. All dependencies are built with the same LLVM-MinGW toolchain, avoiding incompatible GCC/LLVM static objects. The C++ runtime, JPEG and zlib are embedded in LibRaw, and the package includes the required toolchain notices.
 
-Windows static libraries build separately on `windows-2022`, using the same clang-cl/MSVC ABI and `/MT` runtime convention as FFmpeg. [The static build script](scripts/build-photos-windows-static.sh) uses CMake for JPEG, zlib and LCMS and LibRaw's upstream MSVC static target, without DLL import/export definitions. Its four `.lib` files are staged under `artifacts/photos-win-<arch>-static` and packed under `static/win-<arch>`. The existing MinGW DLL builds are unchanged. `EnableStaticPhotos=true` with `PublishAot=true` selects the static libraries and removes the Photos DLLs from publish output.
+Windows static libraries build separately on `windows-2022`, using the same clang-cl/MSVC ABI and `/MT` runtime convention as FFmpeg. [The static build script](scripts/build-photos-windows-static.sh) uses CMake for JPEG, zlib, LCMS and jxrlib and LibRaw's upstream MSVC static target, without DLL import/export definitions. Its six `.lib` files are staged under `artifacts/photos-win-<arch>-static` and packed under `static/win-<arch>`. MinGW supplies the separate DLL builds. `EnableStaticPhotos=true` with `PublishAot=true` selects the static libraries and removes the Photos DLLs from publish output.
 
 Android follows FFmpeg's SDK setup and combined artifact pattern, using NDK r28c (`28.2.13676358`), API 21, and both 64-bit ABIs. Local builds use `/usr/lib/android-ndk` by default. Artifacts have 16 KB page alignment and do not require `libc++_shared.so`.
 
 Initialize only the required sources, then run the targets available on your host:
 
 ```bash
-git submodule update --init libraw lcms2 libjpeg-turbo zlib
+git submodule update --init libraw lcms2 libjpeg-turbo zlib jxrlib
 
 # Requires Autotools, CMake, make, pkg-config, GCC/G++, and patchelf.
 ./scripts/build-photos.sh linux-x64

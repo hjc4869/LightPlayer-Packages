@@ -3,6 +3,7 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+artifacts_root="${PHOTOS_ARTIFACTS_PATH:-$repo_root/artifacts}"
 target="${1:-linux-x64}"
 artifact_name="photos-$target"
 if [[ "$target" == browser-wasm || "$target" == browser-wasm-mt ]]; then
@@ -12,9 +13,9 @@ if [[ "$target" == browser-wasm || "$target" == browser-wasm-mt ]]; then
     *) echo "Unsupported Emscripten version: $emsdk_version. Use SDK 3.x or 6.x." >&2; exit 1 ;;
   esac
 fi
-build_root="$repo_root/artifacts/build/$artifact_name"
+build_root="$artifacts_root/build/$artifact_name"
 prefix="$build_root/install"
-output="$repo_root/artifacts/$artifact_name"
+output="$artifacts_root/$artifact_name"
 build_jobs="${PHOTOS_BUILD_JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)}"
 
 if [[ $# -gt 1 ]]; then
@@ -106,7 +107,7 @@ case "$target" in
     [[ "$target" != android-x64 ]] || android_abi=x86_64
     compression_args+=("-DCMAKE_TOOLCHAIN_FILE=$android_ndk_home/build/cmake/android.toolchain.cmake"
       "-DANDROID_ABI=$android_abi" "-DANDROID_PLATFORM=android-$android_api")
-    output="$repo_root/artifacts/photos-android/$target"
+    output="$artifacts_root/photos-android/$target"
     ;;
   osx-arm64 | osx-x64)
     [[ "$(uname -s)" == Darwin ]] || { echo 'macOS targets require Xcode on macOS.' >&2; exit 1; }
@@ -188,6 +189,36 @@ mkdir -p "$prefix" "$output"
 export PKG_CONFIG_PATH="$prefix/lib/pkgconfig"
 export PKG_CONFIG_LIBDIR="$PKG_CONFIG_PATH"
 export EM_PKG_CONFIG_PATH="$PKG_CONFIG_PATH"
+
+if [[ ! -f "$repo_root/jxrlib/jxrgluelib/JXRGlue.h" ]]; then
+  echo "Run 'git submodule update --init jxrlib' first." >&2
+  exit 1
+fi
+source_dir="$build_root/jxrlib-source"
+build_dir="$build_root/jxrlib-build"
+mkdir -p "$source_dir"
+git -C "$repo_root/jxrlib" archive HEAD | tar -x -C "$source_dir"
+jxr_shared=ON
+[[ "$target" != ios-* && "$target" != iossimulator-* && "$target" != browser-wasm* ]] || jxr_shared=OFF
+"${compression_cmake[@]}" -S "$repo_root/scripts/jxrlib" -B "$build_dir" \
+  -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$prefix" \
+  "-DCMAKE_C_COMPILER=$CC" "-DCMAKE_AR=$(command -v "$AR")" \
+  "-DCMAKE_RANLIB=$(command -v "$RANLIB")" "${compression_args[@]}" \
+  "-DJXRLIB_SOURCE_DIR=$source_dir" "-DJXRLIB_BUILD_SHARED=$jxr_shared"
+cmake --build "$build_dir" --parallel "$build_jobs"
+cmake --install "$build_dir"
+case "$target" in
+  win-*) cp "$prefix/bin/libjxrglue.dll" "$prefix/bin/libjpegxr.dll" "$output/" ;;
+  *) cp "$prefix/lib/libjxrglue.a" "$prefix/lib/libjpegxr.a" "$output/" ;;
+esac
+case "$target" in
+  linux-* | android-*) cp "$prefix/lib/libjxrglue.so" "$prefix/lib/libjpegxr.so" "$output/" ;;
+  osx-*)
+    cp "$prefix/lib/libjxrglue.dylib" "$prefix/lib/libjpegxr.dylib" "$output/"
+    install_name_tool -change @rpath/libjpegxr.dylib @loader_path/libjpegxr.dylib "$output/libjxrglue.dylib"
+    codesign --force --sign - "$output/libjxrglue.dylib" "$output/libjpegxr.dylib"
+    ;;
+esac
 
 for library in libjpeg-turbo zlib; do
   source_dir="$build_root/$library-source"

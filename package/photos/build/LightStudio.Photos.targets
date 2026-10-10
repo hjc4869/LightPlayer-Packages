@@ -19,6 +19,8 @@
     <NativeFileReference Include="$(LightStudioPhotosPackageRoot)static/$(_LightStudioPhotosWasmFlavor)/libraw.a" />
     <NativeFileReference Include="$(LightStudioPhotosPackageRoot)static/$(_LightStudioPhotosWasmFlavor)/liblcms2.a" />
     <NativeFileReference Include="$(LightStudioPhotosPackageRoot)static/$(_LightStudioPhotosWasmFlavor)/libz.a" />
+    <NativeFileReference Include="$(LightStudioPhotosPackageRoot)static/$(_LightStudioPhotosWasmFlavor)/libjxrglue.a" />
+    <NativeFileReference Include="$(LightStudioPhotosPackageRoot)static/$(_LightStudioPhotosWasmFlavor)/libjpegxr.a" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(_LightStudioPhotosUseStatic)' == 'true' and '$(_LightStudioPhotosStaticRid)' != 'win-x64' and '$(_LightStudioPhotosStaticRid)' != 'win-arm64'">
@@ -26,6 +28,8 @@
     <NativeLibrary Include="$(LightStudioPhotosPackageRoot)static/$(_LightStudioPhotosStaticRid)/liblcms2.a" />
     <NativeLibrary Include="$(LightStudioPhotosPackageRoot)static/$(_LightStudioPhotosStaticRid)/libjpeg.a" />
     <NativeLibrary Include="$(LightStudioPhotosPackageRoot)static/$(_LightStudioPhotosStaticRid)/libz.a" />
+    <NativeLibrary Include="$(LightStudioPhotosPackageRoot)static/$(_LightStudioPhotosStaticRid)/libjxrglue.a" />
+    <NativeLibrary Include="$(LightStudioPhotosPackageRoot)static/$(_LightStudioPhotosStaticRid)/libjpegxr.a" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(_LightStudioPhotosUseStatic)' == 'true' and ('$(_LightStudioPhotosStaticRid)' == 'osx-arm64' or '$(_LightStudioPhotosStaticRid)' == 'osx-x64')">
@@ -46,6 +50,8 @@
     <NativeLibrary Include="$(LightStudioPhotosPackageRoot)static/$(_LightStudioPhotosStaticRid)/liblcms2.lib" />
     <NativeLibrary Include="$(LightStudioPhotosPackageRoot)static/$(_LightStudioPhotosStaticRid)/jpeg.lib" />
     <NativeLibrary Include="$(LightStudioPhotosPackageRoot)static/$(_LightStudioPhotosStaticRid)/zlib.lib" />
+    <NativeLibrary Include="$(LightStudioPhotosPackageRoot)static/$(_LightStudioPhotosStaticRid)/libjxrglue.lib" />
+    <NativeLibrary Include="$(LightStudioPhotosPackageRoot)static/$(_LightStudioPhotosStaticRid)/libjpegxr.lib" />
     <NativeLibrary Include="ws2_32.lib" />
   </ItemGroup>
 
