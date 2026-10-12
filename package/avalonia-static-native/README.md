@@ -38,8 +38,10 @@ packages. Do not combine with another package providing these static archives.
 Run **Build and publish LightStudio.AvaloniaStatic.Native** in GitHub Actions.
 Set `package_version` to the managed Avalonia version, such as **12.1.4** or
 **12.1.5-lightplayer.0**. This value is used for both the NuGet package version
-and its exact managed dependency versions. The matching managed packages must
-be available from your configured NuGet feeds. Set `publish=false` for an
+and its exact managed dependency versions. These dependencies are declared in
+the NuGet manifest, not restored by the package build, so private or unpublished
+managed versions do not block packing. Consumers must have access to the matching
+managed packages on their configured NuGet feeds. Set `publish=false` for an
 artifact-only build or `publish=true` to publish using `NUGET_API_KEY`.
 A tag such as `avalonia-static-native-v12.1.5-lightplayer.0` builds and uploads
 without publishing to NuGet.org.

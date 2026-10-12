@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2013/05/nuspec.xsd">
+  <metadata>
+    <id>$id$</id>
+    <version>$version$</version>
+    <authors>$authors$</authors>
+    <description>$description$</description>
+    <tags>$tags$</tags>
+    <readme>$readme$</readme>
+    <license type="expression">$license$</license>
+    <repository type="$repositoryType$" url="$repositoryUrl$" />
+    <dependencies>
+      <group targetFramework="$framework$">
+        <dependency id="Avalonia" version="[$version$]" />
+        <dependency id="Avalonia.Native" version="[$version$]" />
+      </group>
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="README.md" target="/" />
+    <file src="THIRD-PARTY-NOTICES.txt" target="/" />
+    <file src="build/LightStudio.AvaloniaStatic.Native.targets" target="buildTransitive/" />
+    <file src="$artifacts$/avalonia-static-native-osx-x64/libAvaloniaNative.a" target="static/osx-x64/" />
+    <file src="$artifacts$/avalonia-static-native-osx-x64/macos_font_preinit.o" target="static/osx-x64/" />
+    <file src="$artifacts$/avalonia-static-native-osx-arm64/libAvaloniaNative.a" target="static/osx-arm64/" />
+    <file src="$artifacts$/avalonia-static-native-osx-arm64/macos_font_preinit.o" target="static/osx-arm64/" />
+    <file src="$artifacts$/avalonia-static-native-osx-x64/build-info.json" target="build-info/osx-x64/" />
+    <file src="$artifacts$/avalonia-static-native-osx-arm64/build-info.json" target="build-info/osx-arm64/" />
+    <file src="$artifacts$/avalonia-static-native-osx-x64/licenses/avalonia/**/*" target="licenses/osx-x64/avalonia/" />
+    <file src="$artifacts$/avalonia-static-native-osx-arm64/licenses/avalonia/**/*" target="licenses/osx-arm64/avalonia/" />
+  </files>
+</package>

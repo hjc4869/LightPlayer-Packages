@@ -16,11 +16,12 @@
     <IsPackable>true</IsPackable>
     <NoWarn>$(NoWarn);NU5128</NoWarn>
     <AvaloniaStaticNativeArtifactsPath Condition="'$(AvaloniaStaticNativeArtifactsPath)' == ''">$(MSBuildThisFileDirectory)../../artifacts</AvaloniaStaticNativeArtifactsPath>
+    <NuspecFile>$(MSBuildThisFileDirectory)LightStudio.AvaloniaStatic.Native.nuspec</NuspecFile>
+    <NuspecBasePath>$(MSBuildThisFileDirectory)</NuspecBasePath>
+    <NuspecProperties>id=$(PackageId);version=$(PackageVersion);authors=$(Authors);description=$(Description);tags=$([System.String]::Copy('$(PackageTags)').Replace(';', ' '));readme=$(PackageReadmeFile);license=$(PackageLicenseExpression);repositoryType=$(RepositoryType);repositoryUrl=$(RepositoryUrl);framework=$(TargetFramework);artifacts=$(AvaloniaStaticNativeArtifactsPath)</NuspecProperties>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Avalonia" Version="[$(PackageVersion)]" />
-    <PackageReference Include="Avalonia.Native" Version="[$(PackageVersion)]" />
     <None Include="build/LightStudio.AvaloniaStatic.Native.targets" Pack="true" PackagePath="buildTransitive/" />
     <None Include="README.md;THIRD-PARTY-NOTICES.txt" Pack="true" PackagePath="/" />
     <_MacRid Include="osx-x64;osx-arm64" />
