@@ -4,9 +4,9 @@
     <EnableDefaultItems>false</EnableDefaultItems>
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <PackageId>LightStudio.AvaloniaStatic</PackageId>
-    <Version>12.1.3</Version>
+    <Version>12.1.4</Version>
     <Authors>LightStudio</Authors>
-    <Description>Static SkiaSharp 4.153.1, HarfBuzzSharp 14.2.1.301, ANGLE, and Avalonia.Native 12.1.3 libraries for Avalonia 12 NativeAOT on Windows, Linux, macOS, and Android, x64 and ARM64.</Description>
+    <Description>Static SkiaSharp 4.153.1, HarfBuzzSharp 14.2.1.301, and ANGLE libraries for NativeAOT on Windows, Linux, macOS, and Android, x64 and ARM64. Avalonia.Native is provided separately by LightStudio.AvaloniaStatic.Native.</Description>
     <PackageTags>Avalonia;SkiaSharp;HarfBuzzSharp;ANGLE;NativeAOT;static;android;macos;linux;windows</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -18,14 +18,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Avalonia" Version="[12.1.3]" />
     <PackageReference Include="SkiaSharp" Version="[4.153.1]" />
     <PackageReference Include="HarfBuzzSharp" Version="[14.2.1.301]" />
     <None Include="build/LightStudio.AvaloniaStatic.targets" Pack="true" PackagePath="buildTransitive/" />
     <None Include="README.md;THIRD-PARTY-NOTICES.txt" Pack="true" PackagePath="/" />
     <_UnixRid Include="android-x64;android-arm64;osx-x64;osx-arm64;linux-x64;linux-arm64" />
     <_WindowsRid Include="win-x64;win-arm64" />
-    <_MacRid Include="osx-x64;osx-arm64" />
     <_AllRid Include="@(_UnixRid);@(_WindowsRid)" />
   </ItemGroup>
 
@@ -43,18 +41,15 @@
       <_RequiredArchive Include="$(AvaloniaStaticArtifactsPath)/avalonia-static-%(_WindowsRid.Identity)/skottie.lib;$(AvaloniaStaticArtifactsPath)/avalonia-static-%(_WindowsRid.Identity)/skresources.lib;$(AvaloniaStaticArtifactsPath)/avalonia-static-%(_WindowsRid.Identity)/sksg.lib;$(AvaloniaStaticArtifactsPath)/avalonia-static-%(_WindowsRid.Identity)/skshaper.lib;$(AvaloniaStaticArtifactsPath)/avalonia-static-%(_WindowsRid.Identity)/jsonreader.lib">
         <Rid>%(_WindowsRid.Identity)</Rid>
       </_RequiredArchive>
-      <_RequiredArchive Include="$(AvaloniaStaticArtifactsPath)/avalonia-static-%(_MacRid.Identity)/libAvaloniaNative.a;$(AvaloniaStaticArtifactsPath)/avalonia-static-%(_MacRid.Identity)/macos_font_preinit.o">
-        <Rid>%(_MacRid.Identity)</Rid>
-      </_RequiredArchive>
       <_RequiredMetadata Include="$(AvaloniaStaticArtifactsPath)/avalonia-static-%(_AllRid.Identity)/build-info.json;$(AvaloniaStaticArtifactsPath)/avalonia-static-%(_AllRid.Identity)/skia-args.gn;$(AvaloniaStaticArtifactsPath)/avalonia-static-%(_AllRid.Identity)/angle-args.gn;$(AvaloniaStaticArtifactsPath)/avalonia-static-%(_AllRid.Identity)/licenses/skiasharp/LICENSE.txt;$(AvaloniaStaticArtifactsPath)/avalonia-static-%(_AllRid.Identity)/licenses/angle/LICENSE" />
-      <_RequiredMetadata Include="$(AvaloniaStaticArtifactsPath)/avalonia-static-%(_MacRid.Identity)/licenses/avalonia/licence.md" />
     </ItemGroup>
     <Error Condition="!Exists('%(_RequiredArchive.Identity)')" Text="Incomplete LightStudio.AvaloniaStatic package: missing %(_RequiredArchive.Identity). Build all eight RIDs before packing." />
     <Error Condition="!Exists('%(_RequiredMetadata.Identity)')" Text="Missing LightStudio.AvaloniaStatic provenance or license: %(_RequiredMetadata.Identity)." />
     <ItemGroup>
       <None Include="@(_RequiredArchive)" Pack="true" PackagePath="static/%(_RequiredArchive.Rid)/" />
       <None Include="$(AvaloniaStaticArtifactsPath)/avalonia-static-%(_AllRid.Identity)/build-info.json;$(AvaloniaStaticArtifactsPath)/avalonia-static-%(_AllRid.Identity)/*-args.gn" Pack="true" PackagePath="build-info/%(_AllRid.Identity)/" />
-      <None Include="$(AvaloniaStaticArtifactsPath)/avalonia-static-%(_AllRid.Identity)/licenses/**/*" Pack="true" PackagePath="licenses/%(_AllRid.Identity)/%(RecursiveDir)" />
+      <None Include="$(AvaloniaStaticArtifactsPath)/avalonia-static-%(_AllRid.Identity)/licenses/skiasharp/**/*" Pack="true" PackagePath="licenses/%(_AllRid.Identity)/skiasharp/%(RecursiveDir)" />
+      <None Include="$(AvaloniaStaticArtifactsPath)/avalonia-static-%(_AllRid.Identity)/licenses/angle/**/*" Pack="true" PackagePath="licenses/%(_AllRid.Identity)/angle/%(RecursiveDir)" />
     </ItemGroup>
   </Target>
 </Project>

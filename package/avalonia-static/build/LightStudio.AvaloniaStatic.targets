@@ -38,11 +38,9 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(_AvaloniaStaticActive)' == 'true' and '$(_AvaloniaStaticSupported)' == 'true' and '$(_AvaloniaStaticPlatform)' == 'osx'">
-    <DirectPInvoke Include="libSkiaSharp.dylib;libHarfBuzzSharp.dylib;libAvaloniaNative;libAvaloniaNative.dylib;AvaloniaNative" />
-    <_AvaloniaStaticArchive Include="$(_AvaloniaStaticDirectory)macos_font_preinit.o;$(_AvaloniaStaticDirectory)libAvaloniaNative.a" />
+    <DirectPInvoke Include="libSkiaSharp.dylib;libHarfBuzzSharp.dylib" />
     <NativeSystemLibrary Include="c++" />
-    <LinkerArg Include="-ObjC;-framework AppKit;-framework Carbon;-framework CoreFoundation;-framework CoreGraphics;-framework CoreText;-framework Foundation;-framework IOSurface;-framework Metal;-framework OpenGL;-framework QuartzCore;-framework UniformTypeIdentifiers" />
-    <_AvaloniaStaticDynamicName Include="libAvaloniaNative" />
+    <LinkerArg Include="-ObjC;-framework AppKit;-framework CoreFoundation;-framework CoreGraphics;-framework CoreText;-framework Foundation;-framework IOSurface;-framework Metal;-framework OpenGL;-framework QuartzCore" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(_AvaloniaStaticActive)' == 'true' and '$(_AvaloniaStaticSupported)' == 'true'">

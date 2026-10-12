@@ -1,0 +1,5 @@
+This package includes Avalonia.Native under its upstream MIT license.
+Full notices collected from its source and dependencies are included under
+licenses/<rid>/avalonia/. System libraries and OS frameworks are not redistributed.
+
+Avalonia.Native: https://github.com/hjc4869/Avalonia, release/12.1.4

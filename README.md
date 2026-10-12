@@ -6,7 +6,8 @@ This repository builds native and managed NuGet packages for .NET:
 - [LightStudio.Photos](package/photos/README.md): LibRaw 0.22.2, Little CMS 2.19.1 and jxrlib 1.1 for RAW photos, ICC color management and JPEG XR. See [Photos builds](#photos-builds) for its platform matrix and workflow.
 - [LightStudio.Onnx](package/onnx/README.md): ONNX Runtime 1.30.0 with its complete .NET managed API for six native RIDs, embedded Dawn/WebGPU on Linux, and CoreML on macOS and iOS. See the package README for release build instructions and platform limitations.
 - [LightStudio.sqlite-vec](package/sqlite-vec/README.md): sqlite-vec 0.1.9 shared and static native extensions for eight desktop/Android RIDs, static iOS ARM64 device/simulator extensions, and single-threaded/multithreaded browser-WASM static libraries, with bundled SQLite for Android/WASM and no ONNX dependency. Windows can use the system WinSQLite engine.
-- [LightStudio.AvaloniaStatic](package/avalonia-static/README.md): Avalonia 12.1.3 static native dependencies for Windows, Linux, macOS, and Android on x64 and ARM64, using SkiaSharp 4.153.1, HarfBuzzSharp 14.2.1.301, ANGLE, and the LightStudio Avalonia fork for macOS.
+- [LightStudio.AvaloniaStatic](package/avalonia-static/README.md): Static SkiaSharp 4.153.1, HarfBuzzSharp 14.2.1.301, and ANGLE for Windows, Linux, macOS, and Android on x64 and ARM64, with no managed Avalonia dependency.
+- [LightStudio.AvaloniaStatic.Native](package/avalonia-static-native/README.md): Independently built macOS x64/ARM64 Avalonia.Native from the LightStudio fork's release/12.1.4 branch. Its custom NuGet version also selects the exact managed Avalonia dependency versions, including prereleases.
 
 The workflows build, stage, pack, and upload artifacts without post-build tests or validation. Pre-build lint and toolchain/configuration checks remain enabled.
 

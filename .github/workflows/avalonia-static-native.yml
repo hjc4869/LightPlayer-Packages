@@ -1,0 +1,116 @@
+name: Build and publish LightStudio.AvaloniaStatic.Native
+
+on:
+  push:
+    tags:
+      - "avalonia-static-native-v*"
+  workflow_dispatch:
+    inputs:
+      package_version:
+        description: NuGet package and exact Avalonia dependency version (for example 12.1.5-lightplayer.0)
+        required: true
+        default: "12.1.4"
+        type: string
+      publish:
+        description: Publish the complete package to NuGet.org
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: avalonia-static-native-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PYTHONDONTWRITEBYTECODE: "1"
+
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    outputs:
+      package_version: ${{ steps.version.outputs.value }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check workflow and build entry point
+        run: |
+          docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12 .github/workflows/avalonia-static-native.yml
+          python3 scripts/build-avalonia-static.py --component native --help
+      - name: Resolve package and dependency version
+        id: version
+        env:
+          DISPATCH_VERSION: ${{ inputs.package_version }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+            package_version="$DISPATCH_VERSION"
+          else
+            package_version="${GITHUB_REF_NAME#avalonia-static-native-v}"
+          fi
+          if [[ ! "$package_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(\.[0-9]+)?(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$ ]]; then
+            printf 'Expected a NuGet package version, got: %s\n' "$package_version" >&2
+            exit 1
+          fi
+          echo "value=$package_version" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build avalonia-static-native-${{ matrix.rid }}
+    needs: prepare
+    runs-on: macos-15
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        rid: [osx-x64, osx-arm64]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore Avalonia.Native build cache
+        uses: actions/cache@v4
+        with:
+          path: artifacts/build/avalonia-static-native
+          key: avalonia-static-native-v1-${{ runner.os }}-${{ runner.arch }}-${{ matrix.rid }}-${{ hashFiles('scripts/build-avalonia-static.py', 'scripts/avalonia-static-native/**') }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Build Avalonia.Native archives
+        env:
+          PACKAGE_VERSION: ${{ needs.prepare.outputs.package_version }}
+        run: python3 scripts/build-avalonia-static.py "${{ matrix.rid }}" --component native --package-version "$PACKAGE_VERSION"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: avalonia-static-native-${{ matrix.rid }}
+          path: artifacts/avalonia-static-native-${{ matrix.rid }}
+          if-no-files-found: error
+
+  pack-and-publish:
+    name: Pack complete LightStudio.AvaloniaStatic.Native
+    needs: [prepare, build]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: avalonia-static-native-*
+          path: artifacts
+      - name: Pack both macOS RIDs with matching managed dependencies
+        env:
+          PACKAGE_VERSION: ${{ needs.prepare.outputs.package_version }}
+        run: dotnet pack package/avalonia-static-native/LightStudio.AvaloniaStatic.Native.csproj -c Release -o artifacts/packages -p:PackageVersion="$PACKAGE_VERSION"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LightStudio.AvaloniaStatic.Native-nuget
+          path: artifacts/packages/*.nupkg
+          if-no-files-found: error
+      - name: Publish to NuGet.org
+        if: github.event_name == 'workflow_dispatch' && inputs.publish
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: dotnet nuget push artifacts/packages/*.nupkg --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
