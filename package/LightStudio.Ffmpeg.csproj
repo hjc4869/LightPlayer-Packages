@@ -87,7 +87,7 @@
     <None Include="../opus/COPYING;../opus/LICENSE_PLEASE_READ.txt" Pack="true" PackagePath="licenses/opus/" />
     <None Include="../libjxl/third_party/brotli/LICENSE" Pack="true" PackagePath="licenses/brotli/" />
     <None Include="../libjxl/third_party/highway/LICENSE" Pack="true" PackagePath="licenses/highway/" />
-    <None Include="../libjxl/third_party/skcms/LICENSE" Pack="true" PackagePath="licenses/skcms/" />
+    <None Include="../lcms2/LICENSE" Pack="true" PackagePath="licenses/lcms2/" />
     <None Include="../zlib/LICENSE" Pack="true" PackagePath="licenses/zlib/" />
   </ItemGroup>
 </Project>

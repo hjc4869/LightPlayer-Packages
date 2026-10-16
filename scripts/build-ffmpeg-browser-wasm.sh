@@ -388,6 +388,7 @@ if [[ "$enable_libjxl" -eq 1 ]]; then
     "$libjxl_prefix/lib/libjxl.a"
     "$libjxl_prefix/lib/libjxl_cms.a"
     "$libjxl_prefix/lib/libjxl_threads.a"
+    "$libjxl_prefix/lib/liblcms2.a"
     "$libjxl_prefix/lib/libhwy.a"
     "$libjxl_prefix/lib/libbrotlicommon.a"
     "$libjxl_prefix/lib/libbrotlidec.a"

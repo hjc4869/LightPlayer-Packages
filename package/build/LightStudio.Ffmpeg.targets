@@ -28,7 +28,7 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(_LightStudioFfmpegUseStatic)' == 'true' and ('$(_LightStudioFfmpegStaticRid)' == 'android-arm64' or '$(_LightStudioFfmpegStaticRid)' == 'android-x64')">
-    <_LightStudioFfmpegAndroidLibrary Include="avcodec;avdevice;avfilter;avformat;avutil;swresample;swscale;dav1d;jxl;jxl_cms;jxl_threads;hwy;brotlicommon;brotlidec;brotlienc;xml2" />
+    <_LightStudioFfmpegAndroidLibrary Include="avcodec;avdevice;avfilter;avformat;avutil;swresample;swscale;dav1d;jxl;jxl_cms;jxl_threads;lcms2;hwy;brotlicommon;brotlidec;brotlienc;xml2" />
     <_LightStudioFfmpegAndroidArchive Include="@(_LightStudioFfmpegAndroidLibrary->'$(LightStudioFfmpegStaticLibraryDir)/lib%(Identity).a')" />
     <NativeLibrary Include="@(_LightStudioFfmpegAndroidArchive)" />
     <NativeSystemLibrary Include="c++_static;c++abi;z;android;mediandk;log;dl;m" />
@@ -43,7 +43,7 @@
   </Target>
 
   <ItemGroup Condition="'$(_LightStudioFfmpegUseStatic)' == 'true' and ('$(_LightStudioFfmpegStaticRid)' == 'win-x64' or '$(_LightStudioFfmpegStaticRid)' == 'win-arm64')">
-    <_LightStudioFfmpegWindowsLibrary Include="avcodec;avdevice;avfilter;avformat;avutil;swresample;swscale;dav1d;jxl;jxl_cms;jxl_threads;hwy;brotlicommon;brotlidec;brotlienc;xml2;opus;zlib" />
+    <_LightStudioFfmpegWindowsLibrary Include="avcodec;avdevice;avfilter;avformat;avutil;swresample;swscale;dav1d;jxl;jxl_cms;jxl_threads;lcms2;hwy;brotlicommon;brotlidec;brotlienc;xml2;opus;zlib" />
     <_LightStudioFfmpegWindowsArchive Include="@(_LightStudioFfmpegWindowsLibrary->'$(LightStudioFfmpegStaticLibraryDir)/%(Identity).lib')" />
     <NativeLibrary Include="@(_LightStudioFfmpegWindowsArchive)" />
     <NativeLibrary Include="mfuuid.lib;ole32.lib;strmiids.lib;user32.lib;bcrypt.lib" />

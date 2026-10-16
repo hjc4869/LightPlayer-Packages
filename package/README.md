@@ -1,6 +1,6 @@
 # LightStudio.Ffmpeg
 
-FFmpeg 9.0.2 native libraries for .NET, with AV1 decoding provided by dav1d 1.5.4, JPEG XL decoding by libjxl 0.11.2, and DASH manifest parsing by libxml2 2.15.3.
+FFmpeg 9.0.2 native libraries for .NET, with AV1 decoding provided by dav1d 1.5.4, JPEG XL decoding by libjxl 0.12.0 with LCMS2 2.19.1, and DASH manifest parsing by libxml2 2.15.3.
 
 | Runtime | Linking | Location in the package |
 | --- | --- | --- |
@@ -119,11 +119,11 @@ The package injects the matching archives as `NativeFileReference` items automat
 
 ## Windows
 
-Windows libraries use the MSVC ABI and static MSVC C/C++ runtime (`/MT`), built with clang-cl, the Windows SDK, and the MSVC librarian. Both architectures ship 7 FFmpeg DLLs for shared deployment and 18 COFF `.lib` archives for static NativeAOT linking. The DLLs embed dav1d, JPEG XL, Brotli, Highway, libxml2, libopus, zlib, and the MSVC runtime, so no separate third-party or MinGW runtime DLLs are needed. The static archives include these dependencies separately and are not DLL import libraries. Windows libraries target Windows 10 or later; the consuming .NET version may impose additional requirements.
+Windows libraries use the MSVC ABI and static MSVC C/C++ runtime (`/MT`), built with clang-cl, the Windows SDK, and the MSVC librarian. Both architectures ship 7 FFmpeg DLLs for shared deployment and 19 COFF `.lib` archives for static NativeAOT linking. The DLLs embed dav1d, JPEG XL, LCMS2, Brotli, Highway, libxml2, libopus, zlib, and the MSVC runtime, so no separate third-party or MinGW runtime DLLs are needed. The static archives include these dependencies separately and are not DLL import libraries. Windows libraries target Windows 10 or later; the consuming .NET version may impose additional requirements.
 
 The format selection matches macOS. D3D11VA decoding is enabled for H.264, HEVC, AV1, VP9, MPEG-2, VC-1, and WMV3. Media Foundation provides `aac_mf`, `ac3_mf`, `av1_mf`, `h264_mf`, `hevc_mf`, and `mp3_mf` encoders. Set the encoder option `hw_encoding=1` to require hardware encoding. Runtime availability depends on Windows components, the GPU/driver, and the codec profile; Media Foundation is an encoding API in this FFmpeg build, not a separate decoding backend.
 
-Assembly optimizations and runtime CPU detection are enabled. x64 uses NASM and inline assembly, including runtime-dispatched AVX2 and AVX-512 paths; JPEG XL's AVX-512 variants are enabled too. ARM64 uses Clang's assembler for NEON and supported architecture extensions, including dot-product, I8MM, SVE, and SME. Runtime dispatch keeps newer instructions off unsupported CPUs. skcms symbols are isolated from Skia's copy.
+Assembly optimizations and runtime CPU detection are enabled. x64 uses NASM and inline assembly, including runtime-dispatched AVX2 and AVX-512 paths; JPEG XL's AVX-512 variants are enabled too. ARM64 uses Clang's assembler for NEON and supported architecture extensions, including dot-product, I8MM, SVE, and SME. Runtime dispatch keeps newer instructions off unsupported CPUs. libjxl does not include a second copy of Skia's skcms.
 
 ## Static linking with native AOT
 
@@ -147,14 +147,14 @@ The package adds the native archives and required system libraries: `mfuuid`, `o
 
 ### Android requirements
 
-Each Android RID includes seven FFmpeg archives plus dav1d, libjxl, libjxl_cms, libjxl_threads, Highway, three Brotli archives, and libxml2. zlib remains an Android system library; the C++ runtime comes from the consuming NDK. JNI and MediaCodec support are retained.
+Each Android RID includes seven FFmpeg archives plus dav1d, libjxl, libjxl_cms, libjxl_threads, LCMS2, Highway, three Brotli archives, and libxml2. zlib remains an Android system library; the C++ runtime comes from the consuming NDK. JNI and MediaCodec support are retained.
 
 Use an Android NativeAOT/native-host toolchain that supports `NativeLibrary`, `NativeSystemLibrary`, `LinkerArg`, and direct P/Invoke. This opt-in does not enable static linking for ordinary Mono-based .NET for Android applications. Match the Android API and NDK to the binaries: the build script defaults to API 21, while the publishing workflow selects API 35 with NDK r28c. The final link requests 16 KB page alignment and localizes symbols from the FFmpeg archive set with `--exclude-libs`; static calls must use direct bindings, not runtime symbol lookup. Link FFmpeg archives normally, not with blanket `--whole-archive`, because upstream libraries share some internal helper objects.
 
-The skcms private prefix covers C definitions and references, including `powf_`, and the C++ private namespace. Builds audit the installed archives for unprefixed names. Both Android ABIs were checked against the repository's available static Skia/ANGLE set: skcms co-links with Skia in both archive orders, and no strong-symbol overlaps were found across the two sets. This is not general isolation of every dependency: additional copies of Brotli, Highway, dav1d, libxml2, or zlib can still conflict. Export localization does not prevent duplicate definitions within a static link; share one compatible implementation or namespace each private copy.
+The LCMS-backed libjxl build audits installed archives to reject skcms definitions and references, avoiding a second skcms implementation alongside Skia. This is not general isolation of every dependency: additional copies of LCMS2, Brotli, Highway, dav1d, libxml2, or zlib can still conflict. Export localization does not prevent duplicate definitions within a static link; share one compatible implementation or namespace each private copy. LCMS2's public `cms*` API remains unchanged, so applications co-linking Photos should share its compatible LCMS implementation rather than whole-archive linking both copies.
 
 ## Licensing
 
-FFmpeg is licensed under the GNU Lesser General Public License, version 2.1 or later; dav1d under the BSD 2-Clause license; libjxl, skcms, and libopus under the BSD 3-Clause license; highway under the Apache License 2.0; brotli and libxml2 under the MIT license; and zlib under the zlib license. The upstream licensing files, including the Opus royalty-free patent license references, are included in the package under `licenses/`.
+FFmpeg is licensed under the GNU Lesser General Public License, version 2.1 or later; dav1d under the BSD 2-Clause license; libjxl and libopus under the BSD 3-Clause license; highway under the Apache License 2.0; brotli, LCMS2, and libxml2 under the MIT license; and zlib under the zlib license. The upstream licensing files, including the Opus royalty-free patent license references, are included in the package under `licenses/`.
 
 Windows builds explicitly disable GPL, nonfree, and version-3-only FFmpeg components. Static linking still carries LGPL obligations: distributors must provide the applicable notices and source, and a way to relink the application with a modified library, such as suitable application object files and build instructions. A NativeAOT executable or this NuGet package alone is not a complete relinking kit.

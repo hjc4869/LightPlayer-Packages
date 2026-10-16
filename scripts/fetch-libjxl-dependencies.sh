@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # libjxl carries ten nested submodules, including a multi-gigabyte test corpus.
-# Only these three are needed to build the decoder, so 'submodules: recursive'
+# Only these two are needed to build the decoder, so 'submodules: recursive'
 # is deliberately avoided.
 
 set -euo pipefail
@@ -16,10 +16,11 @@ fi
 
 git -C "$libjxl_dir" submodule update --init --depth 1 -- \
   third_party/brotli \
-  third_party/highway \
-  third_party/skcms
+  third_party/highway
 
-for dependency in brotli highway skcms; do
+git -C "$repo_root" submodule update --init --depth 1 -- lcms2
+
+for dependency in brotli highway; do
   if [[ -z "$(ls -A "$libjxl_dir/third_party/$dependency" 2>/dev/null)" ]]; then
     echo "libjxl's '$dependency' submodule is still empty." >&2
     exit 1

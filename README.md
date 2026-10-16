@@ -50,27 +50,13 @@ The common still-image formats are enabled on every runtime:
 | HEIC | `mov` (HEIF item support) | `hevc` |
 | JPEG XL (still and animated) | `jpegxl_pipe`, `jpegxl_anim` | `libjxl`, `libjxl_anim` |
 
-JPEG XL comes from libjxl 0.11.2, which is built from the `libjxl` submodule the
+JPEG XL comes from libjxl 0.12.0, pinned to `fd6618be4dd5c6397e917743a71987ba842f51a6`
+on upstream's `v0.12.x` branch, and built from the `libjxl` submodule the
 same way dav1d is. It is enabled on `android-arm64`, `android-x64`, `osx-arm64`, `ios-arm64`, `iossimulator-arm64`, `win-x64`, `win-arm64`
 and the multi-threaded browser-wasm variant. It is **not** available in the
 single-threaded browser-wasm variant: libjxl's parallel runner is `std::thread`
 based and FFmpeg always creates it with `av_cpu_count()` workers, which aborts in
 an Emscripten module built without pthreads.
-
-libjxl's embedded skcms uses `lightstudio_ffmpeg_`-prefixed symbols on every
-target, keeping it independent of SkiaSharp's skcms. Following the private JPEG
-build below, the build first discovers all external C definitions in skcms's
-objects, then rebuilds libjxl with a forced prefix header. This covers internal
-data and helpers such as `powf_`, not just `skcms_*`; the C++ `skcms_private`
-namespace is renamed too. No pinned submodule sources or public `Jxl*` APIs
-change. skcms is already inside `libjxl_cms.a` (`jxl_cms.lib` on Windows), so no archive merge is needed.
-
-The build verifies that every installed libjxl archive is free of original skcms
-definitions and references. Android ARM64 and x64 static archives were checked
-against the available Avalonia/Skia/ANGLE builds: libjxl_cms and Skia co-link with
-whole-archive inclusion in either order, and the complete sets have no overlapping
-strong definitions. This confirms the skcms workaround for those pinned inputs,
-not arbitrary additional versions of the dependencies listed below.
 
 zlib is required by the PNG decoder. Android, macOS, and iOS use the platform copy;
 browser-wasm uses the Emscripten `zlib` port and ships the resulting `libz.a`
@@ -87,7 +73,7 @@ checks do not imply that all LibRaw internals or C++ runtime symbols are hidden,
 and shared-library boundaries do not isolate the separately shipped static archives.
 macOS artifacts were not inspected on the Linux development host.
 
-The remaining candidates below are not changed by the skcms fix:
+The remaining candidates below are not resolved:
 
 | Dependency | Evidence and recommended follow-up |
 | --- | --- |
@@ -179,7 +165,7 @@ Publish for `android-arm64`, `android-x64`, `win-x64`, `win-arm64`, or `osx-arm6
 
 ## Local builds
 
-All variants build dav1d, libjxl, and libxml2 from their submodules first, and desktop FFmpeg builds also build libopus. cmake, meson and ninja are required. libjxl has ten nested submodules, including a multi-gigabyte test corpus, so `--recursive` is deliberately avoided; `scripts/fetch-libjxl-dependencies.sh` initializes only brotli, highway and skcms.
+All variants build dav1d and libxml2 from their submodules first; JPEG XL variants also build libjxl and LCMS2, and desktop FFmpeg builds also build libopus. cmake, meson and ninja are required. libjxl has large optional nested submodules, so `--recursive` is deliberately avoided; `scripts/fetch-libjxl-dependencies.sh` initializes only its brotli and highway dependencies, plus the repository's LCMS2 submodule.
 
 Each script stages its output under `artifacts/<artifact-name>`. Collect all platform outputs, normally from CI, before packing a complete package.
 

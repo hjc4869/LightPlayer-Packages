@@ -132,7 +132,7 @@ def stage(args):
     archives.sort(key=lambda path: next((index for index, name in enumerate(LIBRARIES)
                                         if Path(path).stem in (name, f"lib{name}")), len(LIBRARIES)))
     upstream = {}
-    for name in ("ffmpeg", "dav1d", "libjxl", "libxml2", "zlib", "opus", "libjxl/third_party/brotli", "libjxl/third_party/highway", "libjxl/third_party/skcms"):
+    for name in ("ffmpeg", "dav1d", "libjxl", "lcms2", "libxml2", "zlib", "opus", "libjxl/third_party/brotli", "libjxl/third_party/highway"):
         upstream[name] = {
             "revision": run("git", "-C", str(REPO / name), "rev-parse", "HEAD"),
             "dirty": bool(run("git", "-C", str(REPO / name), "status", "--porcelain", "--untracked-files=no")),

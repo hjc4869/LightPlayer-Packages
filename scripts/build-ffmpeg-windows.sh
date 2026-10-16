@@ -190,7 +190,7 @@ for linkage in static shared; do
 done
 
 cp "$dav1d_prefix/lib/dav1d.lib" "$libxml2_prefix/lib/xml2.lib" "$opus_prefix/lib/opus.lib" "$zlib_prefix/lib/zlib.lib" "$artifacts_dir/"
-for library in jxl jxl_cms jxl_threads hwy brotlicommon brotlidec brotlienc; do
+for library in jxl jxl_cms jxl_threads lcms2 hwy brotlicommon brotlidec brotlienc; do
   cp "$libjxl_prefix/lib/$library.lib" "$artifacts_dir/"
 done
 

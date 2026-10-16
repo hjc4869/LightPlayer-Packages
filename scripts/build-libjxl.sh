@@ -4,6 +4,7 @@ set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 libjxl_dir="$repo_root/libjxl"
+lcms_dir="$repo_root/lcms2"
 
 if [[ $# -ne 3 ]]; then
   cat >&2 <<'EOF'
@@ -32,10 +33,16 @@ if [[ "$target" == win-* ]]; then
   prefix="$(cygpath -m "$prefix")"
   build_dir="$(cygpath -m "$build_dir")"
   libjxl_dir="$(cygpath -m "$libjxl_dir")"
+  lcms_dir="$(cygpath -m "$lcms_dir")"
 fi
 
 if [[ ! -f "$libjxl_dir/CMakeLists.txt" ]]; then
   echo "libjxl is not initialized at '$libjxl_dir'. Run 'git submodule update --init'." >&2
+  exit 1
+fi
+
+if [[ ! -f "$lcms_dir/CMakeLists.txt" ]]; then
+  echo "LCMS is not initialized at '$lcms_dir'. Run 'git submodule update --init lcms2'." >&2
   exit 1
 fi
 
@@ -46,9 +53,7 @@ for tool in cmake ninja; do
   fi
 done
 
-# libjxl compiles brotli, highway and skcms from its own submodules; the FFmpeg
-# builds never link system copies of them.
-for dependency in brotli highway skcms; do
+for dependency in brotli highway; do
   if [[ -z "$(ls -A "$libjxl_dir/third_party/$dependency" 2>/dev/null)" ]]; then
     echo "libjxl's '$dependency' submodule is empty. Run scripts/fetch-libjxl-dependencies.sh." >&2
     exit 1
@@ -62,16 +67,17 @@ mkdir -p "$build_dir"
 # dependencies, everything static so it can be linked into FFmpeg.
 cmake_args=(
   -G Ninja
-  -S "$libjxl_dir"
-  -B "$build_dir"
   -DCMAKE_BUILD_TYPE=Release
   -DCMAKE_INSTALL_PREFIX="$prefix"
   -DCMAKE_INSTALL_LIBDIR=lib
   -DCMAKE_INSTALL_INCLUDEDIR=include
   -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+)
+jxl_args=(
   -DBUILD_SHARED_LIBS=OFF
   -DBUILD_TESTING=OFF
-  -DJPEGXL_ENABLE_SKCMS=ON
+  -DJPEGXL_ENABLE_SKCMS=OFF
+  -DJPEGXL_FORCE_SYSTEM_LCMS2=ON
   -DJPEGXL_ENABLE_TOOLS=OFF
   -DJPEGXL_ENABLE_DEVTOOLS=OFF
   -DJPEGXL_ENABLE_BENCHMARK=OFF
@@ -79,7 +85,6 @@ cmake_args=(
   -DJPEGXL_ENABLE_MANPAGES=OFF
   -DJPEGXL_ENABLE_DOXYGEN=OFF
   -DJPEGXL_ENABLE_JNI=OFF
-  -DJPEGXL_ENABLE_JPEGLI=OFF
   -DJPEGXL_ENABLE_SJPEG=OFF
   -DJPEGXL_ENABLE_OPENEXR=OFF
   -DJPEGXL_ENABLE_PLUGINS=OFF
@@ -93,6 +98,7 @@ cmake_args=(
 )
 
 configure=(cmake)
+lcms_threads=ON
 
 require_ndk_tool() {
   if [[ ! -x "$1" ]]; then
@@ -111,16 +117,19 @@ case "$target" in
     done
 
     configure=(emcmake cmake)
-    cmake_args+=(-DCMAKE_C_FLAGS=-msimd128 -DCMAKE_CXX_FLAGS=-msimd128
-      -DCMAKE_EXE_LINKER_FLAGS=-msimd128)
+    wasm_flags=-msimd128
 
     if [[ "$target" == browser-wasm-st ]]; then
       # JPEGXL_ENABLE_WASM_THREADS adds -pthread, which marks the objects as
       # shared memory and makes them unlinkable into a single-threaded module.
-      cmake_args+=(-DJPEGXL_ENABLE_WASM_THREADS=OFF)
+      jxl_args+=(-DJPEGXL_ENABLE_WASM_THREADS=OFF)
+      lcms_threads=OFF
     else
-      cmake_args+=(-DJPEGXL_ENABLE_WASM_THREADS=ON)
+      jxl_args+=(-DJPEGXL_ENABLE_WASM_THREADS=ON)
+      wasm_flags+=' -pthread'
     fi
+    cmake_args+=("-DCMAKE_C_FLAGS=$wasm_flags" "-DCMAKE_CXX_FLAGS=$wasm_flags"
+      "-DCMAKE_EXE_LINKER_FLAGS=$wasm_flags")
     ;;
 
   android-arm64 | android-x64)
@@ -200,9 +209,11 @@ case "$target" in
       -DCMAKE_CXX_COMPILER_TARGET="$triple"
       -DCMAKE_NM="$(cygpath -m "$(command -v llvm-nm)")"
       -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
-      -DJPEGXL_ENABLE_AVX512=ON
-      -DJPEGXL_ENABLE_AVX512_SPR=ON
-      -DJPEGXL_ENABLE_AVX512_ZEN4=ON
+    )
+    jxl_args+=(
+      -DJPEGXL_ENABLE_HWY_AVX3=ON
+      -DJPEGXL_ENABLE_HWY_AVX3_SPR=ON
+      -DJPEGXL_ENABLE_HWY_AVX3_ZEN4=ON
     )
     ;;
 
@@ -214,8 +225,22 @@ esac
 
 build_jobs="${LIBJXL_BUILD_JOBS:-${FFMPEG_BUILD_JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)}}"
 
-"${configure[@]}" "${cmake_args[@]}"
-cmake --build "$build_dir" --target jxl_cms --parallel "$build_jobs"
+"${configure[@]}" "${cmake_args[@]}" -S "$lcms_dir" -B "$build_dir/lcms2" \
+  -DLCMS2_BUILD_SHARED=OFF -DLCMS2_BUILD_STATIC=ON \
+  -DLCMS2_BUILD_TOOLS=OFF -DLCMS2_BUILD_TESTS=OFF \
+  "-DLCMS2_WITH_THREADS=$lcms_threads"
+cmake --build "$build_dir/lcms2" --parallel "$build_jobs"
+cmake --install "$build_dir/lcms2"
+lcms_archive="$prefix/lib/liblcms2.a"
+if [[ "$target" == win-* ]]; then
+  lcms_archive="$prefix/lib/lcms2.lib"
+fi
+"${configure[@]}" "${cmake_args[@]}" "${jxl_args[@]}" \
+  -S "$libjxl_dir" -B "$build_dir" \
+  "-DLCMS2_INCLUDE_DIR=$prefix/include" "-DLCMS2_LIBRARY=$lcms_archive"
+cmake --build "$build_dir" --parallel "$build_jobs"
+cmake --install "$build_dir"
+
 nm_tool="$(sed -n 's/^CMAKE_NM:[^=]*=//p' "$build_dir/CMakeCache.txt")"
 if [[ "$target" == browser-wasm-* ]]; then
   nm_tool="$(command -v emnm)"
@@ -224,44 +249,6 @@ if [[ ! -x "$nm_tool" ]]; then
   echo "CMake did not select an executable nm tool: '$nm_tool'." >&2
   exit 1
 fi
-skcms_symbols="$build_dir/skcms-symbols.txt"
-skcms_namespace="$build_dir/skcms-namespace.h"
-skcms_objects="$build_dir/lib/CMakeFiles/jxl_cms.dir/__/third_party/skcms"
-shopt -s nullglob
-skcms_inputs=("$skcms_objects"/*.o "$skcms_objects"/src/*.o
-  "$skcms_objects"/*.obj "$skcms_objects"/src/*.obj)
-shopt -u nullglob
-if [[ ${#skcms_inputs[@]} -eq 0 ]]; then
-  echo "No skcms objects found in '$skcms_objects'." >&2
-  exit 1
-fi
-"$nm_tool" -g "${skcms_inputs[@]}" |
-  awk -v target="$target" 'NF >= 2 && $(NF - 1) ~ /^[ABCDGRSTVW]$/ {
-    symbol = $NF;
-    if (target == "osx-arm64" || target == "ios-arm64" || target == "iossimulator-arm64") sub(/^_/, "", symbol);
-    if (symbol ~ /^[A-Za-z_][A-Za-z0-9_]*$/ && symbol !~ /^_Z/) print symbol
-  }' | LC_ALL=C sort -u > "$skcms_symbols"
-if ! grep -qx 'skcms_Transform' "$skcms_symbols"; then
-  echo "Failed to discover skcms C symbols in '$skcms_objects'." >&2
-  exit 1
-fi
-awk '{ printf "#define %s lightstudio_ffmpeg_%s\n", $1, $1 }' \
-  "$skcms_symbols" > "$skcms_namespace"
-printf '#define skcms_private lightstudio_ffmpeg_skcms_private\n' >> "$skcms_namespace"
-for language in C CXX; do
-  compiler_flags="$(sed -n "s/^CMAKE_${language}_FLAGS:STRING=//p" "$build_dir/CMakeCache.txt")"
-  if [[ "$target" == win-* ]]; then
-    cmake_args+=("-DCMAKE_${language}_FLAGS=$compiler_flags -FI\"$skcms_namespace\"")
-  else
-    cmake_args+=("-DCMAKE_${language}_FLAGS=$compiler_flags -include \"$skcms_namespace\"")
-  fi
-done
-"${configure[@]}" "${cmake_args[@]}"
-# The default target is used on purpose: brotli's install rules cover its CLI,
-# so building only the libraries leaves 'cmake --install' without input files.
-cmake --build "$build_dir" --parallel "$build_jobs"
-cmake --install "$build_dir"
-
 shopt -s nullglob
 installed_archives=("$prefix/lib"/*.a "$prefix/lib"/*.lib)
 shopt -u nullglob
@@ -270,17 +257,16 @@ if [[ ${#installed_archives[@]} -eq 0 ]]; then
   exit 1
 fi
 "$nm_tool" -g "${installed_archives[@]}" > "$build_dir/installed-symbols.txt"
-awk -v target="$target" 'NR == FNR { original[$1] = 1; next }
+awk -v target="$target" '
   NF >= 2 {
     symbol = $NF;
     if (target == "osx-arm64" || target == "ios-arm64" || target == "iossimulator-arm64") sub(/^_/, "", symbol);
-    if (symbol in original || symbol ~ /^skcms_/ ||
-        (index(symbol, "skcms_private") && !index(symbol, "lightstudio_ffmpeg_skcms_private"))) {
-      print "Unprefixed skcms definition or reference: " symbol;
+    if (index(symbol, "skcms_") || symbol == "powf_") {
+      print "Unexpected skcms definition or reference in LCMS build: " symbol;
       failed = 1;
     }
   }
-  END { exit failed }' "$skcms_symbols" "$build_dir/installed-symbols.txt"
+  END { exit failed }' "$build_dir/installed-symbols.txt"
 
 pkg_config_files=(
   "$prefix/lib/pkgconfig/libjxl.pc"
