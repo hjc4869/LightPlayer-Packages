@@ -43,7 +43,7 @@ and raw DNxHD, JPEG 2000, and VVC streams have matching demuxers.
 
 ## Shared libraries
 
-Shared libraries are deployed automatically by the .NET SDK on Android, macOS, and Windows. Android sonames are unversioned (`libavcodec.so`), macOS dylibs use `@rpath` install names, and Windows DLLs use versioned names (`avcodec-63.dll`). FFmpeg's internal dependencies resolve from the application's native library directory. dav1d and libjxl are linked statically into the codec library and libxml2 into the format library, without adding runtime library dependencies. macOS and Windows also embed libopus in the codec library and ship its separate archive for static linking.
+Shared libraries are deployed automatically by the .NET SDK on Android, macOS, and Windows. Android sonames are unversioned (`libavcodec.so`), macOS dylibs use `@rpath` install names with an `@loader_path` rpath for sibling dependencies, and Windows DLLs use versioned names (`avcodec-63.dll`). FFmpeg's internal dependencies resolve from the application's native library directory. dav1d and libjxl are linked statically into the codec library and libxml2 into the format library, without adding runtime library dependencies. macOS and Windows also embed libopus in the codec library and ship its separate archive for static linking.
 
 Supply managed bindings separately. For example, reference `FFmpeg.AutoGen.Bindings.DynamicallyLoaded` version `9.0.1.1` and initialize `FFmpeg.AutoGen.Bindings.DynamicallyLoaded.DynamicallyLoadedBindings.Initialize()` before calling FFmpeg. Shared deployment works with ordinary .NET applications and NativeAOT; leave `EnableStaticFfmpeg` unset or `false`.
 

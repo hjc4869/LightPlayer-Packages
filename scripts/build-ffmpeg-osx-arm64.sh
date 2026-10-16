@@ -8,7 +8,7 @@ target="${1:-osx-arm64}"
 sdk=macosx
 deployment_target="${MACOSX_DEPLOYMENT_TARGET:-11.0}"
 target_flags="-arch arm64 -mmacosx-version-min=$deployment_target"
-shared_args=(--enable-shared --install-name-dir=@rpath)
+shared_args=(--enable-shared --install-name-dir=@rpath --extra-ldsoflags=-Wl,-rpath,@loader_path)
 case "$target" in
   osx-arm64) ;;
   ios-arm64 | iossimulator-arm64)
