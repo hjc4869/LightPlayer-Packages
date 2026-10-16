@@ -47,6 +47,49 @@ Shared libraries are deployed automatically by the .NET SDK on Android, macOS, a
 
 Supply managed bindings separately. For example, reference `FFmpeg.AutoGen.Bindings.DynamicallyLoaded` version `9.0.1.1` and initialize `FFmpeg.AutoGen.Bindings.DynamicallyLoaded.DynamicallyLoadedBindings.Initialize()` before calling FFmpeg. Shared deployment works with ordinary .NET applications and NativeAOT; leave `EnableStaticFfmpeg` unset or `false`.
 
+## Exact-build headers and profiles
+
+Each native build installs its public FFmpeg headers, including generated
+`libavutil/avconfig.h` and `ffversion.h`, under
+`native-bindings/profiles/<profile>/include/`. Android profiles are
+`android-arm64` and `android-x64`; browser profiles are `wasm-st-em3`,
+`wasm-mt-em3`, `wasm-st-em6`, and `wasm-mt-em6`. Apple profiles use their RID.
+Windows static and shared builds have separate `<rid>-static` and
+`<rid>-shared` profiles. Profile names are manifest keys, not ABI inference rules.
+
+`native-bindings/manifest.json` identifies the package version and explicitly
+describes each available profile, its compiler-derived ABI and predefined
+macros, external sysroot/SDK identity, configure snapshots, upstream revisions,
+header hashes, library hashes, features, and static link dependencies.
+`LightStudioFfmpegNativeBindingsManifest` exposes its location to MSBuild
+consumers. Existing runtime and static asset paths are unchanged. Select one
+exact profile; do not substitute host headers or combine headers across builds.
+Platform SDK/system headers are not redistributed and must be supplied from
+the matching SDK. FFmpeg's public headers do not require the private headers
+of its bundled codec dependencies.
+
+This is a versioned **prototype** manifest, not a complete production binding
+SDK. Symbol indexes, recursive system-header dependency identities, and frontend
+ABI conformance still require extraction/validation by the binding tool.
+No bindings, parser binaries, automatic profile selection, or new linking
+behavior are provided. Configure snapshots are provenance, not executable
+consumer instructions. Native builds and packing require Python 3.9 or later;
+applications consuming the package do not. Packing validates the recorded
+asset hashes and rejects stale or unsafe profile inputs.
+
+For a partial local package, stage only the desired builds in an isolated
+artifact root using `FFMPEG_ARTIFACTS_DIR`, then run:
+
+```sh
+dotnet pack package/LightStudio.Ffmpeg.csproj -c Release \
+  -p:FFmpegArtifactsPath=/absolute/path/to/partial-artifacts \
+  -p:PackageVersion=9.0.2.1-prototype -o artifacts/packages
+```
+
+Only profiles actually present in that root are included. Partial packages
+are for local prototyping, not replacement release packages. Emscripten's
+exact version is recorded, not inferred from the `em3`/`em6` directory suffix.
+
 ## iOS
 
 Target `ios-arm64` for devices or `iossimulator-arm64` for the ARM64 simulator

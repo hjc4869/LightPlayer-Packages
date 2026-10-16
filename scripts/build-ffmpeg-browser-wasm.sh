@@ -366,7 +366,7 @@ if [[ "$enable_libjxl" -eq 1 ]] && ! grep -q '^#define CONFIG_LIBJXL_DECODER 1$'
   exit 1
 fi
 
-emmake make -j32
+emmake make -j"${FFMPEG_BUILD_JOBS:-32}"
 
 zlib_archive="$(em-config CACHE)/sysroot/lib/wasm32-emscripten/libz.a"
 
@@ -401,5 +401,19 @@ mkdir -p "$artifacts_dir"
 for archive in "${archives[@]}"; do
   cp "$archive" "$artifacts_dir/"
 done
+
+profile="wasm-st-em${emsdk_version%%.*}"
+if [[ "$expected_pthreads" -eq 1 ]]; then
+  profile="wasm-mt-em${emsdk_version%%.*}"
+fi
+emmake make install-headers prefix="$artifacts_dir/native-bindings/profiles/$profile"
+profile_flags="-msimd128 $zlib_flag"
+if [[ "$expected_pthreads" -eq 1 ]]; then
+  profile_flags+=" -pthread"
+fi
+python3 "$repo_root/scripts/ffmpeg-native-bindings.py" stage \
+  "$artifacts_dir" "$build_dir" "$profile" browser-wasm --linkage static \
+  --compiler emcc --flags="$profile_flags" \
+  --sysroot "$(em-config CACHE)/sysroot" --sysroot-kind emscripten --sysroot-version "$emsdk_version"
 
 printf "Staged %d FFmpeg archives for '%s' in %s\n" "${#archives[@]}" "$variant" "$artifacts_dir"

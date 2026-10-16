@@ -186,12 +186,23 @@ for linkage in static shared; do
     fi
   done
   cp config.h config_components.h ffbuild/config.mak ffbuild/config.log "$build_info_dir/"
-  make install-headers
+  make install-headers prefix="$(cygpath -m "$artifacts_dir/native-bindings/profiles/$target-$linkage")"
 done
 
 cp "$dav1d_prefix/lib/dav1d.lib" "$libxml2_prefix/lib/xml2.lib" "$opus_prefix/lib/opus.lib" "$zlib_prefix/lib/zlib.lib" "$artifacts_dir/"
 for library in jxl jxl_cms jxl_threads hwy brotlicommon brotlidec brotlienc; do
   cp "$libjxl_prefix/lib/$library.lib" "$artifacts_dir/"
+done
+
+for linkage in static shared; do
+  ffmpeg_build_dir="$build_dir/ffmpeg"
+  [[ "$linkage" != shared ]] || ffmpeg_build_dir="$build_dir/ffmpeg-shared"
+  python3 "$repo_root/scripts/ffmpeg-native-bindings.py" stage \
+    "$artifacts_dir" "$ffmpeg_build_dir" "$target-$linkage" "$target" --linkage "$linkage" \
+    --compiler "clang --target=$triple" \
+    --flags="-fms-compatibility -fms-extensions -D_MT -D_WIN32_WINNT=0x0A00 -DWINVER=0x0A00" \
+    --sysroot "$(cygpath -u "${WindowsSdkDir:?Initialize the Windows SDK environment}")" --sysroot-kind windows-sdk \
+    --sysroot-version "${WindowsSDKVersion:?Initialize the Windows SDK environment};msvc=${VCToolsVersion:?Initialize the MSVC environment};crt=static"
 done
 
 printf "Built LGPL FFmpeg MSVC static and shared libraries for '%s' in %s\n" "$target" "$artifacts_dir"

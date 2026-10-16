@@ -444,6 +444,12 @@ build_abi() {
     cp "$archive" "$artifacts_dir/"
   done
 
+  make install-headers prefix="$artifacts_dir/native-bindings/profiles/$dotnet_rid"
+  python3 "$repo_root/scripts/ffmpeg-native-bindings.py" stage \
+    "$artifacts_dir" "$build_dir" "$dotnet_rid" "$dotnet_rid" \
+    --compiler "$cc" --sysroot "$sysroot" --sysroot-kind android-ndk \
+    --sysroot-version "$(sed -n 's/^Pkg.Revision *= *//p' "$android_ndk_home/source.properties");api=$android_api"
+
   popd >/dev/null
 
   printf "Staged %d FFmpeg shared libraries and %d static archives for '%s' in %s\n" \

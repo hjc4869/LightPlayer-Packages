@@ -451,5 +451,12 @@ for dynamic_library in ${dynamic_libraries[@]+"${dynamic_libraries[@]}"}; do
   cp -L "$dynamic_library" "$artifacts_dir/"
 done
 
+make install-headers prefix="$artifacts_dir/native-bindings/profiles/$target"
+python3 "$repo_root/scripts/ffmpeg-native-bindings.py" stage \
+  "$artifacts_dir" "$build_dir" "$target" "$target" \
+  --compiler "\"$cc\"" --flags="$target_flags -isysroot \"$sdk_path\"" \
+  --sysroot "$sdk_path" --sysroot-kind "$sdk" \
+  --sysroot-version "$(xcrun --sdk "$sdk" --show-sdk-version);deployment=$deployment_target"
+
 printf "Staged %d FFmpeg archives and %d dynamic libraries for '%s' in %s\n" \
   "${#archives[@]}" "${#dynamic_libraries[@]}" "$target" "$artifacts_dir"

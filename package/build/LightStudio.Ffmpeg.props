@@ -1,5 +1,6 @@
 <Project>
   <PropertyGroup>
     <LightStudioFfmpegPackageRoot>$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)..'))</LightStudioFfmpegPackageRoot>
+    <LightStudioFfmpegNativeBindingsManifest>$(LightStudioFfmpegPackageRoot)native-bindings/manifest.json</LightStudioFfmpegNativeBindingsManifest>
   </PropertyGroup>
 </Project>
