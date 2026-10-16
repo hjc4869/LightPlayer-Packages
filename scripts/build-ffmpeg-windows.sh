@@ -66,20 +66,24 @@ export MSYS2_ARG_CONV_EXCL=
 
 parsers=(
   aac aac_latm flac mpegaudio tak vorbis h264 hevc mpeg4video mpegvideo
-  vp8 vp9 av1 vc1 mjpeg h263 ac3 dca opus mlp png webp jpegxl
+  vp8 vp9 av1 vvc vc1 rv34 mjpeg h263 ac3 dca opus mlp png webp jpegxl
 )
 demuxers=(
-  aac ape asf dash hls mov matroska mpegts mpegps flv avi h264 hevc m4v
-  mpegvideo ogg flac tak tta wav xwma mp3 pcm_alaw pcm_f32be pcm_f32le
+  aac loas ape asf dash hls mov mxf rm matroska mpegts mpegps flv avi
+  h264 hevc vvc dnxhd m4v mpegvideo rawvideo ogg flac tak tta wav wv xwma mp3
+  pcm_alaw pcm_f32be pcm_f32le
   pcm_f64be pcm_f64le pcm_mulaw pcm_s16be pcm_s16le pcm_s24be pcm_s24le
   pcm_s32be pcm_s32le pcm_s8 pcm_u16be pcm_u16le pcm_u24be pcm_u24le
-  pcm_u32be pcm_u32le pcm_u8 image2 image2pipe image_jpeg_pipe image_png_pipe
+  pcm_u32be pcm_u32le pcm_u8 image2 image2pipe image_j2k_pipe image_jpeg_pipe image_png_pipe
   image_webp_pipe image_tiff_pipe image_jpegxl_pipe jpegxl_anim webp_anim apng sup
+  dnxhd
 )
 decoders=(
-  libdav1d libjxl libjxl_anim pgssub aac alac ape flac mp3float tak tta vorbis
-  wmalossless wmapro wmav1 wmav2 h264 hevc mpeg1video mpeg2video mpeg4
-  msmpeg4v1 msmpeg4v2 msmpeg4v3 vc1 wmv1 wmv2 wmv3 vp8 vp9 av1 theora flv
+  libdav1d libjxl libjxl_anim pgssub aac aac_latm alac ape atrac3 cook flac
+  mp3float ra_144 ra_288 ralf sipr wavpack tak tta vorbis
+  wmalossless wmapro wmav1 wmav2 h264 hevc rawvideo mpeg1video mpeg2video mpeg4
+  dnxhd ffv1 jpeg2000 msmpeg4v1 msmpeg4v2 msmpeg4v3 rv10 rv20 rv30 rv40 rv60
+  vc1 vvc wmv1 wmv2 wmv3 vp8 vp9 av1 theora flv
   h263 mjpeg prores ac3 eac3 dca opus mp1float mp2float truehd pcm_alaw
   pcm_bluray pcm_dvd pcm_f16le pcm_f24le pcm_f32be pcm_f32le pcm_f64be
   pcm_f64le pcm_lxf pcm_mulaw pcm_s16be pcm_s16be_planar pcm_s16le
@@ -151,6 +155,11 @@ for linkage in static shared; do
   grep -q "^#define CONFIG_SHARED $shared$" config.h
   grep -q "^#define CONFIG_STATIC $((1 - shared))$" config.h
   for component in DASH_DEMUXER HLS_DEMUXER FILE_PROTOCOL SUP_DEMUXER PGSSUB_DECODER \
+    RAWVIDEO_DECODER RAWVIDEO_DEMUXER AAC_LATM_DECODER WAVPACK_DECODER FFV1_DECODER \
+    DNXHD_DECODER JPEG2000_DECODER RA_144_DECODER RA_288_DECODER RALF_DECODER \
+    COOK_DECODER ATRAC3_DECODER SIPR_DECODER RV10_DECODER RV20_DECODER RV30_DECODER \
+    RV40_DECODER RV60_DECODER VVC_DECODER WV_DEMUXER LOAS_DEMUXER DNXHD_DEMUXER \
+    MXF_DEMUXER IMAGE_J2K_PIPE_DEMUXER RM_DEMUXER VVC_DEMUXER RV34_PARSER VVC_PARSER \
     LIBDAV1D_DECODER LIBJXL_DECODER LIBJXL_ANIM_DECODER PNG_DECODER WEBP_DECODER TIFF_DECODER \
     H264_D3D11VA_HWACCEL HEVC_D3D11VA_HWACCEL AV1_D3D11VA_HWACCEL VP9_D3D11VA_HWACCEL \
     H264_MF_ENCODER HEVC_MF_ENCODER AV1_MF_ENCODER LIBOPUS_ENCODER \

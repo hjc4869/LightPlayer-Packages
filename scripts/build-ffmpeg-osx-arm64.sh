@@ -154,7 +154,9 @@ cd "$build_dir"
   --enable-parser=vp8 \
   --enable-parser=vp9 \
   --enable-parser=av1 \
+  --enable-parser=vvc \
   --enable-parser=vc1 \
+  --enable-parser=rv34 \
   --enable-parser=mjpeg \
   --enable-parser=h263 \
   --enable-parser=ac3 \
@@ -165,11 +167,14 @@ cd "$build_dir"
   --enable-parser=webp \
   --enable-parser=jpegxl \
   --enable-demuxer=aac \
+  --enable-demuxer=loas \
   --enable-demuxer=ape \
   --enable-demuxer=asf \
   --enable-demuxer=dash \
   --enable-demuxer=hls \
   --enable-demuxer=mov \
+  --enable-demuxer=mxf \
+  --enable-demuxer=rm \
   --enable-demuxer=matroska \
   --enable-demuxer=mpegts \
   --enable-demuxer=mpegps \
@@ -177,13 +182,17 @@ cd "$build_dir"
   --enable-demuxer=avi \
   --enable-demuxer=h264 \
   --enable-demuxer=hevc \
+  --enable-demuxer=vvc \
+  --enable-demuxer=dnxhd \
   --enable-demuxer=m4v \
   --enable-demuxer=mpegvideo \
+  --enable-demuxer=rawvideo \
   --enable-demuxer=ogg \
   --enable-demuxer=flac \
   --enable-demuxer=tak \
   --enable-demuxer=tta \
   --enable-demuxer=wav \
+  --enable-demuxer=wv \
   --enable-demuxer=xwma \
   --enable-demuxer=mp3 \
   --enable-demuxer=pcm_alaw \
@@ -208,6 +217,7 @@ cd "$build_dir"
   --enable-demuxer=pcm_u8 \
   --enable-demuxer=image2 \
   --enable-demuxer=image2pipe \
+  --enable-demuxer=image_j2k_pipe \
   --enable-demuxer=image_jpeg_pipe \
   --enable-demuxer=image_png_pipe \
   --enable-demuxer=image_webp_pipe \
@@ -219,19 +229,31 @@ cd "$build_dir"
   --enable-demuxer=sup \
   --enable-decoder=pgssub \
   --enable-decoder=aac \
+  --enable-decoder=aac_latm \
   --enable-decoder=alac \
   --enable-decoder=ape \
+  --enable-decoder=atrac3 \
+  --enable-decoder=cook \
   --enable-decoder=flac \
   --enable-decoder=mp3float \
+  --enable-decoder=ra_144 \
+  --enable-decoder=ra_288 \
+  --enable-decoder=ralf \
+  --enable-decoder=sipr \
   --enable-decoder=tak \
   --enable-decoder=tta \
   --enable-decoder=vorbis \
+  --enable-decoder=wavpack \
   --enable-decoder=wmalossless \
   --enable-decoder=wmapro \
   --enable-decoder=wmav1 \
   --enable-decoder=wmav2 \
   --enable-decoder=h264 \
   --enable-decoder=hevc \
+  --enable-decoder=rawvideo \
+  --enable-decoder=dnxhd \
+  --enable-decoder=ffv1 \
+  --enable-decoder=jpeg2000 \
   --enable-decoder=mpeg1video \
   --enable-decoder=mpeg2video \
   --enable-decoder=mpeg4 \
@@ -242,9 +264,15 @@ cd "$build_dir"
   --enable-decoder=wmv1 \
   --enable-decoder=wmv2 \
   --enable-decoder=wmv3 \
+  --enable-decoder=rv10 \
+  --enable-decoder=rv20 \
+  --enable-decoder=rv30 \
+  --enable-decoder=rv40 \
+  --enable-decoder=rv60 \
   --enable-decoder=vp8 \
   --enable-decoder=vp9 \
   --enable-decoder=av1 \
+  --enable-decoder=vvc \
   --enable-decoder=theora \
   --enable-decoder=flv \
   --enable-decoder=h263 \
@@ -316,6 +344,18 @@ if ! grep -q '^#define CONFIG_LIBJXL_DECODER 1$' config_components.h; then
   echo "FFmpeg did not enable the libjxl decoder for macOS." >&2
   exit 1
 fi
+
+for component in RAWVIDEO_DECODER RAWVIDEO_DEMUXER AAC_LATM_DECODER WAVPACK_DECODER \
+  FFV1_DECODER DNXHD_DECODER JPEG2000_DECODER RA_144_DECODER RA_288_DECODER \
+  RALF_DECODER COOK_DECODER ATRAC3_DECODER SIPR_DECODER RV10_DECODER RV20_DECODER \
+  RV30_DECODER RV40_DECODER RV60_DECODER VVC_DECODER WV_DEMUXER LOAS_DEMUXER \
+  DNXHD_DEMUXER MXF_DEMUXER IMAGE_J2K_PIPE_DEMUXER RM_DEMUXER VVC_DEMUXER \
+  RV34_PARSER VVC_PARSER; do
+  if ! grep -q "^#define CONFIG_${component} 1$" config_components.h; then
+    echo "FFmpeg did not enable $component for macOS." >&2
+    exit 1
+  fi
+done
 
 if ! grep -q '^#define CONFIG_ZLIB 1$' config.h; then
   echo "FFmpeg did not enable zlib for macOS; the PNG decoder needs it." >&2

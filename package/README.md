@@ -25,6 +25,7 @@ The HLS and DASH demuxers and file protocol are enabled for applications that pr
 | --- | --- | --- |
 | JPEG | `image2`, `jpeg_pipe` | `mjpeg` |
 | PNG / APNG | `image2`, `png_pipe`, `apng` | `png`, `apng` |
+| JPEG 2000 | `j2k_pipe` | `jpeg2000` |
 | WebP (still and animated) | `image2`, `webp_pipe`, `webp_anim` | `webp` |
 | TIFF | `image2`, `tiff_pipe` | `tiff` |
 | AVIF | `mov` | `libdav1d` |
@@ -32,6 +33,13 @@ The HLS and DASH demuxers and file protocol are enabled for applications that pr
 | JPEG XL (still and animated) | `jpegxl_pipe`, `jpegxl_anim` | `libjxl`, `libjxl_anim` |
 
 JPEG XL is unavailable in the single-threaded browser-wasm variant, because libjxl's parallel runner needs pthreads.
+
+## Additional audio and video formats
+
+Audio decoding includes WavPack (`wv`), AAC-LATM (`loas`), and the RealAudio
+family in RealMedia (`rm`). RealVideo (`rv10`, `rv20`, `rv30`, `rv40`, `rv60`)
+is also enabled. Video decoding includes FFV1, DNxHD, JPEG 2000, and VVC; MXF
+and raw DNxHD, JPEG 2000, and VVC streams have matching demuxers.
 
 ## Shared libraries
 
