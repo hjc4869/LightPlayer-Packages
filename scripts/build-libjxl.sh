@@ -300,7 +300,7 @@ for pkg_config_file in "${pkg_config_files[@]}"; do
   sed -i.bak -E "s/-l(c\\+\\+|stdc\\+\\+)( |\$)/$cxx_runtime_libs\\2/g" "$pkg_config_file"
   rm -f -- "$pkg_config_file.bak"
   if [[ "$target" == win-* ]]; then
-    sed -i.bak -E "s/ -lm( |\$)/\\1/g; s/^Libs\\.private:.*/& $cxx_runtime_libs/" "$pkg_config_file"
+    sed -i.bak -E "s/-ljxl-static( |\$)/-ljxl\\1/g; s/ -lm( |\$)/\\1/g; s/^Libs\\.private:.*/& $cxx_runtime_libs/" "$pkg_config_file"
     rm -f -- "$pkg_config_file.bak"
   fi
 done
