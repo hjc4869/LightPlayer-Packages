@@ -20,3 +20,5 @@ package/avalonia-static/obj/
 package/avalonia-static-native/bin/
 package/avalonia-static-native/obj/
 scripts/__pycache__/
+package/geonames/bin/
+package/geonames/obj/

@@ -1,0 +1,18 @@
+LightStudio.GeoNames contains data derived from GeoNames.
+
+Attribution: GeoNames, https://www.geonames.org/
+Source: https://download.geonames.org/export/dump/
+License: Creative Commons Attribution 4.0 International (CC BY 4.0)
+https://creativecommons.org/licenses/by/4.0/
+
+The dataset is filtered to populated places in cities1000 and their available
+administrative regions, with country information and selected alternate names.
+It is encoded as a compact binary database with quantized coordinates, shared
+strings, a parent hierarchy, and a balanced spherical search index.
+
+GeoNames provides its data "as is", without warranty or any representation of
+accuracy, timeliness, or completeness. GeoNames does not endorse this package.
+
+Applications redistributing this data must retain attribution, identify their
+changes, and provide the license link. See build-info.json for the input URLs
+and SHA-256 checksums of the source snapshot used to create this database.

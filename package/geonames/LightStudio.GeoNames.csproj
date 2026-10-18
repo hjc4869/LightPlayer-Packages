@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <PackageId>LightStudio.GeoNames</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>LightStudio;GeoNames</Authors>
+    <Description>Gzip-compressed offline GeoNames cities1000 database with country and administrative names, seven name languages, stable GeoNames IDs, and a balanced spherical spatial index. Data only; no managed or native runtime dependency.</Description>
+    <PackageTags>geonames;geocoding;offline;geography;cities;localization</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseExpression>CC-BY-4.0</PackageLicenseExpression>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/hjc4869/LightPlayer-Packages</RepositoryUrl>
+    <IsPackable>true</IsPackable>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+    <GeoNamesArtifactsPath Condition="'$(GeoNamesArtifactsPath)' == ''">$(MSBuildThisFileDirectory)../../artifacts/geonames</GeoNamesArtifactsPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md;FORMAT.md;THIRD-PARTY-NOTICES.txt" Pack="true" PackagePath="/" />
+    <None Include="build/LightStudio.GeoNames.props" Pack="true" PackagePath="build/" />
+    <None Include="$(GeoNamesArtifactsPath)/geonames.bin.gz;$(GeoNamesArtifactsPath)/build-info.json" Pack="true" PackagePath="data/" />
+  </ItemGroup>
+
+  <Target Name="RequireGeoNamesDatabase" BeforeTargets="_GetPackageFiles">
+    <Error Condition="!Exists('$(GeoNamesArtifactsPath)/geonames.bin.gz')" Text="Missing GeoNames database. Run python3 scripts/build-geonames.py --download before packing." />
+    <Error Condition="!Exists('$(GeoNamesArtifactsPath)/build-info.json')" Text="Missing GeoNames provenance manifest. Run python3 scripts/build-geonames.py before packing." />
+  </Target>
+</Project>

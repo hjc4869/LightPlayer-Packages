@@ -1,0 +1,98 @@
+name: Build and publish LightStudio.GeoNames
+
+on:
+  push:
+    tags:
+      - "geonames-v*"
+  workflow_dispatch:
+    inputs:
+      package_version:
+        description: NuGet package version for this GeoNames snapshot
+        required: true
+        default: "1.0.0"
+        type: string
+      publish:
+        description: Publish the database package to NuGet.org
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: geonames-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PYTHONDONTWRITEBYTECODE: "1"
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    outputs:
+      package_version: ${{ steps.version.outputs.value }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check workflow and builder entry point
+        run: |
+          docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12 .github/workflows/geonames.yml
+          python3 scripts/build-geonames.py --help
+      - name: Resolve package version
+        id: version
+        env:
+          DISPATCH_VERSION: ${{ inputs.package_version }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+            package_version="$DISPATCH_VERSION"
+          else
+            package_version="${GITHUB_REF_NAME#geonames-v}"
+          fi
+          if [[ ! "$package_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$ ]]; then
+            printf 'Invalid NuGet package version: %s\n' "$package_version" >&2
+            exit 1
+          fi
+          echo "value=$package_version" >> "$GITHUB_OUTPUT"
+      - name: Download GeoNames and build localized database
+        run: python3 scripts/build-geonames.py --download
+      - uses: actions/upload-artifact@v4
+        with:
+          name: geonames-database
+          path: artifacts/geonames
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: geonames-source-snapshot
+          path: artifacts/sources/geonames
+          compression-level: 0
+          if-no-files-found: error
+
+  pack-and-publish:
+    name: Pack LightStudio.GeoNames
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - uses: actions/download-artifact@v4
+        with:
+          name: geonames-database
+          path: artifacts/geonames
+      - name: Pack database and provenance
+        env:
+          PACKAGE_VERSION: ${{ needs.build.outputs.package_version }}
+        run: dotnet pack package/geonames/LightStudio.GeoNames.csproj -c Release -o artifacts/packages -p:PackageVersion="$PACKAGE_VERSION"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LightStudio.GeoNames-nuget
+          path: artifacts/packages/LightStudio.GeoNames.*.nupkg
+          if-no-files-found: error
+      - name: Publish to NuGet.org
+        if: github.event_name == 'workflow_dispatch' && inputs.publish
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: dotnet nuget push artifacts/packages/LightStudio.GeoNames.*.nupkg --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate

@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <LightStudioGeoNamesDatabase>$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)', '..', 'data', 'geonames.bin.gz'))</LightStudioGeoNamesDatabase>
+    <LightStudioGeoNamesBuildInfo>$([MSBuild]::NormalizePath('$(MSBuildThisFileDirectory)', '..', 'data', 'build-info.json'))</LightStudioGeoNamesBuildInfo>
+  </PropertyGroup>
+</Project>
