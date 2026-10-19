@@ -22,3 +22,5 @@ package/avalonia-static-native/obj/
 scripts/__pycache__/
 package/geonames/bin/
 package/geonames/obj/
+package/fonts/bin/
+package/fonts/obj/

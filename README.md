@@ -9,6 +9,7 @@ This repository builds native, managed, and data-only NuGet packages for .NET:
 - [LightStudio.AvaloniaStatic](package/avalonia-static/README.md): Static SkiaSharp 4.153.1, HarfBuzzSharp 14.2.1.301, and ANGLE for Windows, Linux, macOS, and Android on x64 and ARM64, with no managed Avalonia dependency.
 - [LightStudio.AvaloniaStatic.Native](package/avalonia-static-native/README.md): Independently built macOS x64/ARM64 Avalonia.Native from the LightStudio fork's release/12.1.4 branch. Its custom NuGet version also selects the exact managed Avalonia dependency versions, including prereleases.
 - [LightStudio.GeoNames](package/geonames/README.md): Data-only offline cities1000 database with country and administrative names, seven name languages, stable GeoNames IDs, and a balanced spherical search index. Its independent workflow builds from GeoNames snapshots and packages the gzip-compressed binary with provenance, attribution, and MSBuild paths for embedding.
+- [LightStudio.Fonts](package/fonts/README.md): Data-only Noto Sans CJK SC Regular and Bold OpenType fonts, with the SIL Open Font License and an MSBuild asset directory. Its independent workflow packs the fonts and optionally publishes to NuGet.org.
 
 The workflows build, stage, pack, and upload artifacts without post-build tests or validation. Pre-build lint and toolchain/configuration checks remain enabled.
 

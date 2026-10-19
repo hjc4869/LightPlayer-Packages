@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <PackageId>LightStudio.Fonts</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>LightStudio;Google;Adobe</Authors>
+    <Description>Noto Sans CJK SC Regular and Bold OpenType fonts for CJK fallback text rendering. Data only; no managed or native runtime dependency.</Description>
+    <PackageTags>fonts;noto;cjk;opentype</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseFile>fonts/OFL.txt</PackageLicenseFile>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/hjc4869/LightPlayer-Packages</RepositoryUrl>
+    <IsPackable>true</IsPackable>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="/" />
+    <None Include="build/LightStudio.Fonts.props" Pack="true" PackagePath="build/" />
+    <None Include="fonts/NotoSansCJKsc-Regular.otf;fonts/NotoSansCJKsc-Bold.otf;fonts/OFL.txt" Pack="true" PackagePath="fonts/" />
+  </ItemGroup>
+</Project>
