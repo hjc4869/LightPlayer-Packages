@@ -2,6 +2,6 @@
   "avalonia": {
     "url": "https://github.com/hjc4869/Avalonia.git",
     "ref": "release/12.1.4",
-    "commit": "acbf8d2226cfe1edeee126e41b0f46e53ecea08e"
+    "commit": "78ef9ea3e3a350d6500cc346826f19812a0d7836"
   }
 }
