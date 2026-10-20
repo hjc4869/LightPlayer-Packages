@@ -1,4 +1,0 @@
-{
-    "cmake.sourceDirectory": "C:/Dev/LightPlayer-Packages/scripts/sqlite-vec",
-    "dotnet.defaultSolution": "artifacts/build/onnx-linux-x64/Release/_deps/onnxruntime_mbedtls-src/visualc/VS2017/mbedTLS.sln"
-}
