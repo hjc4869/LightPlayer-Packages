@@ -1,8 +1,8 @@
 # LightStudio.AvaloniaStatic
 
 Static SkiaSharp, HarfBuzzSharp, and ANGLE dependencies for NativeAOT. The default
-package version is **12.1.4**. Avalonia.Native is built and distributed separately
-as [LightStudio.AvaloniaStatic.Native](../avalonia-static-native/README.md).
+package version is **12.1.4**. Static macOS backend libraries are included in the
+matching `Avalonia.Native` package built by the LightStudio Avalonia fork.
 
 ## Contents
 
@@ -25,7 +25,7 @@ source revisions and build arguments in `build-info/` and upstream notices in
 | --- | --- |
 | `linux-x64`, `linux-arm64` | Ubuntu 24.04 / glibc 2.39 build environment |
 | `win-x64`, `win-arm64` | Windows 10+, Visual Studio 2022, static MSVC CRT |
-| `osx-x64`, `osx-arm64` | macOS 11+, Metal and OpenGL; Avalonia.Native is a separate package |
+| `osx-x64`, `osx-arm64` | macOS 11+, Metal and OpenGL; backend archives ship in Avalonia.Native |
 | `android-x64`, `android-arm64` | API 27, NDK r28c, PIC archives; final links request 16 KB pages |
 
 Static archives live under `static/<rid>/`, not `runtimes/`. The package does not
@@ -56,16 +56,12 @@ reference your preferred compatible Avalonia release separately and use matching
 versions of your other Avalonia packages, including Avalonia.Desktop or
 Avalonia.Android.
 
-For macOS, also reference `LightStudio.AvaloniaStatic.Native` at the version of
-your managed Avalonia packages, for example:
-
-```xml
-<PackageReference Include="LightStudio.AvaloniaStatic.Native" Version="12.1.4" />
-```
-
-The Native package's version and exact Avalonia dependencies may be customized,
-including prerelease versions such as `12.1.5-lightplayer.0`, without rebuilding
-this graphics package.
+For macOS, use the matching `Avalonia.Native` package from the LightStudio Avalonia
+fork, normally brought in by `Avalonia.Desktop`. It contains static backend
+archives and automatically links them for `PublishAot=true`; no extra native
+package is required. Keep managed Avalonia package versions aligned. Set
+`EnableStaticAvaloniaNative=false` to retain dynamic backend linking without
+disabling this graphics package's static integration.
 
 `buildTransitive` targets select archives, direct P/Invokes, OS libraries, and
 macOS frameworks for `PublishAot=true`. They filter replaced SkiaSharp,
@@ -90,11 +86,10 @@ using the repository's `NUGET_API_KEY` secret. A tag `avalonia-static-v12.1.4`
 also builds and uploads the package without publishing to NuGet.org.
 
 Changing the graphics package version changes only the NuGet version, not source
-pins or its SkiaSharp/HarfBuzzSharp dependencies. Updating Avalonia.Native uses
-the separate **Build and publish LightStudio.AvaloniaStatic.Native** workflow and
-`scripts/avalonia-static-native/sources.json`, pinned to `release/12.1.4`. The Native
-workflow builds only the two macOS RIDs and sets exact managed dependencies from
-its supplied package version. There are no legacy Avalonia source branches.
+pins or its SkiaSharp/HarfBuzzSharp dependencies. Avalonia.Native is built and
+packaged by the Avalonia repository's macOS build, with static archives and
+managed bindings from the same checkout. Updating that backend does not require
+rebuilding this graphics package.
 
 Compilation uses the host CPU count by default; set `JOBS` to override it.
 Skia and ANGLE dependency checkouts are serialized, with up to three sync

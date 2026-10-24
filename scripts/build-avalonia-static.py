@@ -36,8 +36,8 @@ def run_with_retries(*command, cwd=None):
             print(f"Dependency sync failed; retrying ({attempt}/3)", flush=True)
 
 
-def checkout(name, work, sources=SOURCES):
-    source = sources[name]
+def checkout(name, work):
+    source = SOURCES[name]
     destination = work / ("depot_tools" if name == "depot_tools" else f"{name}-{source['commit'][:12]}")
     if not (destination / ".git").exists():
         destination.mkdir(parents=True, exist_ok=True)
@@ -219,55 +219,23 @@ def copy_licenses(source, destination):
         raise RuntimeError(f"No license notices found in {source}")
 
 
-def build_macos_native(rid, work, destination, jobs, sources):
-    source = checkout("avalonia", work, sources)
-    native = source / "native/Avalonia.Native"
-    run("dotnet", "build", native / "Avalonia.Native.macOS.proj", "-t:GenerateMicroComItems", cwd=source)
-    arch = "arm64" if rid.endswith("arm64") else "x86_64"
-    build = work / f"avalonia-native-{rid}"
-    run("xcodebuild", "-project", native / "src/OSX/Avalonia.Native.OSX.xcodeproj",
-        "-target", "Avalonia.Native.OSX", "-configuration", "Release", "-sdk", "macosx", "-arch", arch,
-        f"CONFIGURATION_BUILD_DIR={build}", "ONLY_ACTIVE_ARCH=NO", "CODE_SIGNING_ALLOWED=NO",
-        "MACH_O_TYPE=staticlib", "EXECUTABLE_PREFIX=lib", "EXECUTABLE_EXTENSION=a",
-        "PRODUCT_NAME=AvaloniaNative", f"HEADER_SEARCH_PATHS={native / 'inc'}",
-        "MACOSX_DEPLOYMENT_TARGET=11.0", "CLANG_ENABLE_MODULES=YES", "GCC_GENERATE_DEBUGGING_SYMBOLS=NO",
-        "-jobs", jobs, cwd=source)
-    stage_archive(build, "libAvaloniaNative.a", destination)
-    run("xcrun", "clang", "-arch", arch, "-mmacosx-version-min=11.0", "-fobjc-arc", "-c",
-        ROOT / "scripts/avalonia-static-native/macos_font_preinit.m", "-o", destination / "macos_font_preinit.o")
-    copy_licenses(source, destination / "licenses/avalonia")
-
-
 def main():
     parser = argparse.ArgumentParser(description="Build LightStudio.AvaloniaStatic native archives")
     parser.add_argument("rid", choices=RIDS)
-    parser.add_argument("--component", choices=("graphics", "native"), default="graphics")
-    parser.add_argument("--package-version", default="12.1.4", help="Avalonia.Native managed binding version")
     parser.add_argument("--work-dir", type=Path)
     parser.add_argument("--output-dir", type=Path, default=ROOT / "artifacts")
     args = parser.parse_args()
     system = args.rid.split("-")[0]
-    if args.component == "native" and system != "osx":
-        parser.error("Avalonia.Native archives support only osx-x64 and osx-arm64")
     expected_host = {"win": "Windows", "osx": "Darwin", "linux": "Linux", "android": "Linux"}[system]
     if platform.system() != expected_host:
         parser.error(f"{args.rid} requires a {expected_host} build host")
     if system == "linux" and (platform.machine() in ("aarch64", "arm64")) != args.rid.endswith("arm64"):
         parser.error("Linux builds require a matching host architecture")
-    artifact_prefix = "avalonia-static-native" if args.component == "native" else "avalonia-static"
-    work = (args.work_dir or ROOT / "artifacts/build" / artifact_prefix).resolve()
+    work = (args.work_dir or ROOT / "artifacts/build/avalonia-static").resolve()
     work.mkdir(parents=True, exist_ok=True)
-    destination = args.output_dir.resolve() / f"{artifact_prefix}-{args.rid}"
+    destination = args.output_dir.resolve() / f"avalonia-static-{args.rid}"
     destination.mkdir(parents=True, exist_ok=True)
     jobs = os.environ.get("JOBS", str(os.cpu_count() or 1))
-    if args.component == "native":
-        sources = json.loads((ROOT / "scripts/avalonia-static-native/sources.json").read_text())
-        build_macos_native(args.rid, work, destination, jobs, sources)
-        metadata = dict(rid=args.rid, avalonia=args.package_version, sources=sources,
-                        macos_minimum="11.0", jobs=jobs)
-        (destination / "build-info.json").write_text(json.dumps(metadata, indent=2) + "\n")
-        print(f"Staged {args.rid} in {destination}")
-        return
     if system == "win":
         os.environ["GYP_MSVS_OVERRIDE_PATH"] = os.environ["VSINSTALLDIR"].rstrip("\\/")
         os.environ["GYP_MSVS_VERSION"] = "2022"

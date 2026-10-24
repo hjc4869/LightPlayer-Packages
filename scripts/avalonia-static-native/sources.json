@@ -1,7 +1,0 @@
-{
-  "avalonia": {
-    "url": "https://github.com/hjc4869/Avalonia.git",
-    "ref": "release/12.1.4",
-    "commit": "78ef9ea3e3a350d6500cc346826f19812a0d7836"
-  }
-}

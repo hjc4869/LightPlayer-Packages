@@ -6,7 +6,7 @@
     <PackageId>LightStudio.AvaloniaStatic</PackageId>
     <Version>12.1.4</Version>
     <Authors>LightStudio</Authors>
-    <Description>Static SkiaSharp 4.153.1, HarfBuzzSharp 14.2.1.301, and ANGLE libraries for NativeAOT on Windows, Linux, macOS, and Android, x64 and ARM64. Avalonia.Native is provided separately by LightStudio.AvaloniaStatic.Native.</Description>
+    <Description>Static SkiaSharp 4.153.1, HarfBuzzSharp 14.2.1.301, and ANGLE libraries for NativeAOT on Windows, Linux, macOS, and Android, x64 and ARM64. Static Avalonia.Native libraries are included in the matching Avalonia.Native package from the LightStudio Avalonia fork.</Description>
     <PackageTags>Avalonia;SkiaSharp;HarfBuzzSharp;ANGLE;NativeAOT;static;android;macos;linux;windows</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
