@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <LightStudioWebGPUPackageRoot>$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)..'))</LightStudioWebGPUPackageRoot>
+    <LightStudioWebGPUNativeBindingsManifest>$(LightStudioWebGPUPackageRoot)native-bindings/manifest.json</LightStudioWebGPUNativeBindingsManifest>
+  </PropertyGroup>
+</Project>

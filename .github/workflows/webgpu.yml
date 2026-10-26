@@ -1,0 +1,141 @@
+name: Build and publish LightStudio.WebGPU
+
+on:
+  push:
+    tags:
+      - "webgpu-v*"
+  workflow_dispatch:
+    inputs:
+      package_version:
+        description: Optional NuGet version override (defaults to the repository Dawn pin)
+        required: false
+        default: ""
+        type: string
+      publish:
+        description: Publish the complete WebGPU package as a GitHub release
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: webgpu-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  JOBS: "3"
+  PYTHON: python
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check workflow and build scripts
+        run: |
+          docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12 .github/workflows/webgpu.yml
+          docker run --rm -v "$PWD:/repo" -w /repo --entrypoint shellcheck rhysd/actionlint:1.7.12 scripts/build-webgpu.sh
+          python3 -m py_compile scripts/webgpu-native-bindings.py
+
+  build-linux:
+    name: Build webgpu-${{ matrix.rid }} (glibc 2.39)
+    runs-on: ${{ matrix.runner }}
+    needs: lint
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: linux-x64
+            runner: ubuntu-24.04
+          - rid: linux-arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build standalone Dawn in pinned release environment
+        run: |
+          docker build -f scripts/webgpu-linux.Dockerfile -t lightstudio-webgpu-build .
+          docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -e JOBS \
+            -v "$PWD:/work" -w /work lightstudio-webgpu-build bash scripts/build-webgpu.sh "${{ matrix.rid }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: webgpu-${{ matrix.rid }}
+          path: artifacts/webgpu-${{ matrix.rid }}
+          if-no-files-found: error
+
+  build-android:
+    name: Build webgpu-${{ matrix.rid }} (Vulkan)
+    runs-on: ubuntu-24.04
+    needs: lint
+    strategy:
+      fail-fast: false
+      matrix:
+        rid: [android-arm64, android-x64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install build tools
+        run: python -m pip install cmake==3.31.6 ninja==1.11.1.4 Jinja2==3.1.6 packaging==25.0
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools ndk;28.2.13676358'
+      - name: Build standalone Dawn
+        env:
+          ANDROID_API: "27"
+        run: |
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/28.2.13676358"
+          bash scripts/build-webgpu.sh "${{ matrix.rid }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: webgpu-${{ matrix.rid }}
+          path: artifacts/webgpu-${{ matrix.rid }}
+          if-no-files-found: error
+
+  pack-and-publish:
+    name: Pack complete WebGPU package
+    runs-on: ubuntu-24.04
+    needs: [build-linux, build-android]
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: webgpu-*
+          path: artifacts
+      - name: Resolve Dawn package version
+        id: version
+        env:
+          DISPATCH_VERSION: ${{ inputs.package_version }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+            package_version="${DISPATCH_VERSION:-$(python3 scripts/webgpu-native-bindings.py version)}"
+          else
+            package_version="${GITHUB_REF_NAME#webgpu-v}"
+          fi
+          python3 scripts/webgpu-native-bindings.py validate-version "$package_version"
+          echo "value=$package_version" >> "$GITHUB_OUTPUT"
+      - name: Pack WebGPU
+        env:
+          PACKAGE_VERSION: ${{ steps.version.outputs.value }}
+        run: dotnet pack package/webgpu/LightStudio.WebGPU.csproj -c Release -o artifacts/packages -p:PackageVersion="$PACKAGE_VERSION"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LightStudio.WebGPU-nuget
+          path: artifacts/packages/LightStudio.WebGPU.*.nupkg
+          if-no-files-found: error
+      - name: Publish GitHub release
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: webgpu-v${{ steps.version.outputs.value }}
+          target_commitish: ${{ github.sha }}
+          name: LightStudio.WebGPU ${{ steps.version.outputs.value }}
+          files: artifacts/packages/LightStudio.WebGPU.*.nupkg
+          fail_on_unmatched_files: true
+          generate_release_notes: true

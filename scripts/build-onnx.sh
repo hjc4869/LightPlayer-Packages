@@ -8,6 +8,8 @@ ONNX_REVISION=f2c39fe2f838cf35ce7da92824f5a5e3ee6e88a7
 SOURCE_DIR="${ONNX_SOURCE_DIR:-$ROOT_DIR/artifacts/build/onnxruntime-src}"
 BUILD_DIR="${ONNX_BUILD_DIR:-$ROOT_DIR/artifacts/build/onnx-$TARGET}"
 PREFIX="$ROOT_DIR/artifacts/onnx-$TARGET"
+PROFILE="$ROOT_DIR/scripts/webgpu-native-bindings.py"
+WEBGPU_PACKAGE_VERSION="${WEBGPU_PACKAGE_VERSION:-$("${PYTHON:-python3}" "$PROFILE" version)}"
 
 platform_args=(--build_shared_lib)
 cmake_generator=Ninja
@@ -17,7 +19,7 @@ native_name=libonnxruntime.so
 case "$TARGET" in
   linux-x64|linux-arm64)
     providers+=', WebGPU'
-    platform_args+=(--use_webgpu static_lib)
+    platform_args+=(--use_webgpu static_lib --use_external_dawn)
     expected_arch=x86_64
     [[ "$TARGET" != linux-arm64 ]] || expected_arch=aarch64
     if [[ "$(uname -m)" != "$expected_arch" ]]; then
@@ -25,7 +27,7 @@ case "$TARGET" in
       exit 1
     fi
     cmake_args+=("CMAKE_C_COMPILER=${CC:-clang}" "CMAKE_CXX_COMPILER=${CXX:-clang++}"
-      onnxruntime_BUILD_DAWN_SHARED_LIBRARY=ON
+      onnxruntime_BUILD_DAWN_SHARED_LIBRARY=OFF
       "CMAKE_INSTALL_RPATH=\$ORIGIN" CMAKE_BUILD_WITH_INSTALL_RPATH=ON
       'CMAKE_SHARED_LINKER_FLAGS=-static-libstdc++ -static-libgcc -Wl,--exclude-libs,libstdc++.a:libgcc.a:libgcc_eh.a')
     ;;
@@ -37,8 +39,8 @@ case "$TARGET" in
     android_sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/opt/android-sdk}}"
     platform_args+=(--android --android_abi "$android_abi" --android_api "${ANDROID_API:-27}"
       --android_ndk_path "$android_ndk" --android_sdk_path "$android_sdk"
-      --use_webgpu static_lib)
-    cmake_args+=(onnxruntime_BUILD_DAWN_SHARED_LIBRARY=ON ANDROID_STL=c++_static
+      --use_webgpu static_lib --use_external_dawn)
+    cmake_args+=(onnxruntime_BUILD_DAWN_SHARED_LIBRARY=OFF ANDROID_STL=c++_static
       "CMAKE_INSTALL_RPATH=\$ORIGIN" CMAKE_BUILD_WITH_INSTALL_RPATH=ON
       'CMAKE_SHARED_LINKER_FLAGS=-Wl,-z,max-page-size=16384 -Wl,--exclude-libs,libc++_static.a:libc++abi.a:libunwind.a')
     ;;
@@ -76,6 +78,18 @@ if [[ "$(git -C "$SOURCE_DIR" rev-parse HEAD)" != "$ONNX_REVISION" ]]; then
   exit 1
 fi
 
+if [[ "$TARGET" == linux-* || "$TARGET" == android-* ]]; then
+  webgpu_package_dir="$ROOT_DIR/artifacts/build/webgpu-packages/$WEBGPU_PACKAGE_VERSION"
+  "${PYTHON:-python3}" "$PROFILE" fetch "$WEBGPU_PACKAGE_VERSION" "$TARGET" "$webgpu_package_dir"
+  dawn_api="$webgpu_package_dir/dawn-api/$TARGET"
+  cmake_args+=("onnxruntime_DAWN_PREBUILT_DIR=$dawn_api")
+  dawn_patch="$ROOT_DIR/patches/onnx-external-dawn-package.patch"
+  if ! git -C "$SOURCE_DIR" apply --reverse --check "$dawn_patch" 2>/dev/null; then
+    git -C "$SOURCE_DIR" apply --check "$dawn_patch"
+    git -C "$SOURCE_DIR" apply "$dawn_patch"
+  fi
+fi
+
 "${PYTHON:-python3}" "$SOURCE_DIR/tools/ci_build/build.py" \
   --build_dir "$BUILD_DIR" \
   --config Release --update --build --parallel "${JOBS:-8}" \
@@ -95,18 +109,11 @@ if [[ "$TARGET" == ios-arm64 || "$TARGET" == iossimulator-arm64 ]]; then
 else
   cp -L "$BUILD_DIR/Release/$native_name" "$PREFIX/$native_name"
 fi
-if [[ "$TARGET" == linux-* || "$TARGET" == android-* ]]; then
-  dawn_library="$(find "$BUILD_DIR/Release" -type f -name libwebgpu_dawn.so -print -quit)"
-  if [[ -z "$dawn_library" ]]; then
-    printf 'Missing shared Dawn library in %s\n' "$BUILD_DIR/Release" >&2
-    exit 1
-  fi
-  cp -L "$dawn_library" "$PREFIX/libwebgpu_dawn.so"
-fi
 cp "$SOURCE_DIR/LICENSE" "$SOURCE_DIR/ThirdPartyNotices.txt" "$PREFIX/licenses/onnxruntime/"
 while IFS= read -r -d '' license_file; do
   relative_path="${license_file#"$BUILD_DIR/Release/_deps/"}"
   destination="$PREFIX/licenses/dependencies/$relative_path"
+  [[ "$relative_path" != dawn-* ]] || continue
   mkdir -p "$(dirname "$destination")"
   cp "$license_file" "$destination"
 done < <(find "$BUILD_DIR/Release/_deps" -type f \
@@ -132,7 +139,10 @@ esac
 printf 'ONNX Runtime %s\nCommit: %s\nRID: %s\nExecution providers: %s\nTelemetry: disabled\n' \
   "$ONNX_VERSION" "$ONNX_REVISION" "$TARGET" "$providers" > "$PREFIX/build-info.txt"
 if [[ "$TARGET" == linux-* || "$TARGET" == android-* ]]; then
-  printf 'WebGPU: shared Dawn (libwebgpu_dawn.so)\n' >> "$PREFIX/build-info.txt"
+  mkdir -p "$PREFIX/licenses/dependencies/dawn"
+  cp "$dawn_api/LICENSE" "$PREFIX/licenses/dependencies/dawn/"
+  printf 'External Dawn API: LightStudio.WebGPU %s\nHost must supply matching dawnProcTable provider option.\n' \
+    "$WEBGPU_PACKAGE_VERSION" >> "$PREFIX/build-info.txt"
 fi
 if [[ "$TARGET" == android-* ]]; then
   printf 'Android API: %s\nAndroid ABI: %s\n' "${ANDROID_API:-27}" "$android_abi" >> "$PREFIX/build-info.txt"

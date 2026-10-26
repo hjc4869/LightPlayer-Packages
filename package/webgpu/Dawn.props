@@ -1,0 +1,8 @@
+<Project>
+  <PropertyGroup>
+    <DawnTag>v20260818.211311</DawnTag>
+    <DawnRevision>f5df92664181659d3e5c29e01e8f0342ae4565d4</DawnRevision>
+    <DawnArchiveSha1>10e42c94f70fc222ecbafebbd1cfbb5482593d59</DawnArchiveSha1>
+    <DawnPackageVersion>20260818.211311.0</DawnPackageVersion>
+  </PropertyGroup>
+</Project>

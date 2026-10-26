@@ -1,0 +1,68 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="Dawn.props" />
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+    <PackageId>LightStudio.WebGPU</PackageId>
+    <Version>$(DawnPackageVersion)</Version>
+    <Authors>LightStudio</Authors>
+    <Description>Dawn WebGPU native libraries for Linux and Android on x64 and ARM64, with exact-build ABI-specific C headers and NativeBindings profiles. No ONNX or managed binding dependency.</Description>
+    <PackageTags>webgpu;dawn;gpu;native;nativebindings;linux;android</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageLicenseExpression>BSD-3-Clause</PackageLicenseExpression>
+    <RepositoryType>git</RepositoryType>
+    <RepositoryUrl>https://github.com/hjc4869/LightPlayer-Packages</RepositoryUrl>
+    <IsPackable>true</IsPackable>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+    <WebGPUArtifactsPath Condition="'$(WebGPUArtifactsPath)' == ''">$(MSBuildThisFileDirectory)../../artifacts</WebGPUArtifactsPath>
+    <WebGPUProfilePython Condition="'$(WebGPUProfilePython)' == ''">python3</WebGPUProfilePython>
+    <WebGPURuntimeIdentifiers Condition="'$(WebGPURuntimeIdentifiers)' == ''">linux-x64;linux-arm64;android-arm64;android-x64</WebGPURuntimeIdentifiers>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="build/LightStudio.WebGPU.props" Pack="true" PackagePath="build/;buildTransitive/" />
+    <None Include="README.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+
+  <ItemGroup Condition="$([System.String]::Copy(';$(WebGPURuntimeIdentifiers);').Contains(';linux-x64;'))">
+    <None Include="$(WebGPUArtifactsPath)/webgpu-linux-x64/libwebgpu_dawn.so" Pack="true" PackagePath="runtimes/linux-x64/native/" />
+    <None Include="$(WebGPUArtifactsPath)/webgpu-linux-x64/native-bindings/**/*" Pack="true" PackagePath="native-bindings/" />
+    <None Include="$(WebGPUArtifactsPath)/webgpu-linux-x64/dawn-api/**/*" Pack="true" PackagePath="dawn-api/" />
+    <None Include="$(WebGPUArtifactsPath)/webgpu-linux-x64/licenses/**/*" Pack="true" PackagePath="licenses/linux-x64/" />
+    <None Include="$(WebGPUArtifactsPath)/webgpu-linux-x64/build-info.txt" Pack="true" PackagePath="build-info/linux-x64.txt" />
+  </ItemGroup>
+  <ItemGroup Condition="$([System.String]::Copy(';$(WebGPURuntimeIdentifiers);').Contains(';linux-arm64;'))">
+    <None Include="$(WebGPUArtifactsPath)/webgpu-linux-arm64/libwebgpu_dawn.so" Pack="true" PackagePath="runtimes/linux-arm64/native/" />
+    <None Include="$(WebGPUArtifactsPath)/webgpu-linux-arm64/native-bindings/**/*" Pack="true" PackagePath="native-bindings/" />
+    <None Include="$(WebGPUArtifactsPath)/webgpu-linux-arm64/dawn-api/**/*" Pack="true" PackagePath="dawn-api/" />
+    <None Include="$(WebGPUArtifactsPath)/webgpu-linux-arm64/licenses/**/*" Pack="true" PackagePath="licenses/linux-arm64/" />
+    <None Include="$(WebGPUArtifactsPath)/webgpu-linux-arm64/build-info.txt" Pack="true" PackagePath="build-info/linux-arm64.txt" />
+  </ItemGroup>
+  <ItemGroup Condition="$([System.String]::Copy(';$(WebGPURuntimeIdentifiers);').Contains(';android-arm64;'))">
+    <None Include="$(WebGPUArtifactsPath)/webgpu-android-arm64/libwebgpu_dawn.so" Pack="true" PackagePath="runtimes/android-arm64/native/" />
+    <None Include="$(WebGPUArtifactsPath)/webgpu-android-arm64/native-bindings/**/*" Pack="true" PackagePath="native-bindings/" />
+    <None Include="$(WebGPUArtifactsPath)/webgpu-android-arm64/dawn-api/**/*" Pack="true" PackagePath="dawn-api/" />
+    <None Include="$(WebGPUArtifactsPath)/webgpu-android-arm64/licenses/**/*" Pack="true" PackagePath="licenses/android-arm64/" />
+    <None Include="$(WebGPUArtifactsPath)/webgpu-android-arm64/build-info.txt" Pack="true" PackagePath="build-info/android-arm64.txt" />
+  </ItemGroup>
+  <ItemGroup Condition="$([System.String]::Copy(';$(WebGPURuntimeIdentifiers);').Contains(';android-x64;'))">
+    <None Include="$(WebGPUArtifactsPath)/webgpu-android-x64/libwebgpu_dawn.so" Pack="true" PackagePath="runtimes/android-x64/native/" />
+    <None Include="$(WebGPUArtifactsPath)/webgpu-android-x64/native-bindings/**/*" Pack="true" PackagePath="native-bindings/" />
+    <None Include="$(WebGPUArtifactsPath)/webgpu-android-x64/dawn-api/**/*" Pack="true" PackagePath="dawn-api/" />
+    <None Include="$(WebGPUArtifactsPath)/webgpu-android-x64/licenses/**/*" Pack="true" PackagePath="licenses/android-x64/" />
+    <None Include="$(WebGPUArtifactsPath)/webgpu-android-x64/build-info.txt" Pack="true" PackagePath="build-info/android-x64.txt" />
+  </ItemGroup>
+
+  <Target Name="GenerateWebGPUNativeBindingsManifest" BeforeTargets="_LoadPackInputItems">
+    <PropertyGroup>
+      <_WebGPUManifest>$(MSBuildProjectDirectory)/$(IntermediateOutputPath)native-bindings/manifest.json</_WebGPUManifest>
+    </PropertyGroup>
+    <Exec Command="&quot;$(WebGPUProfilePython)&quot; &quot;$(MSBuildThisFileDirectory)../../scripts/webgpu-native-bindings.py&quot; manifest &quot;$(WebGPUArtifactsPath)&quot; &quot;$(_WebGPUManifest)&quot; --version &quot;$(PackageVersion)&quot; --rids &quot;$(WebGPURuntimeIdentifiers)&quot;" />
+    <ItemGroup>
+      <None Include="$(_WebGPUManifest)" Pack="true" PackagePath="native-bindings/" />
+    </ItemGroup>
+  </Target>
+</Project>

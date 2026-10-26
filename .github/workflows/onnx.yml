@@ -11,8 +11,13 @@ on:
         required: true
         default: "1.30.0"
         type: string
+      webgpu_package_version:
+        description: LightStudio.WebGPU GitHub release package version (defaults to the repository Dawn pin)
+        required: false
+        default: ""
+        type: string
       publish:
-        description: Publish the complete package as a GitHub release
+        description: Publish the complete ONNX package as a GitHub release
         default: false
         type: boolean
 
@@ -26,6 +31,7 @@ concurrency:
 env:
   JOBS: "3"
   PYTHON: python
+  WEBGPU_PACKAGE_VERSION: ${{ inputs.webgpu_package_version }}
 
 jobs:
   lint:
@@ -36,6 +42,7 @@ jobs:
         run: |
           docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12 .github/workflows/onnx.yml
           docker run --rm -v "$PWD:/repo" -w /repo --entrypoint shellcheck rhysd/actionlint:1.7.12 scripts/build-onnx.sh
+          python3 -m py_compile scripts/webgpu-native-bindings.py
 
   build-linux:
     name: Build onnx-${{ matrix.rid }} (glibc 2.39)
@@ -54,7 +61,7 @@ jobs:
       - name: Build in pinned release environment
         run: |
           docker build -f scripts/onnx-linux.Dockerfile -t lightstudio-onnx-build .
-          docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -e JOBS \
+          docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp -e JOBS -e WEBGPU_PACKAGE_VERSION \
             -v "$PWD:/work" -w /work lightstudio-onnx-build bash scripts/build-onnx.sh "${{ matrix.rid }}"
       - uses: actions/upload-artifact@v4
         with:
@@ -119,7 +126,7 @@ jobs:
           if-no-files-found: error
 
   pack-and-publish:
-    name: Pack complete LightStudio.Onnx
+    name: Pack complete ONNX package
     runs-on: ubuntu-24.04
     needs: [build-linux, build-android, build-macos]
     permissions:
@@ -148,11 +155,16 @@ jobs:
             exit 1
           fi
           echo "value=$package_version" >> "$GITHUB_OUTPUT"
-      - name: Pack all RIDs
+      - name: Download selected WebGPU release and pack ONNX
         env:
           PACKAGE_VERSION: ${{ steps.version.outputs.value }}
-        run: >-
-          dotnet pack package/onnx/LightStudio.Onnx.csproj -c Release -o artifacts/packages -p:PackageVersion="$PACKAGE_VERSION"
+        run: |
+          webgpu_version="${WEBGPU_PACKAGE_VERSION:-$(python3 scripts/webgpu-native-bindings.py version)}"
+          webgpu_source="$PWD/artifacts/build/webgpu-packages/$webgpu_version"
+          python3 scripts/webgpu-native-bindings.py fetch "$webgpu_version" linux-x64 "$webgpu_source"
+          dotnet pack package/onnx/LightStudio.Onnx.csproj -c Release -o artifacts/packages -p:PackageVersion="$PACKAGE_VERSION" \
+            -p:LightStudioWebGPUVersion="$webgpu_version" \
+            --source "$webgpu_source" --source https://api.nuget.org/v3/index.json
       - uses: actions/upload-artifact@v4
         with:
           name: LightStudio.Onnx-nuget
