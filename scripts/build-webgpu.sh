@@ -60,6 +60,11 @@ if [[ -z "$dawn_library" ]]; then
   exit 1
 fi
 cp -L "$dawn_library" "$PREFIX/libwebgpu_dawn.so"
+if [[ "$TARGET" == android-* ]]; then
+  ndk_host=linux-x86_64
+  [[ "$(uname -s)" != Darwin ]] || ndk_host=darwin-x86_64
+  "$android_ndk/toolchains/llvm/prebuilt/$ndk_host/bin/llvm-strip" --strip-unneeded "$PREFIX/libwebgpu_dawn.so"
+fi
 cp "$BUILD_DIR/_deps/dawn-src/LICENSE" "$PREFIX/licenses/dawn/"
 while IFS= read -r -d '' license_file; do
   relative_path="${license_file#"$BUILD_DIR/_deps/dawn-src/"}"
