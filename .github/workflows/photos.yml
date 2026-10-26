@@ -12,7 +12,7 @@ on:
         default: "0.22.2"
         type: string
       publish:
-        description: Publish to NuGet.org (requires NUGET_API_KEY)
+        description: Publish the complete package as a GitHub release
         default: false
         type: boolean
 
@@ -25,7 +25,6 @@ concurrency:
 
 env:
   PACKAGE_OUTPUT: artifacts/packages
-  NUGET_SOURCE: https://api.nuget.org/v3/index.json
 
 jobs:
   build-linux:
@@ -237,6 +236,8 @@ jobs:
     name: Pack and publish LightStudio.Photos
     runs-on: ubuntu-22.04
     needs: [build-linux, build-windows, build-windows-arm64, build-windows-static, build-android, build-browser-wasm, build-macos]
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - name: Fetch licenses
@@ -274,10 +275,13 @@ jobs:
           name: LightStudio.Photos-${{ steps.version.outputs.value }}
           path: ${{ env.PACKAGE_OUTPUT }}/LightStudio.Photos.*.nupkg
           if-no-files-found: error
-      - name: Publish to NuGet.org
-        if: github.event_name == 'workflow_dispatch' && inputs.publish
-        env:
-          NUGET_AUTH_TOKEN: ${{ secrets.NUGET_API_KEY }}
-        run: >-
-          dotnet nuget push "$PACKAGE_OUTPUT/LightStudio.Photos.*.nupkg"
-          --api-key "$NUGET_AUTH_TOKEN" --source "$NUGET_SOURCE" --skip-duplicate
+      - name: Publish GitHub release
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: photos-v${{ steps.version.outputs.value }}
+          target_commitish: ${{ github.sha }}
+          name: LightStudio.Photos ${{ steps.version.outputs.value }}
+          files: ${{ env.PACKAGE_OUTPUT }}/LightStudio.Photos.*.nupkg
+          fail_on_unmatched_files: true
+          generate_release_notes: true

@@ -8,9 +8,11 @@ This repository builds native, managed, and data-only NuGet packages for .NET:
 - [LightStudio.sqlite-vec](package/sqlite-vec/README.md): sqlite-vec 0.1.9 shared and static native extensions for eight desktop/Android RIDs, static iOS ARM64 device/simulator extensions, and single-threaded/multithreaded browser-WASM static libraries, with bundled SQLite for Android/WASM and no ONNX dependency. Windows can use the system WinSQLite engine.
 - [LightStudio.AvaloniaStatic](package/avalonia-static/README.md): Static SkiaSharp 4.153.1, HarfBuzzSharp 14.2.1.301, and ANGLE for Windows, Linux, macOS, and Android on x64 and ARM64, with no managed Avalonia dependency.
 - [LightStudio.GeoNames](package/geonames/README.md): Data-only offline cities1000 database with country and administrative names, seven name languages, stable GeoNames IDs, and a balanced spherical search index. Its independent workflow builds from GeoNames snapshots and packages the gzip-compressed binary with provenance, attribution, and MSBuild paths for embedding.
-- [LightStudio.Fonts](package/fonts/README.md): Data-only Noto Sans CJK SC Regular and Bold OpenType fonts, with the SIL Open Font License and an MSBuild asset directory. Its independent workflow packs the fonts and optionally publishes to NuGet.org.
+- [LightStudio.Fonts](package/fonts/README.md): Data-only Noto Sans CJK SC Regular and Bold OpenType fonts, with the SIL Open Font License and an MSBuild asset directory. Its independent workflow packs the fonts and publishes GitHub releases.
 
 The workflows build, stage, pack, and upload artifacts without post-build tests or validation. Pre-build lint and toolchain/configuration checks remain enabled.
+
+Successful tag builds publish GitHub releases with the generated `.nupkg` files attached. Manual dispatch publishes a release only with `publish=true`; the default `publish=false` keeps the build artifact-only. Releases use the built-in `GITHUB_TOKEN`, with no NuGet.org push or API key required.
 
 ## FFmpeg Runtimes
 
@@ -93,7 +95,7 @@ risk, not proof that a particular application's final link currently fails.
 
 ## Publish
 
-Push a tag named `ffmpeg-v<package-version>`. The workflow builds each platform, then a final job merges the artifacts and uploads the `LightStudio.Ffmpeg` NuGet package. The NuGet.org push step is disabled. For version 9.0.2.1:
+Push a tag named `ffmpeg-v<package-version>`. The workflow builds each platform, then a final job merges the artifacts and publishes a GitHub release for that tag with the `LightStudio.Ffmpeg` NuGet package attached. Manual dispatch with `publish=true` creates the same versioned release; otherwise it only uploads workflow artifacts. For version 9.0.2.1:
 
 ```bash
 git tag ffmpeg-v9.0.2.1
@@ -279,8 +281,8 @@ variants. Build these with `bash scripts/build-sqlite-vec.sh browser-wasm` and
 `bash scripts/build-sqlite-vec.sh browser-wasm-mt` under each supported SDK. Select
 local subsets with `SqliteVecRuntimeIdentifiers` and use a prerelease version.
 Tags `sqlite-vec-v<version>`
-build/upload only; manual dispatch with `publish=true` publishes to NuGet.org
-using `NUGET_API_KEY` after all build jobs pass.
+publish GitHub releases with the complete package attached after all build jobs
+pass. Manual dispatch with `publish=true` also publishes a release.
 
 ## ONNX Builds
 
@@ -307,9 +309,9 @@ dotnet pack package/onnx/LightStudio.Onnx.csproj -c Release -o artifacts/package
 Collect all six native outputs for a complete package. Use the Linux Docker build
 documented in [the build notes](tests/onnx/README.md) for release-compatible
 binaries. Select local subsets with `OnnxRuntimeIdentifiers` and use a prerelease
-version; they are not full releases. Tags named `onnx-v<version>` build/upload only. Manual
-dispatch with `publish=true` publishes using `NUGET_API_KEY` after all build
-jobs succeed.
+version; they are not full releases. Tags named `onnx-v<version>` publish GitHub
+releases with the complete package attached after all build jobs succeed. Manual
+dispatch with `publish=true` also publishes a release.
 
 Browser WASM is intentionally omitted: upstream's asynchronous browser WebGPU
 bridge does not supply a supported threaded integration for the full synchronous
@@ -386,4 +388,4 @@ dotnet pack package/photos/LightStudio.Photos.csproj --output artifacts/packages
 
 Local arm64 cross-builds inherit the installed toolchain's glibc/C++ sysroot baseline; use CI's native manylinux build for release compatibility. JPEG/zlib are built from the pinned sources rather than taken from the host or NDK.
 
-Push a `photos-v<package-version>` tag (initial version `photos-v0.22.2`) or dispatch the workflow manually to build a complete `.nupkg`. Like the current FFmpeg workflow, tag builds produce an artifact without automatically publishing. To publish Photos, use workflow dispatch with `publish=true` and configure the repository's `NUGET_API_KEY` secret.
+Push a `photos-v<package-version>` tag (initial version `photos-v0.22.2`) to publish a GitHub release with the complete `.nupkg` attached. Manual dispatch also builds the complete package and publishes a release only with `publish=true`.

@@ -268,6 +268,8 @@ docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp \
 ```
 
 The independent `sqlite-vec.yml` workflow builds on tags `sqlite-vec-v<version>`
-or manual dispatch. Tags build and upload only. Manual dispatch with
-`publish=true` publishes the complete package to NuGet.org using
-`NUGET_API_KEY`, after all build jobs pass. No post-build validation runs.
+or manual dispatch. Tag builds attach the complete package to a GitHub release
+for that tag after all build jobs pass. Manual dispatch with `publish=true` also
+publishes a release tagged `sqlite-vec-v<package_version>` using the built-in
+`GITHUB_TOKEN`; the default `publish=false` only uploads workflow artifacts.
+No post-build validation runs.

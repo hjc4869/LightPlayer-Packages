@@ -12,7 +12,7 @@ on:
         default: "0.1.9"
         type: string
       publish:
-        description: Publish the complete package to NuGet.org
+        description: Publish the complete package as a GitHub release
         default: false
         type: boolean
 
@@ -159,6 +159,8 @@ jobs:
     name: Pack complete LightStudio.sqlite-vec
     runs-on: ubuntu-24.04
     needs: [build, build-browser-wasm]
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -193,8 +195,13 @@ jobs:
           name: LightStudio.sqlite-vec-nuget
           path: artifacts/packages/*.nupkg
           if-no-files-found: error
-      - name: Publish to NuGet.org
-        if: github.event_name == 'workflow_dispatch' && inputs.publish
-        env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
-        run: dotnet nuget push artifacts/packages/*.nupkg --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
+      - name: Publish GitHub release
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: sqlite-vec-v${{ steps.version.outputs.value }}
+          target_commitish: ${{ github.sha }}
+          name: LightStudio.sqlite-vec ${{ steps.version.outputs.value }}
+          files: artifacts/packages/LightStudio.sqlite-vec.*.nupkg
+          fail_on_unmatched_files: true
+          generate_release_notes: true

@@ -12,7 +12,7 @@ on:
         default: "1.0.0"
         type: string
       publish:
-        description: Publish the fonts package to NuGet.org
+        description: Publish the fonts package as a GitHub release
         default: false
         type: boolean
 
@@ -27,6 +27,8 @@ jobs:
   pack-and-publish:
     name: Pack LightStudio.Fonts
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -58,8 +60,13 @@ jobs:
           name: LightStudio.Fonts-nuget
           path: artifacts/packages/LightStudio.Fonts.*.nupkg
           if-no-files-found: error
-      - name: Publish to NuGet.org
-        if: github.event_name == 'workflow_dispatch' && inputs.publish
-        env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
-        run: dotnet nuget push artifacts/packages/LightStudio.Fonts.*.nupkg --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
+      - name: Publish GitHub release
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: fonts-v${{ steps.version.outputs.value }}
+          target_commitish: ${{ github.sha }}
+          name: LightStudio.Fonts ${{ steps.version.outputs.value }}
+          files: artifacts/packages/LightStudio.Fonts.*.nupkg
+          fail_on_unmatched_files: true
+          generate_release_notes: true

@@ -82,8 +82,9 @@ Android runtime. Desktop NativeAOT also requires the platform's native SDK.
 Run **Build and publish LightStudio.AvaloniaStatic** in GitHub Actions. Set
 `package_version` (default `12.1.4`) and leave `publish=false` for an artifact-only
 build. All eight jobs must succeed before packing. Set `publish=true` to publish
-using the repository's `NUGET_API_KEY` secret. A tag `avalonia-static-v12.1.4`
-also builds and uploads the package without publishing to NuGet.org.
+a GitHub release tagged `avalonia-static-v<package_version>` with the package
+attached, using the built-in `GITHUB_TOKEN`. Pushing a tag such as
+`avalonia-static-v12.1.4` also builds and publishes a release for that tag.
 
 Changing the graphics package version changes only the NuGet version, not source
 pins or its SkiaSharp/HarfBuzzSharp dependencies. Avalonia.Native is built and

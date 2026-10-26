@@ -11,10 +11,13 @@ on:
         required: true
         default: "9.0.2.1"
         type: string
+      publish:
+        description: Publish the complete package as a GitHub release
+        default: false
+        type: boolean
 
 permissions:
   contents: read
-  packages: write
 
 concurrency:
   group: ffmpeg-${{ github.ref }}
@@ -22,7 +25,6 @@ concurrency:
 
 env:
   PACKAGE_OUTPUT: artifacts/packages
-  NUGET_SOURCE: https://api.nuget.org/v3/index.json
 
 jobs:
   build-browser-wasm:
@@ -224,6 +226,8 @@ jobs:
       - build-osx-arm64
       - build-android
       - build-windows
+    permissions:
+      contents: write
 
     steps:
       - name: Check out repository
@@ -279,11 +283,13 @@ jobs:
           path: ${{ env.PACKAGE_OUTPUT }}/*.nupkg
           if-no-files-found: error
 
-      # - name: Publish to NuGet.org
-      #   env:
-      #     NUGET_AUTH_TOKEN: ${{ secrets.NUGET_API_KEY }}
-      #   run: >-
-      #     dotnet nuget push "$PACKAGE_OUTPUT/*.nupkg"
-      #     --api-key "$NUGET_AUTH_TOKEN"
-      #     --source "$NUGET_SOURCE"
-      #     --skip-duplicate
+      - name: Publish GitHub release
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ffmpeg-v${{ steps.package-version.outputs.value }}
+          target_commitish: ${{ github.sha }}
+          name: LightStudio.Ffmpeg ${{ steps.package-version.outputs.value }}
+          files: ${{ env.PACKAGE_OUTPUT }}/LightStudio.Ffmpeg.*.nupkg
+          fail_on_unmatched_files: true
+          generate_release_notes: true

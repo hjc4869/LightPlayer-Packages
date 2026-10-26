@@ -112,5 +112,7 @@ all-platform release.
 Use the pinned Linux Dockerfile for release builds; compiling directly on a newer
 distribution can raise the glibc requirement. The GitHub Actions workflow builds
 all six RIDs on `onnx-v*` tags or manual dispatch, then packs and uploads the
-complete package without post-build validation. Only manual dispatch with
-`publish=true` pushes to NuGet.org using `NUGET_API_KEY`.
+complete package without post-build validation. Tag builds attach the package to
+a GitHub release for that tag. Manual dispatch with `publish=true` also publishes
+a release tagged `onnx-v<package_version>` using the built-in `GITHUB_TOKEN`;
+the default `publish=false` only uploads workflow artifacts.

@@ -33,6 +33,7 @@ dotnet pack package/fonts/LightStudio.Fonts.csproj -c Debug -o artifacts/package
 ```
 
 The [fonts workflow](../../.github/workflows/fonts.yml) builds on `fonts-v*` tags
-and manual dispatch. It uploads the NuGet package as a workflow artifact. Manual
-dispatch accepts `package_version` and an optional `publish` flag; publishing to
-NuGet.org uses the repository's `NUGET_API_KEY` secret.
+and manual dispatch. It uploads the NuGet package as a workflow artifact and
+attaches it to a GitHub release for tag builds. Manual dispatch accepts
+`package_version` and a `publish` flag (default `false`); `publish=true` publishes
+a release tagged `fonts-v<package_version>` using the built-in `GITHUB_TOKEN`.

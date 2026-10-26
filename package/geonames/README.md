@@ -128,10 +128,11 @@ the database, and uploads three artifacts:
 - `LightStudio.GeoNames-nuget`: NuGet package with the gzip database and attribution.
 
 Manual dispatch accepts `package_version` and a `publish` flag, which defaults
-to false. Publishing uses the repository's `NUGET_API_KEY` secret. A tag such as
-`geonames-v1.0.0` builds version `1.0.0` without publishing. Use a new package
-version when publishing updated data. The binary format version is independent
-of the package version.
+to false. With `publish=true`, the workflow attaches the package to a GitHub
+release tagged `geonames-v<package_version>` using the built-in `GITHUB_TOKEN`.
+Pushing a tag such as `geonames-v1.0.0` also builds and publishes a release for
+that tag. Use a new package version when publishing updated data. The binary
+format version is independent of the package version.
 
 ## Attribution
 

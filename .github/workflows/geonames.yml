@@ -12,7 +12,7 @@ on:
         default: "1.0.0"
         type: string
       publish:
-        description: Publish the database package to NuGet.org
+        description: Publish the database package as a GitHub release
         default: false
         type: boolean
 
@@ -73,6 +73,8 @@ jobs:
     name: Pack LightStudio.GeoNames
     needs: build
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
@@ -91,8 +93,13 @@ jobs:
           name: LightStudio.GeoNames-nuget
           path: artifacts/packages/LightStudio.GeoNames.*.nupkg
           if-no-files-found: error
-      - name: Publish to NuGet.org
-        if: github.event_name == 'workflow_dispatch' && inputs.publish
-        env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
-        run: dotnet nuget push artifacts/packages/LightStudio.GeoNames.*.nupkg --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
+      - name: Publish GitHub release
+        if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: geonames-v${{ needs.build.outputs.package_version }}
+          target_commitish: ${{ github.sha }}
+          name: LightStudio.GeoNames ${{ needs.build.outputs.package_version }}
+          files: artifacts/packages/LightStudio.GeoNames.*.nupkg
+          fail_on_unmatched_files: true
+          generate_release_notes: true
