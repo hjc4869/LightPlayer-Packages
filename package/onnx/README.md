@@ -1,11 +1,11 @@
 # LightStudio.Onnx
 
-ONNX Runtime 1.30.0 with the complete upstream .NET managed API, embedded
-Dawn/WebGPU on Linux, and CoreML on macOS and iOS. Add only `LightStudio.Onnx`;
+ONNX Runtime 1.30.0 with the complete upstream .NET managed API, shared
+Dawn/WebGPU on Linux and Android, and CoreML on macOS and iOS. Add only `LightStudio.Onnx`;
 do not also reference
 `Microsoft.ML.OnnxRuntime`, `.Managed`, or `.EP.WebGpu`.
 
-On Linux, enable WebGPU explicitly:
+On Linux or Android, enable WebGPU explicitly:
 
 ```csharp
 using Microsoft.ML.OnnxRuntime;
@@ -26,6 +26,9 @@ when CPU fallback must be rejected. WebGPU graph capture is opt-in and requires
 static shapes. Native training, CUDA, and ROCm are not enabled.
 
 ## Platform Providers
+
+Android includes only CPU and WebGPU execution providers. Enable WebGPU with the
+API shown above; CPU remains the fallback for unsupported operators.
 
 For macOS, use the generic CoreML API with the unchanged upstream desktop
 assemblies. The legacy `AppendExecutionProvider_CoreML` helper is conditional in
@@ -48,19 +51,42 @@ guarantee GPU or NPU execution.
 | RIDs | Execution providers | Requirements |
 | --- | --- | --- |
 | `linux-x64`, `linux-arm64` | CPU, WebGPU | glibc 2.39 baseline; compatible Vulkan driver/loader for WebGPU |
+| `android-arm64`, `android-x64` | CPU, WebGPU | Android 8.1 (API 27) or later; compatible Vulkan driver for WebGPU; .NET 9+ with Android 35+ API targeting |
 | `osx-x64`, `osx-arm64` | CPU, CoreML | macOS 15 or later |
 | `ios-arm64` | CPU, CoreML (static) | iOS 15 or later; .NET 9+ for iOS with iOS 18+ API targeting |
 | `iossimulator-arm64` | CPU, CoreML (static) | ARM64 iOS simulator; same deployment and .NET requirements as devices |
 
-Dawn is embedded in the Linux runtime library. The macOS runtime includes CoreML
-integration using macOS system APIs. The OS, graphics driver, Vulkan loader
-(Linux WebGPU), and macOS system C++ runtime remain system prerequisites.
+Linux and Android ship `libonnxruntime.so` and a separate `libwebgpu_dawn.so` in
+each RID's native directory. WebGPU registration remains integrated in ONNX
+Runtime; no plugin registration is required. Both libraries must be deployed,
+even for CPU-only sessions. Linux uses a sibling-library `$ORIGIN` search path;
+the Android SDK packages both libraries in the app's native library directory.
+The C++ runtime is linked statically on Linux and Android, and Android libraries
+use 16 KB page alignment without a `libc++_shared.so` dependency.
+The macOS runtime includes CoreML integration using macOS system APIs. The OS,
+graphics driver, Vulkan loader (Linux WebGPU), and macOS system C++ runtime remain system prerequisites.
 Telemetry is disabled. Standard framework dependencies
 `System.Memory` and `System.Numerics.Tensors` remain normal NuGet dependencies.
 
 Managed assets cover .NET Standard 2.0, .NET 8+, and the upstream
-`net9.0-ios18.0` bindings. Android, Intel iOS simulators, musl RIDs, and static macOS
+`net9.0-android35.0` and `net9.0-ios18.0` bindings. Intel iOS simulators, musl RIDs, and static macOS
 linking are not included.
+
+### Android
+
+Build with NDK r28c (`28.2.13676358`) and an Android SDK:
+
+```sh
+export ANDROID_HOME=/path/to/android-sdk
+export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/28.2.13676358"
+bash scripts/build-onnx.sh android-arm64
+bash scripts/build-onnx.sh android-x64
+```
+
+Local builds also accept `ANDROID_SDK_ROOT` and `ANDROID_NDK_ROOT`; the NDK
+defaults to `/usr/lib/android-ndk`. `ANDROID_API` overrides the native minimum
+of 27. NuGet selects the Android managed bindings and native libraries
+automatically for Android projects.
 
 ### iOS
 
@@ -99,7 +125,7 @@ unchanged, with no Microsoft ONNX Runtime package dependency in the final NuGet.
 Upstream and dependency notices are included under `licenses/`.
 
 Build a native RID with `bash scripts/build-onnx.sh <rid>`, then pack after all
-six native outputs are present:
+eight native outputs are present:
 
 ```sh
 dotnet pack package/onnx/LightStudio.Onnx.csproj -c Release -o artifacts/packages
@@ -111,7 +137,7 @@ all-platform release.
 
 Use the pinned Linux Dockerfile for release builds; compiling directly on a newer
 distribution can raise the glibc requirement. The GitHub Actions workflow builds
-all six RIDs on `onnx-v*` tags or manual dispatch, then packs and uploads the
+all eight RIDs on `onnx-v*` tags or manual dispatch, then packs and uploads the
 complete package without post-build validation. Tag builds attach the package to
 a GitHub release for that tag. Manual dispatch with `publish=true` also publishes
 a release tagged `onnx-v<package_version>` using the built-in `GITHUB_TOKEN`;

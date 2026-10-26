@@ -4,7 +4,7 @@ This repository builds native, managed, and data-only NuGet packages for .NET:
 
 - [`LightStudio.Ffmpeg`](https://www.nuget.org/packages/LightStudio.Ffmpeg/): FFmpeg 9.0.2 with decoding and desktop transcoding dependencies.
 - [LightStudio.Photos](package/photos/README.md): LibRaw 0.22.2, Little CMS 2.19.1 and jxrlib 1.1 for RAW photos, ICC color management and JPEG XR. See [Photos builds](#photos-builds) for its platform matrix and workflow.
-- [LightStudio.Onnx](package/onnx/README.md): ONNX Runtime 1.30.0 with its complete .NET managed API for six native RIDs, embedded Dawn/WebGPU on Linux, and CoreML on macOS and iOS. See the package README for release build instructions and platform limitations.
+- [LightStudio.Onnx](package/onnx/README.md): ONNX Runtime 1.30.0 with its complete .NET managed API for eight native RIDs, shared Dawn/WebGPU on Linux and Android, and CoreML on macOS and iOS. See the package README for release build instructions and platform limitations.
 - [LightStudio.sqlite-vec](package/sqlite-vec/README.md): sqlite-vec 0.1.9 shared and static native extensions for eight desktop/Android RIDs, static iOS ARM64 device/simulator extensions, and single-threaded/multithreaded browser-WASM static libraries, with bundled SQLite for Android/WASM and no ONNX dependency. Windows can use the system WinSQLite engine.
 - [LightStudio.AvaloniaStatic](package/avalonia-static/README.md): Static SkiaSharp 4.153.1, HarfBuzzSharp 14.2.1.301, and ANGLE for Windows, Linux, macOS, and Android on x64 and ARM64, with no managed Avalonia dependency.
 - [LightStudio.GeoNames](package/geonames/README.md): Data-only offline cities1000 database with country and administrative names, seven name languages, stable GeoNames IDs, and a balanced spherical search index. Its independent workflow builds from GeoNames snapshots and packages the gzip-compressed binary with provenance, attribution, and MSBuild paths for embedding.
@@ -287,11 +287,12 @@ pass. Manual dispatch with `publish=true` also publishes a release.
 ## ONNX Builds
 
 [The ONNX workflow](.github/workflows/onnx.yml) builds `linux-x64`, `linux-arm64`,
-`osx-x64`, `osx-arm64`, `ios-arm64`, and `iossimulator-arm64`.
-It uses embedded Dawn/Vulkan on Linux and CoreML on macOS and iOS. Provider
-implementations are built into the runtime library; CoreML uses Apple system APIs.
+`android-arm64`, `android-x64`, `osx-x64`, `osx-arm64`, `ios-arm64`, and `iossimulator-arm64`.
+It uses shared Dawn/Vulkan on Linux and Android, and CoreML on macOS and iOS. Provider
+registration remains integrated in the runtime library; Dawn ships separately as
+`libwebgpu_dawn.so`, and CoreML uses Apple system APIs.
 The NuGet contains the complete upstream managed assemblies; consumers need no Microsoft ONNX
-NuGet references. WebGPU selection on Linux uses the standard
+NuGet references. WebGPU selection on Linux and Android uses the standard
 `SessionOptions.AppendExecutionProvider("WebGPU", options)` API. Select macOS CoreML with
 `SessionOptions.AppendExecutionProvider("CoreML", options)`; see the
 [package README](package/onnx/README.md) for provider options and priority.
@@ -299,6 +300,7 @@ NuGet references. WebGPU selection on Linux uses the standard
 Sources are downloaded at a verified upstream commit into `artifacts/build`.
 Linux release builds use the pinned
 [Ubuntu 24.04 image](scripts/onnx-linux.Dockerfile) and target glibc 2.39.
+Android builds use NDK r28c and default to API 27 with 16 KB page alignment.
 macOS and iOS target 15.0. iOS builds are static only.
 
 ```sh
@@ -306,7 +308,7 @@ bash scripts/build-onnx.sh linux-x64
 dotnet pack package/onnx/LightStudio.Onnx.csproj -c Release -o artifacts/packages
 ```
 
-Collect all six native outputs for a complete package. Use the Linux Docker build
+Collect all eight native outputs for a complete package. Use the Linux Docker build
 documented in [the build notes](tests/onnx/README.md) for release-compatible
 binaries. Select local subsets with `OnnxRuntimeIdentifiers` and use a prerelease
 version; they are not full releases. Tags named `onnx-v<version>` publish GitHub
