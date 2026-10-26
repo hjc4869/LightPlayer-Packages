@@ -28,8 +28,10 @@
   <ItemGroup Condition="'$(_LightStudioSqliteVecUseStatic)' == 'true' and ('$(_LightStudioSqliteVecStaticRid)' == 'linux-x64' or '$(_LightStudioSqliteVecStaticRid)' == 'linux-arm64')">
     <NativeSystemLibrary Include="m" Exclude="@(NativeSystemLibrary)" />
   </ItemGroup>
-  <ItemGroup Condition="'$(_LightStudioSqliteVecUseStatic)' == 'true' and ('$(_LightStudioSqliteVecStaticRid)' == 'android-x64' or '$(_LightStudioSqliteVecStaticRid)' == 'android-arm64')">
+  <ItemGroup Condition="'$(_LightStudioSqliteVecUseStatic)' == 'true' and ('$(_LightStudioSqliteVecStaticRid)' == 'android-x64' or '$(_LightStudioSqliteVecStaticRid)' == 'android-arm64' or '$(_LightStudioSqliteVecStaticRid)' == 'osx-x64' or '$(_LightStudioSqliteVecStaticRid)' == 'osx-arm64')">
     <NativeLibrary Include="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../static/$(_LightStudioSqliteVecStaticRid)/libsqlite3.a'))" Exclude="@(NativeLibrary)" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(_LightStudioSqliteVecUseStatic)' == 'true' and ('$(_LightStudioSqliteVecStaticRid)' == 'android-x64' or '$(_LightStudioSqliteVecStaticRid)' == 'android-arm64')">
     <NativeSystemLibrary Include="dl;m" Exclude="@(NativeSystemLibrary)" />
     <LinkerArg Include="-Wl,-z,max-page-size=16384" Exclude="@(LinkerArg)" />
   </ItemGroup>

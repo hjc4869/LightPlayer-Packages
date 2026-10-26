@@ -3,9 +3,9 @@
 Native-only [sqlite-vec](https://github.com/asg017/sqlite-vec) 0.1.9 loadable
 extensions and Linux/Windows/macOS/Android/iOS/browser-WASM static libraries. The package has **no NuGet
 dependencies** and is independent of LightStudio.Onnx. It contains vec0
-libraries, our own SQLite 3.50.4 builds for Android and all four WASM variants,
-licenses, build metadata, and MSBuild integration. No desktop/iOS SQLite engine,
-SQLite source, or managed SQLite binding is shipped.
+libraries, our own SQLite 3.50.4 builds for macOS, Android, and all four WASM variants,
+licenses, build metadata, and MSBuild integration. No Linux/Windows/iOS SQLite
+engine, SQLite source, or managed SQLite binding is shipped.
 
 ## Runtimes
 
@@ -13,7 +13,7 @@ SQLite source, or managed SQLite binding is shipped.
 | --- | --- | --- |
 | `linux-x64`, `linux-arm64` | `vec0.so`, plus `libvec0.a` in `static/<rid>/` | glibc 2.39 |
 | `win-x64`, `win-arm64` | `vec0.dll`, plus `vec0.lib` in `static/<rid>/` | Windows 10/11, matching process architecture |
-| `osx-x64`, `osx-arm64` | `vec0.dylib`, plus `libvec0.a` in `static/<rid>/` | macOS 11 |
+| `osx-x64`, `osx-arm64` | `vec0.dylib` + `libsqlite3.dylib`, plus `libvec0.a` + `libsqlite3.a` in `static/<rid>/` | macOS 11 |
 | `ios-arm64` | `libvec0.a` in `runtimes/ios-arm64/native/` | iOS 15, device only |
 | `iossimulator-arm64` | `libvec0.a` in `runtimes/iossimulator-arm64/native/` | iOS 15, ARM64 simulator |
 | `android-x64`, `android-arm64` | `libvec0.so` + `libsqlite3.so`, plus `libvec0.a` + `libsqlite3.a` in `static/<rid>/` | Android API 27, 16 KB page compatible |
@@ -27,8 +27,8 @@ CPU baseline is imposed.
 
 ## SQLite Host
 
-For shared desktop extensions, bring an SQLite engine with extension loading
-enabled. Android includes a compatible engine, but can also use an existing one.
+For shared Linux/Windows extensions, bring an SQLite engine with extension loading
+enabled. macOS and Android include compatible engines, but can also use existing ones.
 Supply the managed bindings of your choice on all platforms. Use SQLite 3.38
 or newer for the complete vec0 query features.
 The extension is compiled against the ordinary `sqlite3ext.h` interface and
@@ -44,6 +44,14 @@ second `libsqlite3.so`. Both shared libraries and the static AOT link flags
 support 16 KB pages. SQLite's public-domain notice is included under
 `licenses/android-<arch>/sqlite3/`.
 
+macOS includes separate `libsqlite3.dylib` and `libsqlite3.a` libraries with the
+same SQLite version, threading, and feature options as Android. For shared-library
+use, bindings must target `sqlite3`/`libsqlite3.dylib`; providers fixed to `e_sqlite3`
+need configuration to use this engine. Do not also deploy a second
+`libsqlite3.dylib`. The dylib uses the install name `@rpath/libsqlite3.dylib` and is
+ad-hoc signed alongside vec0. SQLite's public-domain notice is included under
+`licenses/osx-<arch>/sqlite3/`.
+
 **Windows can use the system `winsqlite3.dll`.** No different extension build
 or SQLite import library is needed. The system engine must support extension
 loading and the SQLite features used by the application.
@@ -54,8 +62,8 @@ as described in [Microsoft's provider documentation](https://learn.microsoft.com
 Those are application dependencies, not dependencies of this package.
 WinSQLite versions and compile options depend on Windows servicing. If an
 older system engine lacks the required features or extension loading, select
-a normal SQLite engine in the application instead. No fallback desktop SQLite
-engine is added to this package, and neither `winsqlite3.lib` nor `sqlite3.lib`
+a normal SQLite engine in the application instead. No Windows SQLite engine
+is added to this package, and neither `winsqlite3.lib` nor `sqlite3.lib`
 is linked into vec0.
 
 ## Consume
@@ -114,15 +122,16 @@ Static linking is opt-in, following the Photos package's pattern:
 Supported RIDs are `linux-x64`, `linux-arm64`, `win-x64`, `win-arm64`,
 `osx-x64`, `osx-arm64`, `android-x64`, and `android-arm64`.
 With both `EnableStaticSqliteVec=true` and `PublishAot=true`, the package adds
-the matching vec0 `NativeLibrary` archive, plus `libsqlite3.a` on Android, and
+the matching vec0 `NativeLibrary` archive, plus `libsqlite3.a` on macOS and Android, and
 removes this package's shared libraries from the publish output. Other packages'
 native assets are preserved. Without both properties, shared-library deployment
-is unchanged, including Android's bundled `libsqlite3.so`.
+includes macOS's bundled `libsqlite3.dylib` and Android's bundled `libsqlite3.so`.
 Windows archives use the MSVC ABI and static CRT (`/MT`).
 
 The `DirectPInvoke` name must match your binding's library name, for example
 `DllImport("vec0", EntryPoint = "sqlite3_vec_init")`. Supply your own SQLite
-engine on desktop; Android links the bundled engine. On Android, also add
+engine on Linux/Windows; macOS and Android link the bundled engine. On macOS
+and Android, also add
 `<DirectPInvoke Include="sqlite3" />` for bindings targeting `sqlite3` and do
 not statically link another SQLite engine, including one from a provider bundle.
 The package supplies `m` on Linux, and `dl`, `m`, and the 16 KB page-size linker
@@ -204,8 +213,8 @@ Thread-enabled browser hosting also requires cross-origin isolation
 ## Build and Publish
 
 Sources and the MIT license are SHA-256-pinned. The SQLite amalgamation archive
-provides headers for all builds and `sqlite3.c` for the separate Android and
-WASM SQLite libraries; SQLite is never compiled into vec0 itself. Android and
+provides headers for all builds and `sqlite3.c` for the separate macOS, Android, and
+WASM SQLite libraries; SQLite is never compiled into vec0 itself. macOS, Android, and
 WASM build metadata records the SQLite version, source archive hash, features,
 and threading mode.
 Native build outputs are staged under `artifacts/sqlite-vec-<rid>/`; WASM
@@ -213,8 +222,9 @@ outputs use `artifacts/sqlite-vec-browser-wasm[-mt]-em<major>/`, derived from
 the active `emcc` version.
 Linux, Windows, macOS, and Android builds produce both shared and static
 extensions in the same staging directory. Android also stages `libsqlite3.so`
-and `libsqlite3.a`. Windows `vec0.lib` is the static archive, not the
-DLL import library; its build output is isolated from the import library.
+and `libsqlite3.a`; macOS also stages `libsqlite3.dylib` and `libsqlite3.a`.
+Windows `vec0.lib` is the static archive, not the DLL import library; its build
+output is isolated from the import library.
 The generated source copy includes compatibility fixes: the upstream MSVC
 ARM64 Hamming-distance fallback accepts a 64-bit argument instead of truncating
 it to 32 bits, and WASM32 uses the 64-bit popcount builtin rather than the
@@ -236,9 +246,9 @@ dotnet pack package/sqlite-vec/LightStudio.sqlite-vec.csproj -c Release -o artif
 
 Run the WASM builds once with Emscripten 3.1.69 activated and once with 6.0.2.
 A complete package includes shared and static vec0 for all eight desktop/Android
-RIDs, shared and static SQLite for both Android RIDs, both iOS device and ARM64
-simulator static archives, and all four WASM outputs. Selecting a desktop or
-Android RID packs both its shared and static libraries.
+RIDs, shared and static SQLite for both macOS and both Android RIDs, both iOS
+device and ARM64 simulator static archives, and all four WASM outputs. Selecting
+a desktop or Android RID packs both its shared and static libraries.
 `browser-wasm-mt` is a build variant, not a NuGet RID; selecting `browser-wasm`
 always packs both threading modes for both SDK majors. For local subset packs,
 select RIDs with `SqliteVecRuntimeIdentifiers` and use a prerelease `PackageVersion`.

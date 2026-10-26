@@ -85,10 +85,11 @@ if [[ "$rid" == android-* ]]; then
   cp "$ndk/toolchains/llvm/prebuilt/"*/NOTICE "$prefix/licenses/toolchain/NOTICE.toolchain"
 elif [[ "$rid" == osx-* ]]; then
   codesign --force --sign - "$prefix/vec0.dylib"
+  codesign --force --sign - "$prefix/libsqlite3.dylib"
 fi
-if [[ "$rid" == browser-wasm* || "$rid" == android-* ]]; then
+if [[ "$rid" == browser-wasm* || "$rid" == android-* || "$rid" == osx-* ]]; then
   printf 'Built sqlite-vec and bundled SQLite for %s: %s\n' "$rid" "$prefix"
-elif [[ "$rid" == linux-* || "$rid" == win-* || "$rid" == osx-* ]]; then
+elif [[ "$rid" == linux-* || "$rid" == win-* ]]; then
   printf 'Built shared and static extension-only sqlite-vec for %s: %s\n' "$rid" "$prefix"
 else
   printf 'Built extension-only sqlite-vec for %s: %s\n' "$rid" "$prefix"

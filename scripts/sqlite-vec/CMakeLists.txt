@@ -105,7 +105,7 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Windows" OR CMAKE_SYSTEM_NAME STREQUAL "Darwin" O
   install(FILES "$<TARGET_FILE:vec0_static>" DESTINATION .)
 endif()
 
-if(ANDROID)
+if(ANDROID OR CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   add_library(sqlite3 STATIC "${sqlite_headers_SOURCE_DIR}/sqlite3.c")
   add_library(sqlite3_shared SHARED "${sqlite_headers_SOURCE_DIR}/sqlite3.c")
   foreach(sqlite_target IN ITEMS sqlite3 sqlite3_shared)
@@ -122,10 +122,17 @@ if(ANDROID)
       SQLITE_ENABLE_FTS5
       SQLITE_ENABLE_RTREE
     )
-    target_link_libraries(${sqlite_target} PRIVATE m dl)
+    if(ANDROID)
+      target_link_libraries(${sqlite_target} PRIVATE m dl)
+    endif()
   endforeach()
-  target_link_options(sqlite3_shared PRIVATE "LINKER:-z,defs" "LINKER:-z,max-page-size=16384")
-  set(sqlite_linking "extension API table only; bundled SQLite 3.50.4 (libsqlite3.a and libsqlite3.so)")
+  if(ANDROID)
+    target_link_options(sqlite3_shared PRIVATE "LINKER:-z,defs" "LINKER:-z,max-page-size=16384")
+    set(sqlite_linking "extension API table only; bundled SQLite 3.50.4 (libsqlite3.a and libsqlite3.so)")
+  else()
+    set_target_properties(sqlite3_shared PROPERTIES INSTALL_NAME_DIR "@rpath" BUILD_WITH_INSTALL_NAME_DIR YES)
+    set(sqlite_linking "extension API table only; bundled SQLite 3.50.4 (libsqlite3.a and libsqlite3.dylib)")
+  endif()
   install(FILES "$<TARGET_FILE:sqlite3_shared>" DESTINATION .)
 endif()
 
@@ -146,11 +153,11 @@ endif()
 if(EMSCRIPTEN)
   file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/build-info.txt"
     "WASM threads: ${SQLITE_VEC_WASM_THREADS}\nLocal fix: WASM32 64-bit popcount builtin\nSQLite loadable extensions: omitted\n")
-elseif(ANDROID)
+elseif(ANDROID OR CMAKE_SYSTEM_NAME STREQUAL "Darwin")
   file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/build-info.txt"
     "SQLite libraries: shared and static\nSQLite threads: SQLITE_THREADSAFE=1\nSQLite loadable extensions: supported\n")
 endif()
-if(EMSCRIPTEN OR ANDROID)
+if(TARGET sqlite3)
   file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/build-info.txt"
     "SQLite engine: 3.50.4\nSQLite amalgamation SHA256: 1d3049dd0f830a025a53105fc79fd2ab9431aea99e137809d064d8ee8356b032\nSQLite options: SQLITE_ENABLE_COLUMN_METADATA;SQLITE_ENABLE_FTS5;SQLITE_ENABLE_RTREE\n")
   file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/SQLite-PUBLIC-DOMAIN.txt"

@@ -7,7 +7,7 @@
     <PackageId>LightStudio.sqlite-vec</PackageId>
     <Version>0.1.9</Version>
     <Authors>LightStudio</Authors>
-    <Description>sqlite-vec loadable and static native extensions for Linux, Windows, macOS, and Android on x64 and ARM64, static extensions for iOS ARM64, plus single-threaded and multithreaded browser-wasm static libraries. Bundles shared and static SQLite for Android and static SQLite for browser-wasm. Other platforms require your own SQLite engine; bring your own managed bindings on all platforms.</Description>
+    <Description>sqlite-vec loadable and static native extensions for Linux, Windows, macOS, and Android on x64 and ARM64, static extensions for iOS ARM64, plus single-threaded and multithreaded browser-wasm static libraries. Bundles shared and static SQLite for macOS and Android and static SQLite for browser-wasm. Other platforms require your own SQLite engine; bring your own managed bindings on all platforms.</Description>
     <PackageTags>sqlite;sqlite-vec;vec0;vector;search;android;ios;linux;macos;windows;wasm</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -62,13 +62,17 @@
   </ItemGroup>
   <ItemGroup Condition="$(_SqliteVecSelectedRids.Contains(';osx-x64;'))">
     <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-osx-x64/vec0.dylib" Pack="true" PackagePath="runtimes/osx-x64/native/" />
+    <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-osx-x64/libsqlite3.dylib" Pack="true" PackagePath="runtimes/osx-x64/native/" />
     <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-osx-x64/libvec0.a" Pack="true" PackagePath="static/osx-x64/" />
+    <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-osx-x64/libsqlite3.a" Pack="true" PackagePath="static/osx-x64/" />
     <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-osx-x64/build-info.txt" Pack="true" PackagePath="build-info/osx-x64.txt" />
     <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-osx-x64/licenses/**/*" Pack="true" PackagePath="licenses/osx-x64/" />
   </ItemGroup>
   <ItemGroup Condition="$(_SqliteVecSelectedRids.Contains(';osx-arm64;'))">
     <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-osx-arm64/vec0.dylib" Pack="true" PackagePath="runtimes/osx-arm64/native/" />
+    <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-osx-arm64/libsqlite3.dylib" Pack="true" PackagePath="runtimes/osx-arm64/native/" />
     <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-osx-arm64/libvec0.a" Pack="true" PackagePath="static/osx-arm64/" />
+    <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-osx-arm64/libsqlite3.a" Pack="true" PackagePath="static/osx-arm64/" />
     <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-osx-arm64/build-info.txt" Pack="true" PackagePath="build-info/osx-arm64.txt" />
     <None Include="$(SqliteVecArtifactsPath)/sqlite-vec-osx-arm64/licenses/**/*" Pack="true" PackagePath="licenses/osx-arm64/" />
   </ItemGroup>
