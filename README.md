@@ -3,7 +3,7 @@
 This repository builds native, managed, and data-only NuGet packages for .NET:
 
 - [`LightStudio.Ffmpeg`](https://www.nuget.org/packages/LightStudio.Ffmpeg/): FFmpeg 9.0.2 with decoding and desktop transcoding dependencies.
-- [LightStudio.Photos](package/photos/README.md): LibRaw 0.22.2, Little CMS 2.19.1 and jxrlib 1.1 for RAW photos, ICC color management and JPEG XR. See [Photos builds](#photos-builds) for its platform matrix and workflow.
+- [LightStudio.Photos](package/photos/README.md): LibRaw 0.22.2, Little CMS 2.19.1 and jxrlib 1.1 for RAW photos, ICC color management and JPEG XR, with exact-build headers and NativeBindings profiles. See [Photos builds](#photos-builds) for its platform matrix and workflow.
 - [LightStudio.Onnx](package/onnx/README.md): ONNX Runtime 1.30.0 with its complete .NET managed API for eight native RIDs, WebGPU through a LightStudio.WebGPU dependency on Linux and Android, and CoreML on macOS and iOS. See the package README for release build instructions and platform limitations.
 - [LightStudio.WebGPU](package/webgpu/README.md): Independently built Dawn WebGPU C API for Linux and Android x64/ARM64, with upstream Dawn versioning, exact-build headers, standalone dispatch sources, and NativeBindings profiles.
 - [LightStudio.sqlite-vec](package/sqlite-vec/README.md): sqlite-vec 0.1.9 shared and static native extensions for eight desktop/Android RIDs, static iOS ARM64 device/simulator extensions, and single-threaded/multithreaded browser-WASM static libraries, with bundled SQLite for Android/WASM and no ONNX dependency. Windows can use the system WinSQLite engine.
@@ -61,6 +61,8 @@ and the multi-threaded browser-wasm variant. It is **not** available in the
 single-threaded browser-wasm variant: libjxl's parallel runner is `std::thread`
 based and FFmpeg always creates it with `av_cpu_count()` workers, which aborts in
 an Emscripten module built without pthreads.
+
+Still JPEG XL encoding is enabled through `libjxl` on the same targets, using the already bundled dependencies. No new software HEVC/AV1 codec libraries are included. Android enables every MediaCodec encoder counterpart provided for its enabled decoders: H.264, HEVC, MPEG-4, VP8, VP9, and AV1. Apple VideoToolbox and Windows Media Foundation encoders remain enabled without additional vendor SDKs.
 
 zlib is required by the PNG decoder. Android, macOS, and iOS use the platform copy;
 browser-wasm uses the Emscripten `zlib` port and ships the resulting `libz.a`

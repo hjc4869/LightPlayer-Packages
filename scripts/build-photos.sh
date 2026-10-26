@@ -17,6 +17,7 @@ build_root="$artifacts_root/build/$artifact_name"
 prefix="$build_root/install"
 output="$artifacts_root/$artifact_name"
 build_jobs="${PHOTOS_BUILD_JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 4)}"
+profile_python="${PHOTOS_PROFILE_PYTHON:-python3}"
 
 if [[ $# -gt 1 ]]; then
   echo 'Usage: build-photos.sh <linux-x64|linux-arm64|win-x64|win-arm64|android-arm64|android-x64|osx-arm64|osx-x64|ios-arm64|iossimulator-arm64|browser-wasm|browser-wasm-mt>' >&2
@@ -172,7 +173,7 @@ case "$target" in
     ;;
 esac
 
-for tool in git tar autoreconf automake make pkg-config cmake "$CC" "$CXX" "$AR" "$RANLIB" "$NM"; do
+for tool in git tar autoreconf automake make pkg-config cmake "$profile_python" "$CC" "$CXX" "$AR" "$RANLIB" "$NM"; do
   command -v "$tool" >/dev/null || { echo "Required tool missing: $tool" >&2; exit 1; }
 done
 
@@ -361,4 +362,12 @@ case "$target" in
     "$RANLIB" "$output/libraw.a"
     ;;
 esac
+linkage=both
+case "$target" in
+  win-*) linkage=shared ;;
+  ios-* | iossimulator-* | browser-wasm*) linkage=static ;;
+esac
+"$profile_python" "$repo_root/scripts/photos-native-bindings.py" stage \
+  "$output" "$build_root" "$prefix" "${artifact_name#photos-}" "$target" \
+  --compiler "\"$CC\"" --flags="$CFLAGS" --build-flags="$CPPFLAGS $CXXFLAGS $LDFLAGS" --linkage "$linkage"
 printf "Built Photos libraries for '%s' in %s\n" "$target" "$output"

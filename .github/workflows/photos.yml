@@ -49,6 +49,7 @@ jobs:
       - name: Build on the compatibility baseline
         run: >-
           docker run --rm --user "$(id -u):$(id -g)" -e HOME=/tmp
+          -e PHOTOS_PROFILE_PYTHON=/opt/python/cp311-cp311/bin/python3
           -v "$PWD:/work" -w /work "$MANYLINUX_IMAGE"
           ./scripts/build-photos.sh "${{ matrix.target }}"
       - uses: actions/upload-artifact@v4
@@ -125,6 +126,7 @@ jobs:
           path-type: inherit
           update: true
           install: >-
+            python
             mingw-w64-ucrt-x86_64-clang
             mingw-w64-ucrt-x86_64-lld
             mingw-w64-ucrt-x86_64-llvm

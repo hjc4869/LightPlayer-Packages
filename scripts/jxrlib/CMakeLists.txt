@@ -71,6 +71,10 @@ foreach(library jpegxr jxrglue)
   endif()
 endforeach()
 
+install(DIRECTORY "${JXRLIB_SOURCE_DIR}/common/include/" "${JXRLIB_SOURCE_DIR}/image/sys/"
+  "${JXRLIB_SOURCE_DIR}/jxrgluelib/" DESTINATION include/jxrlib FILES_MATCHING PATTERN "*.h")
+install(FILES "${CMAKE_CURRENT_LIST_DIR}/compat.h" DESTINATION include/jxrlib)
+
 if(JXRLIB_BUILD_SHARED)
   target_link_libraries(jxrglue PRIVATE jpegxr)
   if(NOT WIN32)

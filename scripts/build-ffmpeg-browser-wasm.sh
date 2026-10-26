@@ -68,7 +68,7 @@ libjxl_prefix="$build_dir/libjxl"
 if [[ "$enable_libjxl" -eq 1 ]]; then
   "$repo_root/scripts/build-libjxl.sh" browser-wasm-mt "$libjxl_prefix" "$build_dir/libjxl-build"
   pkg_config_path="$pkg_config_path:$libjxl_prefix/lib/pkgconfig"
-  libjxl_options=(--enable-libjxl --enable-decoder=libjxl --enable-decoder=libjxl_anim)
+  libjxl_options=(--enable-libjxl --enable-decoder=libjxl --enable-decoder=libjxl_anim --enable-encoder=libjxl)
 fi
 
 # emconfigure forwards EM_PKG_CONFIG_PATH to PKG_CONFIG_PATH.
@@ -361,9 +361,13 @@ for component in DASH_DEMUXER HLS_DEMUXER FILE_PROTOCOL \
   fi
 done
 
-if [[ "$enable_libjxl" -eq 1 ]] && ! grep -q '^#define CONFIG_LIBJXL_DECODER 1$' config_components.h; then
-  echo "FFmpeg did not enable the libjxl decoder for '$variant'." >&2
-  exit 1
+if [[ "$enable_libjxl" -eq 1 ]]; then
+  for component in LIBJXL_DECODER LIBJXL_ENCODER; do
+    if ! grep -q "^#define CONFIG_$component 1$" config_components.h; then
+      echo "FFmpeg did not enable $component for '$variant'." >&2
+      exit 1
+    fi
+  done
 fi
 
 emmake make -j"${FFMPEG_BUILD_JOBS:-32}"

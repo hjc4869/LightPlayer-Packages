@@ -141,6 +141,7 @@ cd "$build_dir"
   --enable-libjxl \
   --enable-decoder=libjxl \
   --enable-decoder=libjxl_anim \
+  --enable-encoder=libjxl \
   --enable-parser=aac \
   --enable-parser=aac_latm \
   --enable-parser=flac \
@@ -350,7 +351,7 @@ for component in RAWVIDEO_DECODER RAWVIDEO_DEMUXER AAC_LATM_DECODER WAVPACK_DECO
   RALF_DECODER COOK_DECODER ATRAC3_DECODER SIPR_DECODER RV10_DECODER RV20_DECODER \
   RV30_DECODER RV40_DECODER RV60_DECODER VVC_DECODER WV_DEMUXER LOAS_DEMUXER \
   DNXHD_DEMUXER MXF_DEMUXER IMAGE_J2K_PIPE_DEMUXER RM_DEMUXER VVC_DEMUXER \
-  RV34_PARSER VVC_PARSER; do
+  RV34_PARSER VVC_PARSER LIBJXL_ENCODER; do
   if ! grep -q "^#define CONFIG_${component} 1$" config_components.h; then
     echo "FFmpeg did not enable $component for macOS." >&2
     exit 1

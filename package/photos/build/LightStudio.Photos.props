@@ -1,5 +1,6 @@
 <Project>
   <PropertyGroup>
     <LightStudioPhotosPackageRoot>$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)..'))</LightStudioPhotosPackageRoot>
+    <LightStudioPhotosNativeBindingsManifest>$(LightStudioPhotosPackageRoot)native-bindings/manifest.json</LightStudioPhotosNativeBindingsManifest>
   </PropertyGroup>
 </Project>

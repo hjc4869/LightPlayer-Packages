@@ -60,6 +60,20 @@ Static native AOT builds also add `libjxrglue.a` and `libjpegxr.a` (`libjxrglue.
 
 Shared builds embed JPEG and zlib into LibRaw, with no additional JPEG/zlib shared libraries to install. Deploy all four package libraries: `libraw`, `liblcms2`, `libjxrglue` and `libjpegxr`. LibRaw links LCMS, and the JPEG XR glue library links the separately exposed JPEG XR codec library.
 
+## Exact-build headers and profiles
+
+Public LibRaw, LCMS, JPEG, zlib, and JPEG XR headers are included under `native-bindings/profiles/<profile>/include/`, including generated JPEG/zlib configuration headers and the build-local JPEG XR compatibility fixes. The `photos-jpeg-namespace.h` snapshot maps JPEG declarations to the actual `lightstudio_photos_` symbols. Installed header trees are kept separate for each build; do not substitute source-checkout or host headers.
+
+Android, Linux, and Apple profiles use their RID. Windows DLL profiles use `win-x64`/`win-arm64` (MinGW), while static profiles use `win-x64-static`/`win-arm64-static` (MSVC). Wasm profiles use `browser-wasm-em3`, `browser-wasm-mt-em3`, `browser-wasm-em6`, and `browser-wasm-mt-em6`. Use manifest identities and ABI fields rather than inferring compatibility from the profile name.
+
+`native-bindings/manifest.json` records the package version, compiler-derived ABI/macros, SDK identity, upstream revisions, configuration snapshots, header/native hashes, features, and static link inputs. `LightStudioPhotosNativeBindingsManifest` exposes its package-relative location as an MSBuild property, following FFmpeg and WebGPU. Runtime and static library paths are unchanged.
+
+Each profile's `headerContexts` describes per-library entry headers, additional include roots, defines, undefines, and forced includes. Apply only the selected library's context: Windows LibRaw/LCMS DLL imports differ from static declarations, JPEG declarations need the namespace header, and JPEG XR requires `__ANSI__`, `DISABLE_PERF_MEASUREMENT`, `-UWIN32`, its `compat.h` forced include, and its additional include root. Do not apply JPEG XR's settings to unrelated APIs: its portable `guiddef.h` must not shadow the Windows SDK header. JPEG's context includes the standard `stddef.h` and `stdio.h` declarations required by its upstream header.
+
+The schema is a versioned **prototype**, like FFmpeg/WebGPU: symbol indexes, recursive SDK-header identities, and frontend ABI conformance remain binding-tool work. No managed bindings, automatic profile selection, or additional linking behavior are supplied. Matching platform SDK/system headers must be supplied externally. Configuration snapshots describe the build; they are not executable consumer instructions.
+
+Builds and packing require Python 3.9 or later; consumers do not. `PHOTOS_PROFILE_PYTHON` selects the build interpreter (`/opt/python/cp311-cp311/bin/python3` in CI's manylinux images), and `PhotosProfilePython` selects the packing interpreter. Packing requires the complete native artifact set and corresponding profiles, validates hashes and safe paths, and rejects stale, missing, or mismatched inputs. Rebuild older artifacts to obtain their matching headers before packing.
+
 ## Compatibility
 
 - Linux: release builds use the CentOS 7-based manylinux2014 environment for glibc 2.17 or newer, using baseline x86-64 or ARMv8-A instructions. Requires system `libstdc++`, `libgcc_s` and glibc; not an Alpine/musl build. Your .NET runtime may require a newer OS. Local arm64 cross-builds use the installed toolchain's sysroot and may require newer glibc than CI releases.

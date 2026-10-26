@@ -154,6 +154,7 @@ build_abi() {
     --enable-libjxl \
     --enable-decoder=libjxl \
     --enable-decoder=libjxl_anim \
+    --enable-encoder=libjxl \
     --enable-parser=aac \
     --enable-parser=aac_latm \
     --enable-parser=flac \
@@ -346,6 +347,10 @@ build_abi() {
     --enable-decoder=av1_mediacodec \
     --enable-encoder=h264_mediacodec \
     --enable-encoder=hevc_mediacodec \
+    --enable-encoder=mpeg4_mediacodec \
+    --enable-encoder=vp8_mediacodec \
+    --enable-encoder=vp9_mediacodec \
+    --enable-encoder=av1_mediacodec \
     --enable-stripping
 
   if ! grep -q '^#define HAVE_PTHREADS 1$' config.h; then
@@ -368,7 +373,8 @@ build_abi() {
     RALF_DECODER COOK_DECODER ATRAC3_DECODER SIPR_DECODER RV10_DECODER RV20_DECODER \
     RV30_DECODER RV40_DECODER RV60_DECODER VVC_DECODER WV_DEMUXER LOAS_DEMUXER \
     DNXHD_DEMUXER MXF_DEMUXER IMAGE_J2K_PIPE_DEMUXER RM_DEMUXER VVC_DEMUXER \
-    RV34_PARSER VVC_PARSER; do
+    RV34_PARSER VVC_PARSER LIBJXL_ENCODER H264_MEDIACODEC_ENCODER HEVC_MEDIACODEC_ENCODER \
+    MPEG4_MEDIACODEC_ENCODER VP8_MEDIACODEC_ENCODER VP9_MEDIACODEC_ENCODER AV1_MEDIACODEC_ENCODER; do
     if ! grep -q "^#define CONFIG_${component} 1$" config_components.h; then
       echo "FFmpeg did not enable $component for Android $dotnet_rid." >&2
       exit 1

@@ -98,4 +98,11 @@ cp "$prefix/lib/lcms2.lib" "$output/liblcms2.lib"
 cp "$prefix/lib/jpeg-static.lib" "$output/jpeg.lib"
 cp "$prefix/lib/zs.lib" "$output/zlib.lib"
 
+cp -R "$source_dir/libraw" "$prefix/include/"
+python3 "$repo_root/scripts/photos-native-bindings.py" stage \
+  "$output" "$build_root" "$prefix" "$target-static" "$target" \
+  --compiler "clang --target=$triple" --flags='-O2 -fms-extensions -fms-compatibility -D_MT -D_WIN32_WINNT=0x0A00 -DLIBRAW_NOTHREADS' \
+  --build-flags='/O2 /MT /EHsc /DWIN32 /D_WIN32_WINNT=0x0A00 /DLIBRAW_NOTHREADS /DUSE_LCMS2 /DUSE_JPEG /DUSE_ZLIB' \
+  --linkage static
+
 printf "Built Photos MSVC static libraries for '%s' in %s\n" "$target" "$output"

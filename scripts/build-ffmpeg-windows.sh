@@ -123,7 +123,7 @@ configure_args=(
   --disable-bsfs --disable-muxers --disable-demuxers --disable-parsers
   --disable-decoders --disable-encoders --disable-hwaccels
   --pkg-config-flags=--static --enable-zlib --enable-libxml2 --enable-libdav1d --enable-libjxl --enable-libopus
-  --enable-encoder=aac_mf,ac3_mf,av1_mf,h264_mf,hevc_mf,mp3_mf,libopus
+  --enable-encoder=aac_mf,ac3_mf,av1_mf,h264_mf,hevc_mf,mp3_mf,libopus,libjxl
   "${component_args[@]}"
 )
 
@@ -162,7 +162,7 @@ for linkage in static shared; do
     MXF_DEMUXER IMAGE_J2K_PIPE_DEMUXER RM_DEMUXER VVC_DEMUXER RV34_PARSER VVC_PARSER \
     LIBDAV1D_DECODER LIBJXL_DECODER LIBJXL_ANIM_DECODER PNG_DECODER WEBP_DECODER TIFF_DECODER \
     H264_D3D11VA_HWACCEL HEVC_D3D11VA_HWACCEL AV1_D3D11VA_HWACCEL VP9_D3D11VA_HWACCEL \
-    H264_MF_ENCODER HEVC_MF_ENCODER AV1_MF_ENCODER LIBOPUS_ENCODER \
+    H264_MF_ENCODER HEVC_MF_ENCODER AV1_MF_ENCODER LIBOPUS_ENCODER LIBJXL_ENCODER \
     HWDOWNLOAD_FILTER HWUPLOAD_FILTER SCALE_FILTER FORMAT_FILTER SCALE_D3D11_FILTER AFORMAT_FILTER ARESAMPLE_FILTER; do
     grep -q "^#define CONFIG_$component 1$" config_components.h || { echo "Missing $component for $target ($linkage)." >&2; exit 1; }
   done

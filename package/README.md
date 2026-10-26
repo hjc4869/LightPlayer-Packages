@@ -1,6 +1,6 @@
 # LightStudio.Ffmpeg
 
-FFmpeg 9.0.2 native libraries for .NET, with AV1 decoding provided by dav1d 1.5.4, JPEG XL decoding by libjxl 0.12.0 with LCMS2 2.19.1, and DASH manifest parsing by libxml2 2.15.3.
+FFmpeg 9.0.2 native libraries for .NET, with AV1 decoding provided by dav1d 1.5.4, JPEG XL encoding and decoding by libjxl 0.12.0 with LCMS2 2.19.1, and DASH manifest parsing by libxml2 2.15.3.
 
 | Runtime | Linking | Location in the package |
 | --- | --- | --- |
@@ -15,7 +15,7 @@ FFmpeg 9.0.2 native libraries for .NET, with AV1 decoding provided by dav1d 1.5.
 | `browser-wasm`, single-threaded | Static (`.a`) | `static/wasm-em3`, `static/wasm-em6` |
 | `browser-wasm`, multi-threaded | Static (`.a`) | `static/wasm-mt-em3`, `static/wasm-mt-em6` |
 
-The FFmpeg command-line programs, networking, device implementations, and software video encoders are not included. macOS and iOS include VideoToolbox encoders; Windows includes Media Foundation encoders. macOS and Windows also include libopus 1.6.1 for Opus encoding and the `hwdownload`, `hwupload`, `scale`, `format`, `aformat`, and `aresample` filters. Hardware scaling uses `scale_vt` on macOS and `scale_d3d11` on Windows.
+The FFmpeg command-line programs, networking, device implementations, and general-purpose software video encoders are not included. macOS and iOS include VideoToolbox encoders; Windows includes Media Foundation encoders. Android includes H.264, HEVC, MPEG-4, VP8, VP9, and AV1 MediaCodec encoders, matching the enabled decoders where this FFmpeg backend provides an encoder (there is no MPEG-2 MediaCodec encoder). macOS and Windows also include libopus 1.6.1 for Opus encoding and the `hwdownload`, `hwupload`, `scale`, `format`, `aformat`, and `aresample` filters. Hardware scaling uses `scale_vt` on macOS and `scale_d3d11` on Windows.
 
 The HLS and DASH demuxers and file protocol are enabled for applications that provide manifests, playlists, and segment resources through `AVFormatContext.io_open`. FFmpeg networking remains disabled; HTTP transport belongs to the consuming application.
 
@@ -33,6 +33,8 @@ The HLS and DASH demuxers and file protocol are enabled for applications that pr
 | JPEG XL (still and animated) | `jpegxl_pipe`, `jpegxl_anim` | `libjxl`, `libjxl_anim` |
 
 JPEG XL is unavailable in the single-threaded browser-wasm variant, because libjxl's parallel runner needs pthreads.
+
+Still JPEG XL encoding uses `libjxl` on all JPEG XL-enabled targets, including 8-bit SDR and 16-bit HDR inputs. Its dependencies and static archive inputs are already bundled; no additional codec library is required. Animated JPEG XL encoding is not enabled.
 
 ## Additional audio and video formats
 
