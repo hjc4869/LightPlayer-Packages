@@ -275,10 +275,9 @@ def stage(args):
 
     api_files = export_api(artifact, build, dawn, args.rid)
     pin = ET.parse(Path(__file__).resolve().parent.parent / "package/webgpu/Dawn.props")
-    upstream = {"tag": pin.findtext("PropertyGroup/DawnTag"),
+    upstream = {"chromiumVersion": pin.findtext("PropertyGroup/DawnChromiumVersion"),
                 "revision": pin.findtext("PropertyGroup/DawnRevision"),
-                "source": "https://github.com/google/dawn",
-                "archiveSha1": pin.findtext("PropertyGroup/DawnArchiveSha1")}
+                "source": "https://dawn.googlesource.com/dawn"}
     configuration_path = profile_root / "configuration/build.json"
     write_json(configuration_path, {"compileCommand": entry, "dawn": upstream})
     headers = [package_file(path, f"{root}/include/{path.relative_to(include).as_posix()}")
@@ -323,6 +322,8 @@ def stage(args):
 
 def manifest(args):
     validate_version(args.version)
+    pin = ET.parse(Path(__file__).resolve().parent.parent / "package/webgpu/Dawn.props")
+    revision = pin.findtext("PropertyGroup/DawnRevision")
     rids = args.rids.split(";")
     if not rids or len(set(rids)) != len(rids) or any(rid not in RIDS for rid in rids):
         raise ValueError(f"Unsupported or duplicate WebGPU RIDs: {args.rids}")
@@ -337,6 +338,8 @@ def manifest(args):
                 or fingerprint(identity) != profile["nativeBuildId"]
                 or fingerprint(profile["headers"]) != profile["headerTreeSha256"]):
             raise ValueError(f"Profile identity/hash mismatch: {rid}")
+        if profile["upstream"]["dawn"]["revision"] != revision:
+            raise ValueError(f"Dawn source revision mismatch: {rid}")
         root = f"native-bindings/profiles/{rid}/"
         native_path = f"runtimes/{rid}/native/{library_name(rid)}"
         native_paths = [native_path]
@@ -391,7 +394,7 @@ def main():
     aggregate.add_argument("--version", required=True)
     aggregate.add_argument("--rids", default=";".join(RIDS))
     pin = commands.add_parser("version")
-    pin.add_argument("--field", choices=("DawnTag", "DawnRevision", "DawnArchiveSha1", "DawnPackageVersion"), default="DawnPackageVersion")
+    pin.add_argument("--field", choices=("DawnChromiumVersion", "DawnRevision", "DawnPackageVersion"), default="DawnPackageVersion")
     prepare = commands.add_parser("prepare-source")
     prepare.add_argument("source", type=Path)
     download = commands.add_parser("fetch")

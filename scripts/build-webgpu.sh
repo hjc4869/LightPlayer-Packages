@@ -7,12 +7,12 @@ BUILD_DIR="${WEBGPU_BUILD_DIR:-$ROOT_DIR/artifacts/build/webgpu-$TARGET}"
 PREFIX="$ROOT_DIR/artifacts/webgpu-$TARGET"
 PROFILE="$ROOT_DIR/scripts/webgpu-native-bindings.py"
 PYTHON="${PYTHON:-python3}"
-DAWN_TAG="$("$PYTHON" "$PROFILE" version --field DawnTag)"
-DAWN_SHA1="$("$PYTHON" "$PROFILE" version --field DawnArchiveSha1)"
+DAWN_CHROMIUM_VERSION="$("$PYTHON" "$PROFILE" version --field DawnChromiumVersion)"
+DAWN_REVISION="$("$PYTHON" "$PROFILE" version --field DawnRevision)"
 
 cmake_args=(-DCMAKE_BUILD_TYPE=Release -DCMAKE_POSITION_INDEPENDENT_CODE=ON
   -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DBUILD_SHARED_LIBS=OFF
-  "-DLIGHTSTUDIO_DAWN_TAG=$DAWN_TAG" "-DLIGHTSTUDIO_DAWN_ARCHIVE_SHA1=$DAWN_SHA1"
+  "-DLIGHTSTUDIO_DAWN_REVISION=$DAWN_REVISION"
   -DDAWN_BUILD_MONOLITHIC_LIBRARY=SHARED -DDAWN_ENABLE_INSTALL=ON
   -DDAWN_FETCH_DEPENDENCIES=ON -DDAWN_BUILD_SAMPLES=OFF -DDAWN_BUILD_TESTS=OFF
   -DDAWN_BUILD_PROTOBUF=OFF -DDAWN_SUPPORTS_CXX_MODULES=OFF
@@ -120,6 +120,6 @@ elif [[ "$TARGET" == android-* ]]; then
 fi
 "$PYTHON" "$PROFILE" stage "$PREFIX" "$BUILD_DIR" "$TARGET" \
   --sysroot-kind "$sysroot_kind" --sysroot-version "$sysroot_version"
-printf 'Dawn %s\nArchive SHA1: %s\nRID: %s\nBackend: %s\nABI/header provenance: native-bindings/profiles/%s/profile.json\n' \
-  "$DAWN_TAG" "$DAWN_SHA1" "$TARGET" "$backend" "$TARGET" > "$PREFIX/build-info.txt"
-printf 'Built standalone Dawn %s: %s\n' "$DAWN_TAG" "$PREFIX"
+printf 'Chromium %s\nDawn revision: %s\nRID: %s\nBackend: %s\nABI/header provenance: native-bindings/profiles/%s/profile.json\n' \
+  "$DAWN_CHROMIUM_VERSION" "$DAWN_REVISION" "$TARGET" "$backend" "$TARGET" > "$PREFIX/build-info.txt"
+printf 'Built standalone Dawn %s (Chromium %s): %s\n' "$DAWN_REVISION" "$DAWN_CHROMIUM_VERSION" "$PREFIX"

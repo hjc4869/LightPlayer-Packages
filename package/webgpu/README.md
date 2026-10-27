@@ -36,7 +36,7 @@ Use the NativeBindings toolkit separately to generate managed declarations:
 
 ```xml
 <ItemGroup>
-  <PackageReference Include="LightStudio.WebGPU" Version="20260818.211311.0" />
+  <PackageReference Include="LightStudio.WebGPU" Version="156.0.0" />
 </ItemGroup>
 <PropertyGroup>
   <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
@@ -89,7 +89,8 @@ runtimes/<rid>/native/<platform-native-library>
 contains the exact generated Dawn header and public forwarding header from its
 native build, compiler-derived target triple, widths and signedness, toolchain
 and SDK identity, the native library's format, runtime identity and dependencies, and content
-hashes. Packing rejects missing profiles and changed headers or binaries.
+hashes. Packing rejects missing profiles, mismatched Dawn source revisions,
+and changed headers or binaries.
 The Dawn API export is also hash-validated and uses the same generated version
 header as the native library. Its dispatch sources need only the exported
 headers and the C++20 standard library; the proc-table version check is retained.
@@ -99,18 +100,27 @@ as with the FFmpeg profile format; the manifest is marked `prototype`.
 ## Building And Releases
 
 Dawn builds independently of ONNX. The repository-owned `Dawn.props` pins
-upstream tag `v20260818.211311`, commit
-`f5df92664181659d3e5c29e01e8f0342ae4565d4`, and the source archive checksum.
-The NuGet version defaults to `20260818.211311.0`, the NuGet-normalized form of
-Dawn's upstream version, not the ONNX version. Each build writes
+Chromium release `156.0.8078.47`'s Dawn commit
+`1da41e55bb915dd03f61028fad64a99ee1786d48`.
+Sources are checked out from the official Dawn Git repository at
+`dawn.googlesource.com`, using the immutable commit rather than a moving
+Chromium branch. Git is required on build hosts, not on consumer machines.
+The NuGet version defaults to `156.0.0` and follows
+`<Chromium milestone>.<Dawn snapshot increment>.<packaging fix>` independently
+of ONNX. The milestone does not guarantee Dawn C API or ABI compatibility;
+always use the matching headers and native library. Each build writes
 `artifacts/webgpu-<rid>`:
 
 ```sh
 bash scripts/build-webgpu.sh linux-x64
 dotnet pack package/webgpu/LightStudio.WebGPU.csproj -c Release \
   -o artifacts/packages -p:WebGPURuntimeIdentifiers=linux-x64 \
-  -p:PackageVersion=20260818.211311.0-local.1
+  -p:PackageVersion=156.0.0-local.1
 ```
+
+Milestone-based versions sort below the previous date-based versions in NuGet.
+Existing consumers must explicitly select `156.0.0` when migrating; automatic
+update discovery will not treat it as newer than a date-based release.
 
 Use `scripts/webgpu-linux.Dockerfile` for release-compatible glibc requirements.
 Android uses NDK r28c and `ANDROID_API` defaults to 27. `WEBGPU_BUILD_DIR` overrides
