@@ -5,7 +5,7 @@ This repository builds native, managed, and data-only NuGet packages for .NET:
 - [`LightStudio.Ffmpeg`](https://www.nuget.org/packages/LightStudio.Ffmpeg/): FFmpeg 9.0.2 with decoding and desktop transcoding dependencies.
 - [LightStudio.Photos](package/photos/README.md): LibRaw 0.22.2, Little CMS 2.19.1 and jxrlib 1.1 for RAW photos, ICC color management and JPEG XR, with exact-build headers and NativeBindings profiles. See [Photos builds](#photos-builds) for its platform matrix and workflow.
 - [LightStudio.Onnx](package/onnx/README.md): ONNX Runtime 1.30.0 with its complete .NET managed API for eight native RIDs, WebGPU through a LightStudio.WebGPU dependency on Linux and Android, and CoreML on macOS and iOS. See the package README for release build instructions and platform limitations.
-- [LightStudio.WebGPU](package/webgpu/README.md): Independently built Dawn WebGPU C API for Linux and Android x64/ARM64, with upstream Dawn versioning, exact-build headers, standalone dispatch sources, and NativeBindings profiles.
+- [LightStudio.WebGPU](package/webgpu/README.md): Independently built Dawn WebGPU C API for Linux/Android (Vulkan), Windows x64/ARM64 (D3D12), and macOS/iOS ARM64 (Metal), with upstream Dawn versioning, exact-build headers, standalone dispatch sources, and NativeBindings profiles.
 - [LightStudio.sqlite-vec](package/sqlite-vec/README.md): sqlite-vec 0.1.9 shared and static native extensions for eight desktop/Android RIDs, static iOS ARM64 device/simulator extensions, and single-threaded/multithreaded browser-WASM static libraries, with bundled SQLite for Android/WASM and no ONNX dependency. Windows can use the system WinSQLite engine.
 - [LightStudio.AvaloniaStatic](package/avalonia-static/README.md): Static SkiaSharp 4.153.1, HarfBuzzSharp 14.2.1.301, and ANGLE for Windows, Linux, macOS, and Android on x64 and ARM64, with no managed Avalonia dependency.
 - [LightStudio.GeoNames](package/geonames/README.md): Data-only offline cities1000 database with country and administrative names, seven name languages, stable GeoNames IDs, and a balanced spherical search index. Its independent workflow builds from GeoNames snapshots and packages the gzip-compressed binary with provenance, attribution, and MSBuild paths for embedding.
@@ -334,7 +334,9 @@ without falling back to a source build or another version.
 ## WebGPU Builds
 
 [The WebGPU workflow](.github/workflows/webgpu.yml) independently builds Dawn for
-`linux-x64`, `linux-arm64`, `android-arm64`, and `android-x64` with Vulkan. Its own
+`linux-x64`, `linux-arm64`, `android-arm64`, and `android-x64` with Vulkan;
+`osx-arm64`, `ios-arm64`, and `iossimulator-arm64` with Metal; and
+`win-x64` and `win-arm64` with D3D12. Apple x64 is not built. Its own
 [Dawn pin](package/webgpu/Dawn.props) records the upstream tag, commit, and archive
 checksum. No ONNX source or build is involved.
 
@@ -344,7 +346,8 @@ dotnet pack package/webgpu/LightStudio.WebGPU.csproj -c Release -o artifacts/pac
   -p:WebGPURuntimeIdentifiers=linux-x64
 ```
 
-Collect all four `webgpu-<rid>` outputs for a complete WebGPU package. Release
+Collect all nine `webgpu-<rid>` outputs for a complete WebGPU package. iOS uses
+static archives; macOS and Windows use shared libraries. Release
 Linux builds use the pinned [Ubuntu image](scripts/webgpu-linux.Dockerfile).
 The default NuGet version is Dawn's upstream `20260818.211311`, normalized to
 `20260818.211311.0`. Manual `package_version` or local `-p:PackageVersion=...`

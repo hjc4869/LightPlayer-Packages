@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path, PurePosixPath
 import re
 import shlex
@@ -14,7 +15,58 @@ import xml.etree.ElementTree as ET
 import zipfile
 
 
-RIDS = ("linux-x64", "linux-arm64", "android-arm64", "android-x64")
+RIDS = ("linux-x64", "linux-arm64", "android-arm64", "android-x64", "osx-arm64",
+        "ios-arm64", "iossimulator-arm64", "win-x64", "win-arm64")
+
+
+def library_name(rid):
+    if rid.startswith("win-"):
+        return "webgpu_dawn.dll"
+    if rid.startswith(("ios-", "iossimulator-")):
+        return "libwebgpu_dawn.a"
+    return "libwebgpu_dawn.dylib" if rid.startswith("osx-") else "libwebgpu_dawn.so"
+
+
+def inspect_library(library, rid, compiler):
+    architecture = "arm64" if rid.endswith("arm64") else "x64"
+    if rid.startswith("win-"):
+        with library.open("rb") as stream:
+            header = stream.read(64)
+            if header[:2] != b"MZ":
+                raise ValueError(f"Not a PE library: {library}")
+            stream.seek(struct.unpack_from("<I", header, 60)[0])
+            pe = stream.read(6)
+        if pe[:4] != b"PE\0\0" or struct.unpack_from("<H", pe, 4)[0] != (0xAA64 if architecture == "arm64" else 0x8664):
+            raise ValueError(f"PE architecture mismatch: {library}")
+        dependencies = re.findall(r"^\s*Name: (.+)$", run("llvm-readobj", "--coff-imports", str(library)), re.MULTILINE)
+        return "PE", library.name, dependencies
+    if rid.startswith(("ios-", "iossimulator-")):
+        if library.read_bytes()[:8] != b"!<arch>\n" or run("lipo", "-archs", str(library)) != "arm64":
+            raise ValueError(f"Expected an arm64 static archive: {library}")
+        load_commands = run("otool", "-l", str(library))
+        platforms = re.findall(r"^\s*platform (\S+)", load_commands, re.MULTILINE)
+        expected = {"7", "IOSSIMULATOR"} if rid.startswith("iossimulator-") else {"2", "IOS"}
+        if not platforms or any(platform not in expected for platform in platforms):
+            raise ValueError(f"Archive platform mismatch for {rid}: {set(platforms)}")
+        return "archive", "__Internal", []
+    if rid.startswith("osx-"):
+        if run("lipo", "-archs", str(library)) != "arm64":
+            raise ValueError(f"Expected an arm64 Mach-O library: {library}")
+        identity = run("otool", "-D", str(library)).splitlines()[1].strip()
+        if identity != f"@rpath/{library.name}":
+            raise ValueError(f"Non-relocatable Dawn install name: {identity}")
+        dependencies = [line.strip().split(" (", 1)[0] for line in run("otool", "-L", str(library)).splitlines()[1:]]
+        return "Mach-O", identity, [name for name in dependencies if name != identity]
+    with library.open("rb") as stream:
+        elf = stream.read(20)
+    if elf[:6] != b"\x7fELF\x02\x01" or struct.unpack_from("<H", elf, 18)[0] != (183 if architecture == "arm64" else 62):
+        raise ValueError(f"Native library is not little-endian ELF64 for {rid}: {library}")
+    readelf = Path(compiler).with_name("llvm-readelf")
+    dynamic = run(str(readelf) if readelf.is_file() else "readelf", "-dW", str(library))
+    soname = re.search(r"\(SONAME\).*\[([^]]+)\]", dynamic)
+    if soname is None or soname[1] != library.name:
+        raise ValueError(f"Expected SONAME {library.name}: {library}")
+    return "ELF", soname[1], re.findall(r"\(NEEDED\).*\[([^]]+)\]", dynamic)
 
 
 def version(args):
@@ -184,36 +236,40 @@ def stage(args):
 
     commands = json.loads((build / "compile_commands.json").read_text())
     entry = next((entry for entry in commands
-                  if "webgpu_dawn_objects.dir/" in entry.get("command", " ".join(entry.get("arguments", [])))), None)
+                  if "webgpu_dawn_objects.dir" in entry.get("command", " ".join(entry.get("arguments", [])))), None)
     if entry is None:
         raise ValueError(f"Missing webgpu_dawn compile command: {build}")
-    command = entry.get("arguments") or shlex.split(entry["command"])
+    command = entry.get("arguments") or shlex.split(entry["command"], posix=os.name != "nt")
+    command = [argument.strip('"') for argument in command]
     compiler = command[0]
     flags = [flag for flag in command[1:]
              if flag.startswith(("--target=", "--sysroot=", "-m", "-fpack-struct", "-fshort-enums",
                                  "-fsigned-char", "-funsigned-char", "-fms-", "-fno-ms-"))
              or flag in ("-pthread", "-fPIC", "-fPIE")]
-    flags.append("-DWGPU_SHARED_LIBRARY")
+    for index, flag in enumerate(command[1:], 1):
+        if flag in ("-isysroot", "-arch", "-target", "--target"):
+            flags.extend((flag, command[index + 1]))
+    if args.rid.startswith("win-"):
+        flags.insert(0, "--driver-mode=gcc")
+    static = args.rid.startswith(("ios-", "iossimulator-"))
+    defines = [] if static else ["WGPU_SHARED_LIBRARY"]
+    flags.extend(f"-D{define}" for define in defines)
     predefined = dict(re.findall(r"^#define\s+(\w+)\s+(.+)$",
                                 run(compiler, *flags, "-dM", "-E", "-x", "c", "-", input=""), re.MULTILINE))
     triple = run(compiler, *flags, "-dumpmachine")
+    if "__APPLE__" in predefined:
+        frontend = run(compiler, *flags, "-###", "-fsyntax-only", "-x", "c", "-", input="", stderr=subprocess.STDOUT)
+        triple = re.search(r'"-triple"\s+"([^"]+)"', frontend)[1]
     architecture = "arm64" if "__aarch64__" in predefined else "x64" if "__x86_64__" in predefined else None
-    operating_system = "android" if "__ANDROID__" in predefined else "linux"
+    operating_system = ("win" if "_WIN32" in predefined else "android" if "__ANDROID__" in predefined
+                        else "iossimulator" if "-simulator" in triple else "ios" if "ios" in triple
+                        else "osx" if "__APPLE__" in predefined else "linux")
     if f"{operating_system}-{architecture}" != args.rid:
         raise ValueError(f"Compiler target {triple} does not match {args.rid}")
     run(compiler, *flags, f"-I{include}", "-fsyntax-only", "-x", "c", "-",
         input='#include "webgpu/webgpu.h"\n')
-    library = artifact / "libwebgpu_dawn.so"
-    with library.open("rb") as stream:
-        elf = stream.read(20)
-    if elf[:6] != b"\x7fELF\x02\x01" or struct.unpack_from("<H", elf, 18)[0] != (183 if architecture == "arm64" else 62):
-        raise ValueError(f"Native library is not little-endian ELF64 for {args.rid}: {library}")
-    readelf = Path(compiler).with_name("llvm-readelf")
-    dynamic = run(str(readelf) if readelf.is_file() else "readelf", "-dW", str(library))
-    soname = re.search(r"\(SONAME\).*\[([^]]+)\]", dynamic)
-    if soname is None or soname[1] != library.name:
-        raise ValueError(f"Expected SONAME {library.name}: {library}")
-    dependencies = re.findall(r"\(NEEDED\).*\[([^]]+)\]", dynamic)
+    library = artifact / library_name(args.rid)
+    binary_format, runtime_identity, dependencies = inspect_library(library, args.rid, compiler)
     if any("onnx" in name.lower() for name in dependencies):
         raise ValueError(f"WebGPU must not depend on ONNX: {dependencies}")
 
@@ -228,8 +284,13 @@ def stage(args):
     headers = [package_file(path, f"{root}/include/{path.relative_to(include).as_posix()}")
                for path in sorted(include.rglob("*.h"))]
     native = package_file(library, f"runtimes/{args.rid}/native/{library.name}")
-    native.update({"id": "webgpu_dawn", "role": "shared", "architecture": architecture, "format": "ELF",
-                   "runtimeIdentity": soname[1], "dependencies": dependencies, "symbolIndex": "extract-from-asset"})
+    native.update({"id": "webgpu_dawn", "role": "static" if static else "shared", "architecture": architecture, "format": binary_format,
+                   "runtimeIdentity": runtime_identity, "dependencies": dependencies, "symbolIndex": "extract-from-asset"})
+    libraries = [native]
+    if args.rid.startswith("win-"):
+        import_library = artifact / "webgpu_dawn.lib"
+        libraries.append({**package_file(import_library, f"runtimes/{args.rid}/native/{import_library.name}"),
+                          "id": "webgpu_dawn-import", "role": "import", "architecture": architecture, "format": "COFF"})
     profile = {
         "id": args.rid,
         "abi": {"triple": triple, "runtimeIdentifier": args.rid, "operatingSystem": operating_system,
@@ -240,17 +301,18 @@ def stage(args):
                       "predefinedMacros": predefined},
         "sysroot": {"kind": args.sysroot_kind, "version": args.sysroot_version, "redistributed": False},
         "includeRoots": [f"{root}/include"],
-        "defines": ["WGPU_SHARED_LIBRARY"],
+        "defines": defines,
         "undefines": [],
         "headers": headers,
         "headerTreeSha256": fingerprint(headers),
         "configuration": [package_file(configuration_path, f"{root}/configuration/build.json")],
-        "libraries": [native],
+        "libraries": libraries,
         "upstream": {"dawn": upstream},
         "dawnApi": {"root": f"dawn-api/{args.rid}", "files": api_files},
-        "features": {"api": "webgpu-c", "linkage": "shared"},
-        "link": {"archives": [], "systemLibraries": [], "frameworks": [], "wholeArchive": False,
-                 "importToken": soname[1], "backend": "platform-native",
+        "features": {"api": "webgpu-c", "linkage": "static" if static else "shared"},
+        "link": {"archives": [native["path"]] if static else [], "systemLibraries": ["c++"] if static else [],
+             "frameworks": ["Metal", "Foundation", "IOSurface", "QuartzCore"] if static else [], "wholeArchive": False,
+                 "importToken": "__Internal" if static else library.name, "backend": "platform-native",
                  "maxPageSize": 16384 if operating_system == "android" else None},
         "licenses": f"licenses/{args.rid}/",
     }
@@ -276,8 +338,11 @@ def manifest(args):
                 or fingerprint(profile["headers"]) != profile["headerTreeSha256"]):
             raise ValueError(f"Profile identity/hash mismatch: {rid}")
         root = f"native-bindings/profiles/{rid}/"
-        native_path = f"runtimes/{rid}/native/libwebgpu_dawn.so"
-        if [library["path"] for library in profile["libraries"]] != [native_path]:
+        native_path = f"runtimes/{rid}/native/{library_name(rid)}"
+        native_paths = [native_path]
+        if rid.startswith("win-"):
+            native_paths.append(f"runtimes/{rid}/native/webgpu_dawn.lib")
+        if [library["path"] for library in profile["libraries"]] != native_paths:
             raise ValueError(f"Package/profile native asset mismatch: {rid}")
         api_root = f"dawn-api/{rid}"
         if profile["dawnApi"]["root"] != api_root or not profile["dawnApi"]["files"]:
@@ -288,7 +353,7 @@ def manifest(args):
                 raise ValueError(f"Unsafe package path: {logical}")
             if entry["path"].startswith(root):
                 source = profile_root / entry["path"][len(root):]
-            elif entry["path"] == native_path:
+            elif entry["path"] in native_paths:
                 source = artifact / logical.name
             elif entry["path"].startswith(f"{api_root}/"):
                 source = artifact / logical

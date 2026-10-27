@@ -1,0 +1,10 @@
+<Project>
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == 'ios-arm64' or '$(RuntimeIdentifier)' == 'iossimulator-arm64'">
+    <NativeReference Include="$(LightStudioWebGPUPackageRoot)runtimes/$(RuntimeIdentifier)/native/libwebgpu_dawn.a">
+      <Kind>Static</Kind>
+      <ForceLoad>true</ForceLoad>
+      <Frameworks>Metal Foundation IOSurface QuartzCore</Frameworks>
+      <IsCxx>true</IsCxx>
+    </NativeReference>
+  </ItemGroup>
+</Project>
