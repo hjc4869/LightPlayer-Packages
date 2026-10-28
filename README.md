@@ -2,7 +2,7 @@
 
 This repository builds native, managed, and data-only NuGet packages for .NET:
 
-- [`LightStudio.Ffmpeg`](package/ffmpeg/README.md): FFmpeg 9.0.2 with decoding and desktop transcoding dependencies.
+- [LightStudio.Ffmpeg](package/ffmpeg/README.md): FFmpeg 9.0.2 with decoding and desktop transcoding dependencies.
 - [LightStudio.Photos](package/photos/README.md): LibRaw 0.22.2, Little CMS 2.19.1 and jxrlib 1.1 for RAW photos, ICC color management and JPEG XR, with exact-build headers and NativeBindings profiles. See [Photos builds](#photos-builds) for its platform matrix and workflow.
 - [LightStudio.Onnx](package/onnx/README.md): ONNX Runtime 1.30.0 with its complete .NET managed API for eight native RIDs, WebGPU through a LightStudio.WebGPU dependency on Linux and Android, and CoreML on macOS and iOS. See the package README for release build instructions and platform limitations.
 - [LightStudio.WebGPU](package/webgpu/README.md): Independently built Dawn WebGPU C API for Linux/Android (Vulkan), Windows x64/ARM64 (D3D12), and macOS/iOS ARM64 (Metal), with upstream Dawn versioning, exact-build headers, standalone dispatch sources, and NativeBindings profiles.
