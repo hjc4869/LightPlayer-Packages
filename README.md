@@ -2,11 +2,11 @@
 
 This repository builds native, managed, and data-only NuGet packages for .NET:
 
-- [`LightStudio.Ffmpeg`](https://www.nuget.org/packages/LightStudio.Ffmpeg/): FFmpeg 9.0.2 with decoding and desktop transcoding dependencies.
+- [`LightStudio.Ffmpeg`](package/ffmpeg/README.md): FFmpeg 9.0.2 with decoding and desktop transcoding dependencies.
 - [LightStudio.Photos](package/photos/README.md): LibRaw 0.22.2, Little CMS 2.19.1 and jxrlib 1.1 for RAW photos, ICC color management and JPEG XR, with exact-build headers and NativeBindings profiles. See [Photos builds](#photos-builds) for its platform matrix and workflow.
 - [LightStudio.Onnx](package/onnx/README.md): ONNX Runtime 1.30.0 with its complete .NET managed API for eight native RIDs, WebGPU through a LightStudio.WebGPU dependency on Linux and Android, and CoreML on macOS and iOS. See the package README for release build instructions and platform limitations.
 - [LightStudio.WebGPU](package/webgpu/README.md): Independently built Dawn WebGPU C API for Linux/Android (Vulkan), Windows x64/ARM64 (D3D12), and macOS/iOS ARM64 (Metal), with upstream Dawn versioning, exact-build headers, standalone dispatch sources, and NativeBindings profiles.
-- [LightStudio.sqlite-vec](package/sqlite-vec/README.md): sqlite-vec 0.1.9 shared and static native extensions for eight desktop/Android RIDs, static iOS ARM64 device/simulator extensions, and single-threaded/multithreaded browser-WASM static libraries, with bundled SQLite for Android/WASM and no ONNX dependency. Windows can use the system WinSQLite engine.
+- [LightStudio.sqlite-vec](package/sqlite-vec/README.md): sqlite-vec 0.1.9 shared and static native extensions for eight desktop/Android RIDs, static iOS ARM64 device/simulator extensions, and single-threaded/multithreaded browser-WASM static libraries, with bundled SQLite for Android/WASM. Windows can use the system WinSQLite engine.
 - [LightStudio.AvaloniaStatic](package/avalonia-static/README.md): Static SkiaSharp 4.153.1, HarfBuzzSharp 14.2.1.301, and ANGLE for Windows, Linux, macOS, and Android on x64 and ARM64, with no managed Avalonia dependency.
 - [LightStudio.GeoNames](package/geonames/README.md): Data-only offline cities1000 database with country and administrative names, seven name languages, stable GeoNames IDs, and a balanced spherical search index. Its independent workflow builds from GeoNames snapshots and packages the gzip-compressed binary with provenance, attribution, and MSBuild paths for embedding.
 - [LightStudio.Fonts](package/fonts/README.md): Data-only Noto Sans CJK SC Regular and Bold OpenType fonts, with the SIL Open Font License and an MSBuild asset directory. Its independent workflow packs the fonts and publishes GitHub releases.
@@ -117,7 +117,7 @@ dotnet add package LightStudio.Ffmpeg --version 9.0.2.1
 
 ### Android, macOS, and Windows
 
-The shared libraries are deployed by the .NET SDK from `runtimes/<rid>/native`; static linking is opt-in. Supply managed bindings such as `FFmpeg.AutoGen.Bindings.DynamicallyLoaded` and initialize `DynamicallyLoadedBindings` before calling FFmpeg. The macOS binaries target macOS 11.0 or later, the Android build script defaults to API 21 (the publishing workflow selects API 35), and Windows targets Windows 10 or later.
+The shared libraries are deployed by the .NET SDK from `runtimes/<rid>/native`; static linking is opt-in. Generate the managed API with the NativeBindings toolkit from the package's exact-build headers and profiles, with `NativeBindingsStatic=false` for shared imports. See the [NativeBindings example](package/ffmpeg/README.md#nativebindings) for the project properties and `[Include]` declarations. The macOS binaries target macOS 11.0 or later, the Android build script defaults to API 21 (the publishing workflow selects API 35), and Windows targets Windows 10 or later.
 
 ### iOS ARM64
 
@@ -126,7 +126,8 @@ only, targeting iOS 15.0 by default. Their `.a` files live under
 `runtimes/ios-arm64/native/` or `runtimes/iossimulator-arm64/native/` for
 automatic linking by .NET for iOS, without custom iOS linking targets or the
 desktop static opt-in properties. Intel simulator RIDs are not included. Use static
-`__Internal` bindings, and supply the system libraries/frameworks listed in each
+`__Internal` bindings; for FFmpeg, set `NativeBindingsStatic=true` and select the
+matching RID profile. Supply the system libraries/frameworks listed in each
 package README. ONNX includes upstream's `net9.0-ios18.0` managed bindings.
 
 Build on macOS with full Xcode and the iPhoneOS/iPhoneSimulator SDKs; set
@@ -156,18 +157,26 @@ The package adds the correct archives as `NativeFileReference` items automatical
 
 ### Static linking with native AOT
 
+In a project that imports the NativeBindings toolkit:
+
 ```xml
 <PropertyGroup>
+  <RuntimeIdentifier>win-x64</RuntimeIdentifier>
   <PublishAot>true</PublishAot>
   <EnableStaticFfmpeg>true</EnableStaticFfmpeg>
+  <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  <NativeBindingsEnabled>true</NativeBindingsEnabled>
+  <NativeBindingsPackageDirectory>$(LightStudioFfmpegPackageRoot)</NativeBindingsPackageDirectory>
+  <NativeBindingsProfile>win-x64-static</NativeBindingsProfile>
+  <NativeBindingsStatic>true</NativeBindingsStatic>
 </PropertyGroup>
 <ItemGroup>
-  <PackageReference Include="FFmpeg.AutoGen.Bindings.StaticallyLinked" Version="9.0.1.1" />
+  <PackageReference Include="LightStudio.Ffmpeg" Version="9.0.2" />
   <DirectPInvoke Include="__Internal" />
 </ItemGroup>
 ```
 
-Publish for `android-arm64`, `android-x64`, `win-x64`, `win-arm64`, or `osx-arm64`, and initialize `StaticallyLinkedBindings` before calling FFmpeg. `EnableStaticFfmpeg` adds the native archives and platform libraries, and drops the package's shared libraries from static publish output. It is ignored without `PublishAot` and on unsupported RIDs; browser-wasm has its own automatic static selection. Android requires a compatible NativeAOT/native-host toolchain, not ordinary Mono AOT. Its linker inputs localize the FFmpeg archives' symbols and request 16 KB page alignment. See the [package README](package/README.md) for hardware APIs, linking details, symbol-isolation limits, and LGPL distribution obligations.
+Publish for `android-arm64`, `android-x64`, `win-x64`, `win-arm64`, or `osx-arm64`, selecting the matching static profile and declaring the FFmpeg headers with NativeBindings `[Include]` attributes. `NativeBindingsStatic=true` generates `__Internal` imports; `DirectPInvoke` configures direct calls for NativeAOT. `EnableStaticFfmpeg` adds the native archives and platform libraries, and drops the package's shared libraries from static publish output. It is ignored without `PublishAot` and on unsupported RIDs; browser-wasm has its own automatic static selection. Android requires a compatible NativeAOT/native-host toolchain, not ordinary Mono AOT. Its linker inputs localize the FFmpeg archives' symbols and request 16 KB page alignment. See the [package README](package/ffmpeg/README.md) for hardware APIs, linking details, symbol-isolation limits, and LGPL distribution obligations.
 
 ## Local builds
 
@@ -190,7 +199,7 @@ git submodule update --init
 # Set ANDROID_NDK_HOME if it is not already exported.
 ./scripts/build-ffmpeg-android.sh                        # artifacts/ffmpeg-android
 
-dotnet pack package/LightStudio.Ffmpeg.csproj --output artifacts/packages
+dotnet pack package/ffmpeg/LightStudio.Ffmpeg.csproj --output artifacts/packages
 ```
 
 ### Windows FFmpeg builds
@@ -338,7 +347,7 @@ without falling back to a source build or another version.
 `osx-arm64`, `ios-arm64`, and `iossimulator-arm64` with Metal; and
 `win-x64` and `win-arm64` with D3D12. Apple x64 is not built. Its own
 [Dawn pin](package/webgpu/Dawn.props) records the upstream tag, commit, and archive
-checksum. No ONNX source or build is involved.
+checksum.
 
 ```sh
 bash scripts/build-webgpu.sh linux-x64

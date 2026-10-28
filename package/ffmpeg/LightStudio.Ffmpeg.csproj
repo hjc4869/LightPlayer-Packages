@@ -18,7 +18,7 @@
     <IsPackable>true</IsPackable>
     <NoWarn>$(NoWarn);NU5128</NoWarn>
 
-    <FFmpegArtifactsPath>$(MSBuildThisFileDirectory)../artifacts</FFmpegArtifactsPath>
+    <FFmpegArtifactsPath>$(MSBuildThisFileDirectory)../../artifacts</FFmpegArtifactsPath>
     <FFmpegProfilePython Condition="'$(FFmpegProfilePython)' == ''">python3</FFmpegProfilePython>
   </PropertyGroup>
 
@@ -71,7 +71,7 @@
     <PropertyGroup>
       <_FFmpegManifest>$(MSBuildProjectDirectory)/$(IntermediateOutputPath)native-bindings/manifest.json</_FFmpegManifest>
     </PropertyGroup>
-    <Exec Command="&quot;$(FFmpegProfilePython)&quot; &quot;$(MSBuildThisFileDirectory)../scripts/ffmpeg-native-bindings.py&quot; manifest &quot;$(FFmpegArtifactsPath)&quot; &quot;$(_FFmpegManifest)&quot; --version &quot;$(PackageVersion)&quot;" />
+    <Exec Command="&quot;$(FFmpegProfilePython)&quot; &quot;$(MSBuildThisFileDirectory)../../scripts/ffmpeg-native-bindings.py&quot; manifest &quot;$(FFmpegArtifactsPath)&quot; &quot;$(_FFmpegManifest)&quot; --version &quot;$(PackageVersion)&quot;" />
     <ItemGroup>
       <None Include="$(_FFmpegManifest)" Pack="true" PackagePath="native-bindings/" />
     </ItemGroup>
@@ -79,15 +79,15 @@
 
   <ItemGroup Label="Documentation and licenses">
     <None Include="README.md" Pack="true" PackagePath="/" />
-    <None Include="../ffmpeg/LICENSE.md" Pack="true" PackagePath="licenses/FFmpeg-LICENSE.md" />
-    <None Include="../ffmpeg/COPYING.LGPLv2.1" Pack="true" PackagePath="licenses/" />
-    <None Include="../dav1d/COPYING" Pack="true" PackagePath="licenses/dav1d/" />
-    <None Include="../libjxl/LICENSE" Pack="true" PackagePath="licenses/libjxl/" />
-    <None Include="../libxml2/Copyright" Pack="true" PackagePath="licenses/libxml2/" />
-    <None Include="../opus/COPYING;../opus/LICENSE_PLEASE_READ.txt" Pack="true" PackagePath="licenses/opus/" />
-    <None Include="../libjxl/third_party/brotli/LICENSE" Pack="true" PackagePath="licenses/brotli/" />
-    <None Include="../libjxl/third_party/highway/LICENSE" Pack="true" PackagePath="licenses/highway/" />
-    <None Include="../lcms2/LICENSE" Pack="true" PackagePath="licenses/lcms2/" />
-    <None Include="../zlib/LICENSE" Pack="true" PackagePath="licenses/zlib/" />
+    <None Include="../../ffmpeg/LICENSE.md" Pack="true" PackagePath="licenses/FFmpeg-LICENSE.md" />
+    <None Include="../../ffmpeg/COPYING.LGPLv2.1" Pack="true" PackagePath="licenses/" />
+    <None Include="../../dav1d/COPYING" Pack="true" PackagePath="licenses/dav1d/" />
+    <None Include="../../libjxl/LICENSE" Pack="true" PackagePath="licenses/libjxl/" />
+    <None Include="../../libxml2/Copyright" Pack="true" PackagePath="licenses/libxml2/" />
+    <None Include="../../opus/COPYING;../../opus/LICENSE_PLEASE_READ.txt" Pack="true" PackagePath="licenses/opus/" />
+    <None Include="../../libjxl/third_party/brotli/LICENSE" Pack="true" PackagePath="licenses/brotli/" />
+    <None Include="../../libjxl/third_party/highway/LICENSE" Pack="true" PackagePath="licenses/highway/" />
+    <None Include="../../lcms2/LICENSE" Pack="true" PackagePath="licenses/lcms2/" />
+    <None Include="../../zlib/LICENSE" Pack="true" PackagePath="licenses/zlib/" />
   </ItemGroup>
 </Project>

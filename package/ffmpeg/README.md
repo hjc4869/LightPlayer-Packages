@@ -47,7 +47,46 @@ and raw DNxHD, JPEG 2000, and VVC streams have matching demuxers.
 
 Shared libraries are deployed automatically by the .NET SDK on Android, macOS, and Windows. Android sonames are unversioned (`libavcodec.so`), macOS dylibs use `@rpath` install names with an `@loader_path` rpath for sibling dependencies, and Windows DLLs use versioned names (`avcodec-63.dll`). FFmpeg's internal dependencies resolve from the application's native library directory. dav1d and libjxl are linked statically into the codec library and libxml2 into the format library, without adding runtime library dependencies. macOS and Windows also embed libopus in the codec library and ship its separate archive for static linking.
 
-Supply managed bindings separately. For example, reference `FFmpeg.AutoGen.Bindings.DynamicallyLoaded` version `9.0.1.1` and initialize `FFmpeg.AutoGen.Bindings.DynamicallyLoaded.DynamicallyLoadedBindings.Initialize()` before calling FFmpeg. Shared deployment works with ordinary .NET applications and NativeAOT; leave `EnableStaticFfmpeg` unset or `false`.
+Generate managed declarations with the NativeBindings toolkit using the package's exact-build headers and profiles. Shared deployment works with ordinary .NET applications and NativeAOT; leave `EnableStaticFfmpeg` unset or `false` and set `NativeBindingsStatic` to `false`.
+
+## NativeBindings
+
+Import the NativeBindings toolkit separately in the project generating the managed declarations, following the same pattern as LightPlayer's FFmpeg shim. This package supplies the native libraries and profiles, not the toolkit or generated managed API.
+
+For a Windows x64 shared build:
+
+```xml
+<PropertyGroup>
+  <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+  <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  <NativeBindingsEnabled>true</NativeBindingsEnabled>
+  <NativeBindingsPackageDirectory>$(LightStudioFfmpegPackageRoot)</NativeBindingsPackageDirectory>
+  <NativeBindingsProfile>win-x64-shared</NativeBindingsProfile>
+  <NativeBindingsStatic>false</NativeBindingsStatic>
+</PropertyGroup>
+<ItemGroup>
+  <PackageReference Include="LightStudio.Ffmpeg" Version="9.0.2.1" />
+</ItemGroup>
+```
+
+Declare the headers needed by the application on a partial class:
+
+```csharp
+using System.Reflection;
+using LightStudio.NativeBindings;
+
+[Include("libavcodec/avcodec.h", Access = BindingFlags.Public)]
+[Include("libavformat/avformat.h", Access = BindingFlags.Public)]
+[Include("libavutil/avutil.h", Access = BindingFlags.Public)]
+[Include("libavfilter/avfilter.h", Access = BindingFlags.Public)]
+[Include("libswresample/swresample.h", Access = BindingFlags.Public)]
+[Include("libswscale/swscale.h", Access = BindingFlags.Public)]
+public static unsafe partial class Ffmpeg;
+```
+
+Call FFmpeg through the generated `Ffmpeg` declarations. Configure the provider in this project; the package does not configure bindings for unrelated native libraries.
+
+Select one exact profile from `native-bindings/manifest.json`. Windows uses `<rid>-shared` or `<rid>-static`; Android and Apple use their RID. Browser profiles are `wasm-st-em3`, `wasm-mt-em3`, `wasm-st-em6`, and `wasm-mt-em6`, matching the application's threading model and Emscripten generation. Set `NativeBindingsStatic` to `true` for static NativeAOT, iOS, and browser builds to generate `__Internal` imports. Binding generation and native linking are separate: configure the package's linking settings below as well. Platform SDK/system headers must come from the matching toolchain.
 
 ## Exact-build headers and profiles
 
@@ -83,7 +122,7 @@ For a partial local package, stage only the desired builds in an isolated
 artifact root using `FFMPEG_ARTIFACTS_DIR`, then run:
 
 ```sh
-dotnet pack package/LightStudio.Ffmpeg.csproj -c Release \
+dotnet pack package/ffmpeg/LightStudio.Ffmpeg.csproj -c Release \
   -p:FFmpegArtifactsPath=/absolute/path/to/partial-artifacts \
   -p:PackageVersion=9.0.2.1-prototype -o artifacts/packages
 ```
@@ -98,7 +137,8 @@ Target `ios-arm64` for devices or `iossimulator-arm64` for the ARM64 simulator
 with .NET for iOS. The SDK automatically links the `.a`
 assets in `runtimes/<rid>/native/`; no package-specific linking targets,
 manual archive references, or `EnableStaticFfmpeg` setting are needed. Use
-static bindings with `__Internal`, not a dynamic library loader.
+NativeBindings with `NativeBindingsStatic=true` and the matching RID profile
+to generate `__Internal` imports.
 
 The build targets iOS 15 or later and includes the common decoding and demuxing
 components, pthreads, and VideoToolbox. Hardware codec availability depends on the
@@ -136,14 +176,19 @@ Set `EnableStaticFfmpeg` to link the static archives into the AOT binary instead
   <RuntimeIdentifier>win-x64</RuntimeIdentifier>
   <PublishAot>true</PublishAot>
   <EnableStaticFfmpeg>true</EnableStaticFfmpeg>
+  <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  <NativeBindingsEnabled>true</NativeBindingsEnabled>
+  <NativeBindingsPackageDirectory>$(LightStudioFfmpegPackageRoot)</NativeBindingsPackageDirectory>
+  <NativeBindingsProfile>win-x64-static</NativeBindingsProfile>
+  <NativeBindingsStatic>true</NativeBindingsStatic>
 </PropertyGroup>
 <ItemGroup>
-  <PackageReference Include="FFmpeg.AutoGen.Bindings.StaticallyLinked" Version="9.0.1.1" />
+  <PackageReference Include="LightStudio.Ffmpeg" Version="9.0.2.1" />
   <DirectPInvoke Include="__Internal" />
 </ItemGroup>
 ```
 
-Use `android-arm64`, `android-x64`, `win-x64`, `win-arm64`, or `osx-arm64`. Initialize `FFmpeg.AutoGen.Bindings.StaticallyLinked.StaticallyLinkedBindings.Initialize()` before using the abstractions, and do not initialize the dynamically loaded bindings in that build. Other P/Invoke bindings need equivalent direct-call configuration.
+Use `android-arm64`, `android-x64`, `win-x64`, `win-arm64`, or `osx-arm64`. Import the NativeBindings toolkit and declare the FFmpeg headers as above, selecting the matching static profile and setting `NativeBindingsStatic=true`. Call the generated declarations through `__Internal`; `DirectPInvoke` configures those imports as direct calls for NativeAOT.
 
 The package adds the native archives and required system libraries: `mfuuid`, `ole32`, `strmiids`, `user32`, and `bcrypt` on Windows; `c++`, `z`, `CoreMedia`, `CoreVideo`, and `VideoToolbox` on macOS; `c++_static`, `c++abi`, `z`, `android`, `mediandk`, `log`, `dl`, and `m` on Android. This package's shared libraries are removed from static publish output. `EnableStaticFfmpeg` is ignored without `PublishAot` and on unsupported RIDs. `LightStudioFfmpegStaticLibraryDir` can override the archive directory for local builds; Android and Windows consumers fail early if any required archive is missing.
 

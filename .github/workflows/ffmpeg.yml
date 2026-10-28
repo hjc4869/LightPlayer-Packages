@@ -270,7 +270,7 @@ jobs:
 
       - name: Pack NuGet package
         run: >-
-          dotnet pack package/LightStudio.Ffmpeg.csproj
+          dotnet pack package/ffmpeg/LightStudio.Ffmpeg.csproj
           --configuration Release
           --output "$PACKAGE_OUTPUT"
           -p:PackageVersion=${{ steps.package-version.outputs.value }}

@@ -9,7 +9,7 @@
     <PackageId>LightStudio.WebGPU</PackageId>
     <Version>$(DawnPackageVersion)</Version>
     <Authors>LightStudio</Authors>
-    <Description>Dawn WebGPU native libraries for Linux, Android, Windows, macOS and iOS, with Vulkan, D3D12 and Metal backends, exact-build C headers and NativeBindings profiles. No ONNX or managed binding dependency.</Description>
+    <Description>Dawn WebGPU native libraries for Linux, Android, Windows, macOS and iOS, with Vulkan, D3D12 and Metal backends, exact-build C headers and NativeBindings profiles.</Description>
     <PackageTags>webgpu;dawn;gpu;native;nativebindings;linux;android;windows;macos;ios;metal;d3d12</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageLicenseExpression>BSD-3-Clause</PackageLicenseExpression>

@@ -200,7 +200,7 @@ def manifest(args):
     if not profiles:
         raise ValueError("No FFmpeg profiles found; rebuild native artifacts with installed headers first")
     native_paths = set()
-    for item in ET.parse(REPO / "package/LightStudio.Ffmpeg.csproj").iter("None"):
+    for item in ET.parse(REPO / "package/ffmpeg/LightStudio.Ffmpeg.csproj").iter("None"):
         include = item.get("Include", "")
         prefix = "$(FFmpegArtifactsPath)/"
         if include.startswith(prefix) and Path(include).suffix in (".a", ".lib", ".so", ".dll", ".dylib"):
@@ -238,7 +238,7 @@ def main():
     aggregate = commands.add_parser("manifest")
     aggregate.add_argument("artifacts", type=Path)
     aggregate.add_argument("output", type=Path)
-    aggregate.add_argument("--version", default=ET.parse(REPO / "package/LightStudio.Ffmpeg.csproj").findtext("PropertyGroup/Version"))
+    aggregate.add_argument("--version", default=ET.parse(REPO / "package/ffmpeg/LightStudio.Ffmpeg.csproj").findtext("PropertyGroup/Version"))
     args = parser.parse_args()
     (stage if args.command == "stage" else manifest)(args)
 

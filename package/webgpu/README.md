@@ -19,16 +19,14 @@ binding or ONNX package dependency.
 NuGet selects the native library under `runtimes/<rid>/native/`: `libwebgpu_dawn.so`
 on Linux/Android, `libwebgpu_dawn.dylib` on macOS, `webgpu_dawn.dll` on Windows,
 and `libwebgpu_dawn.a` on iOS. Windows also includes the matching import `.lib`.
-The library implements the WebGPU C entry points directly; no ONNX session,
-execution-provider registration, or Dawn proc-table setup is required. The C++
-runtime is linked statically on Linux, Android and Windows. Apple uses the system
-C++ runtime. Android uses 16 KB page alignment and does not
-require `libc++_shared.so`. GPU availability depends on the platform driver.
-The iOS build targets automatically link the static archive, C++ runtime, and
-Metal, Foundation, IOSurface and QuartzCore frameworks. Use `__Internal` for iOS
-P/Invoke imports. Windows uses the system D3D12/FXC path without requiring the
-Agility SDK or bundling DXC; optional features requiring DXC are unavailable.
-Apple x64, browser WASM, musl, and non-iOS static libraries are not included.
+The library implements the WebGPU C entry points directly. The C++ runtime is
+linked statically on Linux, Android and Windows. Apple uses the system C++ runtime.
+Android uses 16 KB page alignment and does not require `libc++_shared.so`.
+GPU availability depends on the platform driver. The iOS build targets automatically
+link the static archive, C++ runtime, and Metal, Foundation, IOSurface and QuartzCore
+frameworks. Use `__Internal` for iOS P/Invoke imports. Windows uses the system
+D3D12/FXC path without requiring the Agility SDK or bundling DXC; optional features
+requiring DXC are unavailable.
 
 ## NativeBindings
 
@@ -148,11 +146,5 @@ creates the corresponding GitHub release. The default `publish=false` uploads
 only workflow artifacts. `-p:PackageVersion=...` provides the local pack override;
 neither override changes the pinned Dawn sources.
 
-ONNX downloads this `.nupkg` from the `webgpu-v<package-version>` GitHub release
-and uses `dawn-api/<rid>` with `onnxruntime_DAWN_PREBUILT_DIR`; it does not fetch
-or build Dawn. See ONNX Runtime's
-[external Dawn contract](https://github.com/microsoft/onnxruntime/blob/main/docs/WebGPU_External_Dawn.md).
-ONNX WebGPU consumers must supply the matching `dawnProcTable` provider option;
-standalone WebGPU C API consumers need no ONNX or proc-table setup.
 Dawn's BSD license, third-party notices, and static C++ runtime notices are
 included under `licenses/<rid>/`.
