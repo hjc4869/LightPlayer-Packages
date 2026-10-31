@@ -40,7 +40,7 @@ The HLS and DASH demuxers and file protocol are enabled on every runtime for app
 
 PGS (Blu-ray bitmap) subtitles are enabled on every runtime through the `pgssub` decoder, including embedded PGS tracks in Matroska and MPEG-TS. The `sup` demuxer also supports standalone `.sup` subtitle files.
 
-Android's HEVC and AV1 MediaCodec decoders attach Dolby Vision and HDR10+ frame side data, as the native decoders do. MediaCodec does not return this metadata, so [`build-ffmpeg-android.sh`](scripts/build-ffmpeg-android.sh) applies [`ffmpeg-mediacodec-hdr-metadata.patch`](patches/ffmpeg-mediacodec-hdr-metadata.patch), which parses it from the input packets in decode order and attaches it to the output frames matched by presentation timestamp.
+Android's MediaCodec video decoders give each frame its packet's properties and side data, such as HDR10+ from WebM and Matroska, and the HEVC and AV1 decoders also attach the bitstream's Dolby Vision and HDR10+ metadata, as the native decoders do. MediaCodec returns neither, and it reports BT.709 for color properties a bitstream leaves out, such as VP9's transfer characteristics, so [`build-ffmpeg-android.sh`](scripts/build-ffmpeg-android.sh) applies [`ffmpeg-mediacodec-hdr-metadata.patch`](patches/ffmpeg-mediacodec-hdr-metadata.patch), which takes them from the input packets in decode order, applies them to the output frames matched by presentation timestamp, and configures the codec with the stream's color properties.
 
 ## Photo formats
 
