@@ -194,7 +194,7 @@ The package adds the native archives and required system libraries: `mfuuid`, `o
 
 ### Android requirements
 
-Each Android RID includes seven FFmpeg archives plus dav1d, libjxl, libjxl_cms, libjxl_threads, LCMS2, Highway, three Brotli archives, and libxml2. zlib remains an Android system library; the C++ runtime comes from the consuming NDK. JNI and MediaCodec support are retained.
+Each Android RID includes seven FFmpeg archives plus dav1d, libjxl, libjxl_cms, libjxl_threads, LCMS2, Highway, three Brotli archives, and libxml2. zlib remains an Android system library; the C++ runtime comes from the consuming NDK. JNI and MediaCodec support are retained. The HEVC and AV1 MediaCodec decoders attach `AV_FRAME_DATA_DOVI_METADATA`, `AV_FRAME_DATA_DOVI_RPU_BUFFER`, and `AV_FRAME_DATA_DYNAMIC_HDR_PLUS` side data parsed from the input packets, matching the native decoders.
 
 Use an Android NativeAOT/native-host toolchain that supports `NativeLibrary`, `NativeSystemLibrary`, `LinkerArg`, and direct P/Invoke. This opt-in does not enable static linking for ordinary Mono-based .NET for Android applications. Match the Android API and NDK to the binaries: the build script defaults to API 21, while the publishing workflow selects API 35 with NDK r28c. The final link requests 16 KB page alignment and localizes symbols from the FFmpeg archive set with `--exclude-libs`; static calls must use direct bindings, not runtime symbol lookup. Link FFmpeg archives normally, not with blanket `--whole-archive`, because upstream libraries share some internal helper objects.
 

@@ -1,0 +1,692 @@
+avcodec/mediacodecdec: export Dolby Vision and HDR10+ metadata
+
+MediaCodec does not return the bitstream's dynamic HDR metadata. Parse HEVC
+RPU NAL units and HDR10+ SEI, and AV1 ITU-T T.35 metadata OBUs, from the
+packets in decode order and attach AV_FRAME_DATA_DOVI_METADATA,
+AV_FRAME_DATA_DOVI_RPU_BUFFER and AV_FRAME_DATA_DYNAMIC_HDR_PLUS to the
+output frames matched by presentation timestamp.
+---
+ configure                           |   3 +-
+ libavcodec/Makefile                 |   4 +-
+ libavcodec/mediacodecdec.c          |  45 +++-
+ libavcodec/mediacodecdec_metadata.c | 448 ++++++++++++++++++++++++++++++++++++
+ libavcodec/mediacodecdec_metadata.h |  59 +++++
+ 5 files changed, 552 insertions(+), 7 deletions(-)
+
+diff --git a/configure b/configure
+index 374bd5c151..7c2baa24c0 100755
+--- a/configure
++++ b/configure
+@@ -3612,6 +3612,7 @@ av1_cuvid_decoder_deps="cuvid CUVIDAV1PICPARAMS"
+ av1_d3d12va_encoder_deps="d3d12va d3d12va_av1_headers"
+ av1_d3d12va_encoder_select="cbs_av1 d3d12va_encode"
+ av1_mediacodec_decoder_deps="mediacodec"
++av1_mediacodec_decoder_select="dovi_rpudec itut_t35"
+ av1_mediacodec_encoder_deps="mediacodec"
+ av1_mediacodec_encoder_select="extract_extradata_bsf"
+ av1_mf_encoder_deps="mediafoundation"
+@@ -3658,7 +3659,7 @@ hevc_cuvid_decoder_deps="cuvid"
+ hevc_cuvid_decoder_select="hevc_mp4toannexb_bsf"
+ hevc_d3d12va_encoder_select="cbs_h265 d3d12va_encode"
+ hevc_mediacodec_decoder_deps="mediacodec"
+-hevc_mediacodec_decoder_select="hevc_mp4toannexb_bsf hevc_parser"
++hevc_mediacodec_decoder_select="dovi_rpudec hevc_mp4toannexb_bsf hevc_parser itut_t35"
+ hevc_mediacodec_encoder_deps="mediacodec"
+ hevc_mediacodec_encoder_select="extract_extradata_bsf hevc_metadata"
+ hevc_mf_encoder_deps="mediafoundation"
+diff --git a/libavcodec/Makefile b/libavcodec/Makefile
+index 95ba308504..2171d68018 100644
+--- a/libavcodec/Makefile
++++ b/libavcodec/Makefile
+@@ -275,7 +275,7 @@ OBJS-$(CONFIG_AURA2_DECODER)           += aura.o
+ OBJS-$(CONFIG_AV1_DECODER)             += av1dec.o av1_parse.o
+ OBJS-$(CONFIG_AV1_CUVID_DECODER)       += cuviddec.o
+ OBJS-$(CONFIG_AV1_D3D12VA_ENCODER)     += d3d12va_encode_av1.o av1_levels.o
+-OBJS-$(CONFIG_AV1_MEDIACODEC_DECODER)  += mediacodecdec.o
++OBJS-$(CONFIG_AV1_MEDIACODEC_DECODER)  += mediacodecdec.o mediacodecdec_metadata.o av1_parse.o
+ OBJS-$(CONFIG_AV1_MEDIACODEC_ENCODER)  += mediacodecenc.o
+ OBJS-$(CONFIG_AV1_NVENC_ENCODER)       += nvenc_av1.o nvenc.o
+ OBJS-$(CONFIG_AV1_QSV_ENCODER)         += qsvenc_av1.o
+@@ -466,7 +466,7 @@ OBJS-$(CONFIG_HEVC_AMF_DECODER)        += amfdec.o
+ OBJS-$(CONFIG_HEVC_CUVID_DECODER)      += cuviddec.o
+ OBJS-$(CONFIG_HEVC_D3D12VA_ENCODER)    += d3d12va_encode_hevc.o h265_profile_level.o \
+                                           h2645data.o hw_base_encode_h265.o
+-OBJS-$(CONFIG_HEVC_MEDIACODEC_DECODER) += mediacodecdec.o
++OBJS-$(CONFIG_HEVC_MEDIACODEC_DECODER) += mediacodecdec.o mediacodecdec_metadata.o
+ OBJS-$(CONFIG_HEVC_MEDIACODEC_ENCODER) += mediacodecenc.o
+ OBJS-$(CONFIG_HEVC_MF_ENCODER)         += mfenc.o mf_utils.o
+ OBJS-$(CONFIG_HEVC_NVENC_ENCODER)      += nvenc_hevc.o nvenc.o
+diff --git a/libavcodec/mediacodecdec.c b/libavcodec/mediacodecdec.c
+index bc176d8070..61352d4e06 100644
+--- a/libavcodec/mediacodecdec.c
++++ b/libavcodec/mediacodecdec.c
+@@ -44,12 +44,16 @@
+ #include "jni.h"
+ #include "mediacodec_wrapper.h"
+ #include "mediacodecdec_common.h"
++#include "mediacodecdec_metadata.h"
++
++#define METADATA_EXPORT (CONFIG_HEVC_MEDIACODEC_DECODER || CONFIG_AV1_MEDIACODEC_DECODER)
+ 
+ typedef struct MediaCodecH264DecContext {
+ 
+     AVClass *avclass;
+ 
+     MediaCodecDecContext *ctx;
++    MediaCodecDecMetadata *metadata;
+ 
+     AVPacket buffered_pkt;
+ 
+@@ -68,6 +72,9 @@ static av_cold int mediacodec_decode_close(AVCodecContext *avctx)
+     ff_mediacodec_dec_close(avctx, s->ctx);
+     s->ctx = NULL;
+ 
++    if (METADATA_EXPORT)
++        ff_mediacodec_dec_metadata_free(&s->metadata);
++
+     av_packet_unref(&s->buffered_pkt);
+ 
+     return 0;
+@@ -318,6 +325,12 @@ static av_cold int mediacodec_decode_init(AVCodecContext *avctx)
+     if (s->use_ndk_codec < 0)
+         s->use_ndk_codec = !av_jni_get_java_vm(avctx);
+ 
++    if (METADATA_EXPORT) {
++        ret = ff_mediacodec_dec_metadata_init(avctx, &s->metadata);
++        if (ret < 0)
++            goto done;
++    }
++
+     format = ff_AMediaFormat_new(s->use_ndk_codec);
+     if (!format) {
+         av_log(avctx, AV_LOG_ERROR, "Failed to create media format\n");
+@@ -486,6 +499,21 @@ done:
+     return ret;
+ }
+ 
++static int mediacodec_receive(AVCodecContext *avctx, MediaCodecH264DecContext *s,
++                              AVFrame *frame, bool wait)
++{
++    int ret = ff_mediacodec_dec_receive(avctx, s->ctx, frame, wait);
++
++    if (METADATA_EXPORT && ret >= 0 && s->metadata) {
++        int err = ff_mediacodec_dec_metadata_attach(avctx, s->metadata, frame);
++        if (err < 0) {
++            av_frame_unref(frame);
++            return err;
++        }
++    }
++    return ret;
++}
++
+ static int mediacodec_receive_frame(AVCodecContext *avctx, AVFrame *frame)
+ {
+     MediaCodecH264DecContext *s = avctx->priv_data;
+@@ -501,7 +529,7 @@ static int mediacodec_receive_frame(AVCodecContext *avctx, AVFrame *frame)
+     }
+ 
+     /* poll for new frame */
+-    ret = ff_mediacodec_dec_receive(avctx, s->ctx, frame, false);
++    ret = mediacodec_receive(avctx, s, frame, false);
+     if (ret != AVERROR(EAGAIN))
+         return ret;
+ 
+@@ -512,7 +540,7 @@ static int mediacodec_receive_frame(AVCodecContext *avctx, AVFrame *frame)
+             index = ff_AMediaCodec_dequeueInputBuffer(s->ctx->codec, 0);
+             if (index < 0) {
+                 /* no space, block for an output frame to appear */
+-                ret = ff_mediacodec_dec_receive(avctx, s->ctx, frame, true);
++                ret = mediacodec_receive(avctx, s, frame, true);
+                 /* Try again if both input port and output port return EAGAIN.
+                  * If no data is consumed and no frame in output, it can make
+                  * both avcodec_send_packet() and avcodec_receive_frame()
+@@ -558,12 +586,18 @@ static int mediacodec_receive_frame(AVCodecContext *avctx, AVFrame *frame)
+             ret = ff_mediacodec_dec_send(avctx, s->ctx, &null_pkt, true);
+             if (ret < 0)
+                 return ret;
+-            return ff_mediacodec_dec_receive(avctx, s->ctx, frame, true);
++            return mediacodec_receive(avctx, s, frame, true);
+         } else if (ret == AVERROR(EAGAIN) && s->ctx->current_input_buffer < 0) {
+-            return ff_mediacodec_dec_receive(avctx, s->ctx, frame, true);
++            return mediacodec_receive(avctx, s, frame, true);
+         } else if (ret < 0) {
+             return ret;
+         }
++
++        if (METADATA_EXPORT && s->metadata) {
++            ret = ff_mediacodec_dec_metadata_parse(avctx, s->metadata, &s->buffered_pkt);
++            if (ret < 0)
++                return ret;
++        }
+     }
+ 
+     return AVERROR(EAGAIN);
+@@ -575,6 +609,9 @@ static void mediacodec_decode_flush(AVCodecContext *avctx)
+ 
+     av_packet_unref(&s->buffered_pkt);
+ 
++    if (METADATA_EXPORT)
++        ff_mediacodec_dec_metadata_flush(s->metadata);
++
+     ff_mediacodec_dec_flush(avctx, s->ctx);
+ }
+ 
+diff --git a/libavcodec/mediacodecdec_metadata.c b/libavcodec/mediacodecdec_metadata.c
+new file mode 100644
+index 0000000000..fd75512151
+--- /dev/null
++++ b/libavcodec/mediacodecdec_metadata.c
+@@ -0,0 +1,448 @@
++/*
++ * Android MediaCodec decoder dynamic HDR metadata export
++ *
++ * This file is part of FFmpeg.
++ *
++ * FFmpeg is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * FFmpeg is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with FFmpeg; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
++ */
++
++#include "config_components.h"
++
++#include <stdint.h>
++#include <string.h>
++
++#include "libavutil/buffer.h"
++#include "libavutil/dovi_meta.h"
++#include "libavutil/mem.h"
++
++#include "decode.h"
++#include "dovi_rpu.h"
++#include "itut35.h"
++#include "mediacodecdec_metadata.h"
++#include "sei.h"
++
++#if CONFIG_AV1_MEDIACODEC_DECODER
++#include "av1.h"
++#include "av1_parse.h"
++#endif
++
++#if CONFIG_HEVC_MEDIACODEC_DECODER
++#include "hevc/hevc.h"
++#endif
++
++/* More than the pictures a codec keeps in flight; once full, the oldest entry
++ * belongs to a picture MediaCodec dropped. */
++#define MAX_PENDING 64
++
++typedef struct PendingMetadata {
++    int64_t pts;
++    AVBufferRef *dovi;
++    AVBufferRef *dovi_rpu;
++    AVBufferRef *hdr_plus;
++} PendingMetadata;
++
++struct MediaCodecDecMetadata {
++    DOVIContext dovi;
++    /* Dolby Vision metadata applies to every HEVC picture until the next RPU. */
++    AVBufferRef *current_dovi;
++
++    uint8_t *rbsp;
++    unsigned int rbsp_size;
++
++#if CONFIG_AV1_MEDIACODEC_DECODER
++    AV1Packet av1_pkt;
++#endif
++
++    PendingMetadata pending[MAX_PENDING];
++    int nb_pending;
++};
++
++static void pending_unref(PendingMetadata *p)
++{
++    av_buffer_unref(&p->dovi);
++    av_buffer_unref(&p->dovi_rpu);
++    av_buffer_unref(&p->hdr_plus);
++}
++
++/* The timestamp the output frame carries after MediaCodec's microsecond round trip. */
++static int64_t output_pts(const AVCodecContext *avctx, int64_t pts)
++{
++    if (!avctx->pkt_timebase.num || !avctx->pkt_timebase.den)
++        return pts;
++    if (pts)
++        pts = av_rescale_q(pts, avctx->pkt_timebase, AV_TIME_BASE_Q);
++    return av_rescale_q(pts, AV_TIME_BASE_Q, avctx->pkt_timebase);
++}
++
++static int parse_t35(AVCodecContext *avctx, PendingMetadata *p, DOVIContext *dovi,
++                     const uint8_t *buf, int size)
++{
++    FFITUTT35 itut_t35 = { 0 };
++    FFITUTT35Aux aux = { .dovi = dovi };
++    FFITUTT35Meta meta = { 0 };
++    int ret;
++
++    ret = ff_itut_t35_parse_buffer(&itut_t35, buf, size, 0);
++    if (ret <= 0)
++        return 0;
++
++    ret = ff_itut_t35_parse_payload_to_struct(&itut_t35, &aux, &meta, avctx->err_recognition);
++    if (ret == AVERROR(ENOMEM)) {
++        ff_itut_t35_unref(&meta);
++        return ret;
++    }
++
++    if (meta.dovi) {
++        av_buffer_unref(&p->dovi);
++        p->dovi = meta.dovi;
++        meta.dovi = NULL;
++    }
++    if (meta.hdr_plus) {
++        av_buffer_unref(&p->hdr_plus);
++        p->hdr_plus = meta.hdr_plus;
++        meta.hdr_plus = NULL;
++    }
++    ff_itut_t35_unref(&meta);
++    return 0;
++}
++
++#if CONFIG_HEVC_MEDIACODEC_DECODER
++static int find_start_code(const uint8_t *buf, int pos, int size)
++{
++    while (pos + 2 < size) {
++        if (buf[pos + 2] > 1)
++            pos += 3;
++        else if (buf[pos + 1])
++            pos += 2;
++        else if (buf[pos] || buf[pos + 2] != 1)
++            pos++;
++        else
++            return pos;
++    }
++    return size;
++}
++
++static int extract_rbsp(MediaCodecDecMetadata *m, const uint8_t *src, int size)
++{
++    int len = 0;
++
++    av_fast_padded_malloc(&m->rbsp, &m->rbsp_size, size);
++    if (!m->rbsp)
++        return AVERROR(ENOMEM);
++
++    for (int i = 0; i < size; i++) {
++        if (i + 2 < size && !src[i] && !src[i + 1] && src[i + 2] == 3) {
++            m->rbsp[len++] = 0;
++            m->rbsp[len++] = 0;
++            i += 2;
++            continue;
++        }
++        m->rbsp[len++] = src[i];
++    }
++    return len;
++}
++
++static int parse_hevc_sei(AVCodecContext *avctx, PendingMetadata *p,
++                          const uint8_t *buf, int size)
++{
++    int pos = 0;
++
++    while (size > 0 && !buf[size - 1])
++        size--;
++
++    /* The last byte holds the rbsp_trailing_bits. */
++    while (size - pos > 1) {
++        int type = 0, payload_size = 0, ret;
++
++        do {
++            if (pos >= size)
++                return 0;
++            type += buf[pos];
++        } while (buf[pos++] == 0xFF);
++
++        do {
++            if (pos >= size)
++                return 0;
++            payload_size += buf[pos];
++        } while (buf[pos++] == 0xFF);
++
++        if (payload_size > size - pos)
++            return 0;
++
++        if (type == SEI_TYPE_USER_DATA_REGISTERED_ITU_T_T35) {
++            ret = parse_t35(avctx, p, NULL, buf + pos, payload_size);
++            if (ret < 0)
++                return ret;
++        }
++        pos += payload_size;
++    }
++    return 0;
++}
++
++static int parse_hevc(AVCodecContext *avctx, MediaCodecDecMetadata *m,
++                      PendingMetadata *p, const AVPacket *pkt)
++{
++    const uint8_t *buf = pkt->data, *rpu = NULL;
++    int size = pkt->size, rpu_size = 0, nal_index = 0;
++    int pos = find_start_code(buf, 0, size);
++    int ret;
++
++    while (pos < size) {
++        int start = pos + 3, end, type, layer_id, temporal_id;
++
++        pos = end = find_start_code(buf, start, size);
++        while (end > start && !buf[end - 1])
++            end--;
++        if (end - start < 2)
++            continue;
++
++        type        = (buf[start] >> 1) & 0x3F;
++        layer_id    = ((buf[start] & 1) << 5) | (buf[start + 1] >> 3);
++        temporal_id = (buf[start + 1] & 7) - 1;
++
++        /* Same RPU selection as the native HEVC decoder: the last one in the
++         * access unit, never its first NAL unit. */
++        if (type == HEVC_NAL_UNSPEC62 && nal_index > 0 && end - start > 2 &&
++            !layer_id && !temporal_id) {
++            rpu      = buf + start;
++            rpu_size = end - start;
++        } else if (type == HEVC_NAL_SEI_PREFIX && !layer_id) {
++            ret = extract_rbsp(m, buf + start, end - start);
++            if (ret < 0)
++                return ret;
++            ret = parse_hevc_sei(avctx, p, m->rbsp + 2, ret - 2);
++            if (ret < 0)
++                return ret;
++        }
++        nal_index++;
++    }
++
++    if (rpu) {
++        AVDOVIMetadata *dovi;
++        int rbsp_size = extract_rbsp(m, rpu, rpu_size);
++        if (rbsp_size < 0)
++            return rbsp_size;
++
++        ret = ff_dovi_rpu_parse(&m->dovi, m->rbsp + 2, rbsp_size - 2, avctx->err_recognition);
++        if (ret < 0) {
++            av_log(avctx, AV_LOG_WARNING, "Error parsing DOVI NAL unit.\n");
++        } else {
++            p->dovi_rpu = av_buffer_alloc(rpu_size - 2);
++            if (!p->dovi_rpu)
++                return AVERROR(ENOMEM);
++            memcpy(p->dovi_rpu->data, rpu + 2, rpu_size - 2);
++        }
++
++        av_buffer_unref(&m->current_dovi);
++        ret = ff_dovi_get_metadata(&m->dovi, &dovi);
++        if (ret < 0)
++            return ret;
++        if (ret > 0) {
++            m->current_dovi = av_buffer_create((uint8_t *)dovi, ret, NULL, NULL, 0);
++            if (!m->current_dovi) {
++                av_free(dovi);
++                return AVERROR(ENOMEM);
++            }
++        }
++    }
++
++    if (m->current_dovi) {
++        p->dovi = av_buffer_ref(m->current_dovi);
++        if (!p->dovi)
++            return AVERROR(ENOMEM);
++    }
++    return 0;
++}
++#endif
++
++#if CONFIG_AV1_MEDIACODEC_DECODER
++static int read_leb128(const uint8_t *buf, int size, int *pos, uint64_t *value)
++{
++    *value = 0;
++    for (int i = 0; i < 8; i++) {
++        if (*pos >= size)
++            return AVERROR_INVALIDDATA;
++        *value |= (uint64_t)(buf[*pos] & 0x7F) << (i * 7);
++        if (!(buf[(*pos)++] & 0x80))
++            return 0;
++    }
++    return AVERROR_INVALIDDATA;
++}
++
++static int parse_av1(AVCodecContext *avctx, MediaCodecDecMetadata *m,
++                     PendingMetadata *p, const AVPacket *pkt)
++{
++    int ret = ff_av1_packet_split(&m->av1_pkt, pkt->data, pkt->size, avctx);
++    if (ret < 0)
++        return 0;
++
++    for (int i = 0; i < m->av1_pkt.nb_obus; i++) {
++        const AV1OBU *obu = &m->av1_pkt.obus[i];
++        int size = (obu->size_bits + 7) / 8, pos = 0;
++        uint64_t metadata_type;
++
++        if (obu->type != AV1_OBU_METADATA ||
++            read_leb128(obu->data, size, &pos, &metadata_type) < 0 ||
++            metadata_type != AV1_METADATA_TYPE_ITUT_T35)
++            continue;
++
++        ret = parse_t35(avctx, p, &m->dovi, obu->data + pos, size - pos);
++        if (ret < 0)
++            return ret;
++    }
++    return 0;
++}
++#endif
++
++int ff_mediacodec_dec_metadata_init(AVCodecContext *avctx, MediaCodecDecMetadata **out)
++{
++    const AVPacketSideData *sd;
++    MediaCodecDecMetadata *m;
++
++    *out = NULL;
++    if (!(CONFIG_HEVC_MEDIACODEC_DECODER && avctx->codec_id == AV_CODEC_ID_HEVC) &&
++        !(CONFIG_AV1_MEDIACODEC_DECODER && avctx->codec_id == AV_CODEC_ID_AV1))
++        return 0;
++
++    m = av_mallocz(sizeof(*m));
++    if (!m)
++        return AVERROR(ENOMEM);
++
++    m->dovi.logctx = avctx;
++    if (avctx->codec_id == AV_CODEC_ID_AV1)
++        m->dovi.cfg.dv_profile = 10;
++    sd = ff_get_coded_side_data(avctx, AV_PKT_DATA_DOVI_CONF);
++    if (sd && sd->size >= sizeof(m->dovi.cfg))
++        m->dovi.cfg = *(const AVDOVIDecoderConfigurationRecord *)sd->data;
++
++    *out = m;
++    return 0;
++}
++
++int ff_mediacodec_dec_metadata_parse(AVCodecContext *avctx, MediaCodecDecMetadata *m,
++                                     const AVPacket *pkt)
++{
++    PendingMetadata p = { 0 };
++    const uint8_t *sd;
++    size_t sd_size;
++    int ret = 0;
++
++    if (!m || !pkt->size)
++        return 0;
++
++    sd = av_packet_get_side_data(pkt, AV_PKT_DATA_DOVI_CONF, &sd_size);
++    if (sd && sd_size >= sizeof(m->dovi.cfg))
++        m->dovi.cfg = *(const AVDOVIDecoderConfigurationRecord *)sd;
++
++#if CONFIG_HEVC_MEDIACODEC_DECODER
++    if (avctx->codec_id == AV_CODEC_ID_HEVC)
++        ret = parse_hevc(avctx, m, &p, pkt);
++#endif
++#if CONFIG_AV1_MEDIACODEC_DECODER
++    if (avctx->codec_id == AV_CODEC_ID_AV1)
++        ret = parse_av1(avctx, m, &p, pkt);
++#endif
++    if (ret < 0) {
++        pending_unref(&p);
++        return ret;
++    }
++
++    /* MediaCodec turns a missing timestamp into 0 for every packet, so the
++     * pictures could not be told apart. */
++    if (pkt->pts == AV_NOPTS_VALUE || (!p.dovi && !p.dovi_rpu && !p.hdr_plus)) {
++        pending_unref(&p);
++        return 0;
++    }
++
++    p.pts = output_pts(avctx, pkt->pts);
++    if (m->nb_pending == MAX_PENDING) {
++        pending_unref(&m->pending[0]);
++        memmove(&m->pending[0], &m->pending[1], (MAX_PENDING - 1) * sizeof(*m->pending));
++        m->nb_pending--;
++    }
++    m->pending[m->nb_pending++] = p;
++    return 0;
++}
++
++static int attach_dovi(AVFrame *frame, enum AVFrameSideDataType type, AVBufferRef **buf)
++{
++    if (!*buf)
++        return 0;
++    if (!av_frame_new_side_data_from_buf(frame, type, *buf))
++        return AVERROR(ENOMEM);
++    *buf = NULL;
++    return 0;
++}
++
++int ff_mediacodec_dec_metadata_attach(AVCodecContext *avctx, MediaCodecDecMetadata *m,
++                                      AVFrame *frame)
++{
++    PendingMetadata p;
++    int i, ret = 0;
++
++    if (!m || frame->pts == AV_NOPTS_VALUE)
++        return 0;
++
++    /* Pictures leave the codec in presentation order, entries arrive in decode order. */
++    for (i = 0; i < m->nb_pending && m->pending[i].pts != frame->pts; i++)
++        ;
++    if (i == m->nb_pending)
++        return 0;
++
++    p = m->pending[i];
++    memmove(&m->pending[i], &m->pending[i + 1], (m->nb_pending - i - 1) * sizeof(*m->pending));
++    m->nb_pending--;
++
++    if ((ret = attach_dovi(frame, AV_FRAME_DATA_DOVI_RPU_BUFFER, &p.dovi_rpu)) < 0 ||
++        (ret = attach_dovi(frame, AV_FRAME_DATA_DOVI_METADATA, &p.dovi)) < 0)
++        goto end;
++
++    if (p.hdr_plus)
++        ret = ff_frame_new_side_data_from_buf(avctx, frame, AV_FRAME_DATA_DYNAMIC_HDR_PLUS,
++                                              &p.hdr_plus);
++
++end:
++    pending_unref(&p);
++    return ret;
++}
++
++void ff_mediacodec_dec_metadata_flush(MediaCodecDecMetadata *m)
++{
++    if (!m)
++        return;
++
++    for (int i = 0; i < m->nb_pending; i++)
++        pending_unref(&m->pending[i]);
++    m->nb_pending = 0;
++
++    av_buffer_unref(&m->current_dovi);
++    ff_dovi_ctx_flush(&m->dovi);
++}
++
++void ff_mediacodec_dec_metadata_free(MediaCodecDecMetadata **pm)
++{
++    MediaCodecDecMetadata *m = *pm;
++
++    if (!m)
++        return;
++
++    ff_mediacodec_dec_metadata_flush(m);
++    ff_dovi_ctx_unref(&m->dovi);
++#if CONFIG_AV1_MEDIACODEC_DECODER
++    ff_av1_packet_uninit(&m->av1_pkt);
++#endif
++    av_freep(&m->rbsp);
++    av_freep(pm);
++}
+diff --git a/libavcodec/mediacodecdec_metadata.h b/libavcodec/mediacodecdec_metadata.h
+new file mode 100644
+index 0000000000..8014b80057
+--- /dev/null
++++ b/libavcodec/mediacodecdec_metadata.h
+@@ -0,0 +1,59 @@
++/*
++ * Android MediaCodec decoder dynamic HDR metadata export
++ *
++ * This file is part of FFmpeg.
++ *
++ * FFmpeg is free software; you can redistribute it and/or
++ * modify it under the terms of the GNU Lesser General Public
++ * License as published by the Free Software Foundation; either
++ * version 2.1 of the License, or (at your option) any later version.
++ *
++ * FFmpeg is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++ * Lesser General Public License for more details.
++ *
++ * You should have received a copy of the GNU Lesser General Public
++ * License along with FFmpeg; if not, write to the Free Software
++ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
++ */
++
++#ifndef AVCODEC_MEDIACODECDEC_METADATA_H
++#define AVCODEC_MEDIACODECDEC_METADATA_H
++
++#include "libavutil/frame.h"
++
++#include "avcodec.h"
++#include "packet.h"
++
++/**
++ * MediaCodec does not return the bitstream's dynamic HDR metadata, so it is
++ * parsed from the input packets in decode order and attached to the output
++ * frames matched by their presentation timestamps.
++ */
++typedef struct MediaCodecDecMetadata MediaCodecDecMetadata;
++
++/**
++ * @return 0 on success, or a negative AVERROR code. *out is left NULL for
++ *         codecs that carry no supported metadata.
++ */
++int ff_mediacodec_dec_metadata_init(AVCodecContext *avctx, MediaCodecDecMetadata **out);
++
++/**
++ * Parse one packet as it is handed to MediaCodec. Malformed metadata is
++ * skipped; only allocation failures are reported.
++ */
++int ff_mediacodec_dec_metadata_parse(AVCodecContext *avctx, MediaCodecDecMetadata *m,
++                                     const AVPacket *pkt);
++
++/**
++ * Attach the metadata of the packet whose timestamp the frame carries.
++ */
++int ff_mediacodec_dec_metadata_attach(AVCodecContext *avctx, MediaCodecDecMetadata *m,
++                                      AVFrame *frame);
++
++void ff_mediacodec_dec_metadata_flush(MediaCodecDecMetadata *m);
++
++void ff_mediacodec_dec_metadata_free(MediaCodecDecMetadata **m);
++
++#endif /* AVCODEC_MEDIACODECDEC_METADATA_H */

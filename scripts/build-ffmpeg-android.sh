@@ -15,6 +15,13 @@ if [[ ! -x "$ffmpeg_dir/configure" ]]; then
   exit 1
 fi
 
+# MediaCodec returns no dynamic HDR metadata; the patch parses it from the decoder's input packets.
+ffmpeg_patch="$repo_root/patches/ffmpeg-mediacodec-hdr-metadata.patch"
+if ! git -C "$ffmpeg_dir" apply --reverse --check "$ffmpeg_patch" 2>/dev/null; then
+  git -C "$ffmpeg_dir" apply --check "$ffmpeg_patch"
+  git -C "$ffmpeg_dir" apply "$ffmpeg_patch"
+fi
+
 if [[ -z "$android_ndk_home" || ! -d "$android_ndk_home" ]]; then
   echo "Android NDK not found. Set ANDROID_NDK_HOME to a valid NDK installation." >&2
   exit 1
