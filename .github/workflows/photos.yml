@@ -212,7 +212,7 @@ jobs:
 
   build-macos:
     name: Build photos-${{ matrix.target }}
-    runs-on: macos-14
+    runs-on: macos-15
     env:
       MACOSX_DEPLOYMENT_TARGET: "11.0"
       IPHONEOS_DEPLOYMENT_TARGET: "15.0"

@@ -383,7 +383,7 @@ Wasm retains JPEG ABI 80 internally. The build derives a `lightstudio_photos_` s
 
 The [Photos workflow](.github/workflows/photos.yml) uses `ubuntu-22.04`, the oldest supported hosted Ubuntu image, for Linux x64, Windows cross-builds, Android, wasm and packing. Linux arm64 builds natively on `ubuntu-22.04-arm`. Both Linux architectures compile inside pinned architecture-specific manylinux2014 (CentOS 7, glibc 2.17) containers; the host runner does not set the binary's glibc baseline. The baseline containers are build environments, not a recommendation to deploy an end-of-life OS.
 
-macOS uses `macos-14`, as the existing FFmpeg macOS job does, and explicitly targets macOS 11.0. That runner is deprecated upstream and will need replacement when retired; the deployment target can remain 11.0. Intel binaries are cross-built on Apple silicon. Windows x64 shared libraries use the MinGW Win32-thread toolchain on Linux.
+macOS uses `macos-15`, as the other Apple jobs do, and explicitly targets macOS 11.0. Intel binaries are cross-built on Apple silicon. Windows x64 shared libraries use the MinGW Win32-thread toolchain on Linux.
 
 Windows ARM64 shared libraries use [LLVM-MinGW](https://github.com/mstorsjo/llvm-mingw), because GCC MinGW does not target Windows on ARM. Compilation stays on `ubuntu-22.04`, using the SHA-256-pinned 20260908 UCRT toolchain. All dependencies are built with the same LLVM-MinGW toolchain, avoiding incompatible GCC/LLVM static objects. The C++ runtime, JPEG and zlib are embedded in LibRaw, and the package includes the required toolchain notices.
 
