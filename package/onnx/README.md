@@ -145,6 +145,9 @@ This does not mean that WebGPU or ORT Web generally lack browser threading.
 Native sources are pinned to ONNX Runtime commit
 `f2c39fe2f838cf35ce7da92824f5a5e3ee6e88a7`. A small CMake backport enables the
 upstream `onnxruntime_DAWN_PREBUILT_DIR` contract without changing that revision.
+On macOS and iOS, Core ML builder fixes supply the `pad` input that Core ML
+requires for convolutions and pooling with `valid` padding, and store large
+generated constants such as transposed MatMul weights in the weight file.
 Other dependencies use ONNX's pinned dependency manifest. Dawn is owned and
 released independently by `LightStudio.WebGPU`. The official 1.30.0 managed assemblies are included
 unchanged, with no Microsoft ONNX Runtime package dependency in the final NuGet.

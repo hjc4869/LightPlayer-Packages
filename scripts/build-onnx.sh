@@ -89,6 +89,14 @@ if [[ "$TARGET" == linux-* || "$TARGET" == android-* ]]; then
     git -C "$SOURCE_DIR" apply "$dawn_patch"
   fi
 fi
+if [[ "$TARGET" == osx-* || "$TARGET" == ios-arm64 || "$TARGET" == iossimulator-arm64 ]]; then
+  for coreml_patch in "$ROOT_DIR/patches/onnx-coreml-valid-pad.patch" "$ROOT_DIR/patches/onnx-coreml-constant-weights.patch"; do
+    if ! git -C "$SOURCE_DIR" apply --reverse --check "$coreml_patch" 2>/dev/null; then
+      git -C "$SOURCE_DIR" apply --check "$coreml_patch"
+      git -C "$SOURCE_DIR" apply "$coreml_patch"
+    fi
+  done
+fi
 
 "${PYTHON:-python3}" "$SOURCE_DIR/tools/ci_build/build.py" \
   --build_dir "$BUILD_DIR" \
